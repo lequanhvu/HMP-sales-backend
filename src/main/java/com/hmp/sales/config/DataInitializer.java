@@ -214,6 +214,12 @@ public class DataInitializer implements ApplicationRunner {
             new Object[]{"USER_UNLOCK",               "USER",     "/api/v1/admin/users/{id}/unlock",              "POST",   "Mở khóa tài khoản người dùng"},
             new Object[]{"USER_DELETE",               "USER",     "/api/v1/admin/users/{id}",                     "DELETE", "Xóa mềm tài khoản người dùng"},
             new Object[]{"MANAGER_CREATE",            "USER",     "/api/v1/admin/managers",                       "POST",   "Tạo tài khoản quản lý mới"},
+            new Object[]{"ME_PROFILE_VIEW",           "USER",     "/api/v1/me",                                   "GET",    "Xem thông tin hồ sơ cá nhân"},
+            new Object[]{"ME_PROFILE_UPDATE",         "USER",     "/api/v1/me",                                   "PATCH",  "Cập nhật thông tin hồ sơ cá nhân"},
+            new Object[]{"ME_ADDRESS_VIEW",           "USER",     "/api/v1/me/addresses",                         "GET",    "Xem danh sách địa chỉ nhận hàng cá nhân"},
+            new Object[]{"ME_ADDRESS_CREATE",         "USER",     "/api/v1/me/addresses",                         "POST",   "Thêm mới địa chỉ nhận hàng cá nhân"},
+            new Object[]{"ME_ADDRESS_UPDATE",         "USER",     "/api/v1/me/addresses/**",                      "PATCH",  "Cập nhật địa chỉ nhận hàng cá nhân"},
+            new Object[]{"ME_ADDRESS_DELETE",         "USER",     "/api/v1/me/addresses/**",                      "DELETE", "Xóa địa chỉ nhận hàng cá nhân"},
             // --- SYSTEM module ---
             new Object[]{"SYSTEM_LOG_VIEW",           "SYSTEM",   "/api/v1/admin/logs",                           "GET",    "Xem nhật ký hệ thống"},
             new Object[]{"SYSTEM_SETTING_UPDATE",     "SYSTEM",   "/api/v1/admin/settings/{key}",                 "PUT",    "Cập nhật cấu hình hệ thống"},
@@ -254,6 +260,7 @@ public class DataInitializer implements ApplicationRunner {
             "UNIT_VIEW_ALL", "UNIT_CREATE", "UNIT_UPDATE", "UNIT_LOCK", "UNIT_UNLOCK", "UNIT_DELETE",
             "COLOR_VIEW_ALL", "COLOR_CREATE", "COLOR_UPDATE", "COLOR_LOCK", "COLOR_UNLOCK", "COLOR_DELETE",
             "USER_VIEW_ALL", "USER_LOCK", "USER_UNLOCK", "USER_DELETE", "MANAGER_CREATE",
+            "ME_PROFILE_VIEW", "ME_PROFILE_UPDATE", "ME_ADDRESS_VIEW", "ME_ADDRESS_CREATE", "ME_ADDRESS_UPDATE", "ME_ADDRESS_DELETE",
             "SYSTEM_LOG_VIEW", "SYSTEM_SETTING_UPDATE",
             "ROLE_PERMISSION_VIEW", "ROLE_PERMISSION_UPDATE"
     );
@@ -264,14 +271,16 @@ public class DataInitializer implements ApplicationRunner {
             "PRODUCT_IMAGE_MANAGE", "PRODUCT_IMAGE_DELETE",
             "PRODUCT_VARIANT_CREATE", "PRODUCT_VARIANT_UPDATE", "PRODUCT_VARIANT_LOCK", "PRODUCT_VARIANT_UNLOCK", "PRODUCT_VARIANT_DELETE",
             "PRODUCT_CATEGORY_VIEW", "PRODUCT_CATEGORY_CREATE", "PRODUCT_CATEGORY_UPDATE", "PRODUCT_CATEGORY_LOCK", "PRODUCT_CATEGORY_UNLOCK", "PRODUCT_CATEGORY_DELETE",
-            "ORDER_VIEW_ALL", "ORDER_CALCULATE", "ORDER_CANCEL_ANY", "ORDER_STATUS_UPDATE"
+            "ORDER_VIEW_ALL", "ORDER_CALCULATE", "ORDER_CANCEL_ANY", "ORDER_STATUS_UPDATE",
+            "ME_PROFILE_VIEW", "ME_PROFILE_UPDATE", "ME_ADDRESS_VIEW", "ME_ADDRESS_CREATE", "ME_ADDRESS_UPDATE", "ME_ADDRESS_DELETE"
     );
 
     private static final Set<String> CUSTOMER_PERMISSIONS = Set.of(
             "PRODUCT_VIEW",
             "ORDER_CREATE", "ORDER_VIEW_OWN", "ORDER_CANCEL_OWN", "ORDER_CONFIRM_OWN",
             "ORDER_OTP_REQUEST", "ORDER_OTP_VERIFY",
-            "ME_OTP_REQUEST", "ME_OTP_VERIFY"
+            "ME_OTP_REQUEST", "ME_OTP_VERIFY",
+            "ME_PROFILE_VIEW", "ME_PROFILE_UPDATE", "ME_ADDRESS_VIEW", "ME_ADDRESS_CREATE", "ME_ADDRESS_UPDATE", "ME_ADDRESS_DELETE"
     );
 
     private void seedRolePermissions() {

@@ -51,7 +51,7 @@ public record PageResponse<T>(
      */
     public static <T> PageResponse<T> from(Page<T> page) {
         PageMeta meta = new PageMeta(
-                page.getNumber() + 1,
+                page.getNumber(),
                 page.getSize(),
                 page.getTotalElements(),
                 page.getTotalPages());

@@ -44,3 +44,32 @@ Toàn bộ 102/102 tests trong dự án đều PASS 100%.
 - Lưu lại vào cơ sở dữ liệu trước khi chuyển cờ `isDeleted = true` và `status = LOCKED`.
 - Việc này giúp giải phóng các ràng buộc `uk_users_email` và `uk_users_auth_provider_subject`, đảm bảo khách hàng có thể đăng ký hoặc đăng nhập lại bằng email, số điện thoại hoặc tài khoản Google cũ mà không bị lỗi trùng khóa (duplicate key exception).
 
+## 8. Customer Profile & Address Book (Phase 4 — Step 1)
+
+### Business Context
+Khách hàng cần quản lý thông tin cá nhân (họ tên, số điện thoại) và lưu danh sách sổ địa chỉ giao hàng (`CustomerAddress`) phục vụ việc chọn nhanh địa chỉ khi đặt hàng, đồng thời đảm bảo thông tin đơn hàng lịch sử là snapshot bất biến.
+
+### Technical Decisions
+- **`CustomerAddress` Entity**: Lưu tại bảng `customer_addresses`, liên kết `@ManyToOne` với `User(customer_id)`, chứa `addressLine`, `isDefault`, `status` (`AddressStatus`), `isDeleted`. Loại bỏ `receiverName` và `receiverPhone` khỏi sổ địa chỉ để tinh gọn mô hình (thông tin người nhận sẽ được nhập/snapshot trực tiếp trên `Order`).
+- **Độc quyền địa chỉ mặc định (`isDefault`)**: Khi thêm mới hoặc cập nhật một địa chỉ với `isDefault = true`, câu truy vấn `@Modifying resetDefaultAddress` tự động xóa cờ mặc định của các địa chỉ cũ cùng khách hàng. Nếu khách hàng tạo địa chỉ đầu tiên, hệ thống tự động gán `isDefault = true`.
+- **Kế thừa mặc định khi xóa địa chỉ**: Khi khách hàng xóa mềm địa chỉ đang là mặc định, hệ thống tự động chọn địa chỉ còn lại mới nhất (`findFirstByCustomerIdAndIsDeletedFalseOrderByCreatedAtDesc`) làm mặc định thay thế.
+- **Ràng buộc OTP khi đổi số điện thoại (`PATCH /api/v1/me`)**: Nếu khách hàng nhập số điện thoại mới khác số hiện tại, bắt buộc phải có bảo chứng xác thực OTP (`phoneOtpService.isVerified(phone)` trên Redis); nếu giữ nguyên số điện thoại cũ hoặc chỉ đổi họ tên thì không yêu cầu OTP.
+- **Tách biệt Service**: Tách `UserProfileService` (quản lý profile) và `CustomerAddressService` (quản lý sổ địa chỉ) theo Interface + Impl pattern, controller mỏng `MeController` tại `/api/v1/me`.
+- **Dynamic Permission Integration**: Đăng ký các quyền `ME_PROFILE_VIEW`, `ME_PROFILE_UPDATE`, `ME_ADDRESS_VIEW`, `ME_ADDRESS_CREATE`, `ME_ADDRESS_UPDATE`, `ME_ADDRESS_DELETE` vào `DataInitializer` và nạp vào bộ nhớ RAM của `PermissionAuthorizationManager`.
+
+### Considered and Rejected
+- **Lưu địa chỉ trực tiếp trên Order**: Bị loại bỏ vì khách hàng cần lưu sổ địa chỉ để tái sử dụng nhiều lần; thay vào đó, địa chỉ được lưu tại `CustomerAddress` và copy snapshot sang `Order` khi đặt hàng.
+- **Hard delete địa chỉ**: Bị loại bỏ để bảo toàn tính toàn vẹn và khả năng kiểm toán nếu có tham chiếu.
+
+### Dependencies
+- Phụ thuộc: `User` entity, `UserRepository`, `PhoneOtpService`, `SecurityUtils`, `GlobalExceptionHandler`.
+- Được phụ thuộc bởi: Module Order (`feature/order`) khi tạo đơn hàng sẽ đọc sổ địa chỉ của khách hàng.
+
+### Refactor Log
+
+#### 2026-11-02 | @antigravity
+- Triển khai Step 1 Phase 4: Customer Profile APIs (`GET/PATCH /api/v1/me`) và Customer Address Book CRUD (`GET/POST/PATCH/DELETE /api/v1/me/addresses`).
+- Thêm `CustomerAddress`, `CustomerAddressRepository`, `UserProfileService`, `CustomerAddressService`, `MeController`.
+- Bổ sung 23 unit & integration test cases (`UserProfileServiceImplTest`, `CustomerAddressServiceImplTest`, `MeControllerTest`), toàn bộ 254/254 tests pass.
+- Refactor tinh giản `CustomerAddress`: Xóa bỏ 2 trường `receiverName` và `receiverPhone` khỏi `CustomerAddress`, DTOs (`AddressRequest`, `AddressResponse`) và đồng bộ lại `api-spec.md` Section 6 (6.4, 6.5, 6.6) cùng `database.md` Table 16.
+

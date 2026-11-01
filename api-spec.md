@@ -879,8 +879,6 @@ GET /api/v1/me/addresses
   "data": [
     {
       "addressId": 1,
-      "receiverName": "Nguyen Van A",
-      "receiverPhone": "0987654321",
       "address": "123 Example Street",
       "isDefault": true,
       "status": "ACTIVE"
@@ -912,8 +910,6 @@ POST /api/v1/me/addresses
 
 ```json
 {
-  "receiverName": "Nguyen Van A",
-  "receiverPhone": "0987654321",
   "address": "123 Example Street",
   "isDefault": true
 }
@@ -926,8 +922,6 @@ POST /api/v1/me/addresses
   "statusCode": 201,
   "data": {
     "addressId": 2,
-    "receiverName": "Nguyen Van A",
-    "receiverPhone": "0987654321",
     "address": "123 Example Street",
     "isDefault": true,
     "status": "ACTIVE"
@@ -958,8 +952,6 @@ PATCH /api/v1/me/addresses/{addressId}
 
 ```json
 {
-  "receiverName": "Nguyen Van A",
-  "receiverPhone": "0987654321",
   "address": "456 New Street",
   "isDefault": false
 }
@@ -972,8 +964,6 @@ PATCH /api/v1/me/addresses/{addressId}
   "statusCode": 200,
   "data": {
     "addressId": 2,
-    "receiverName": "Nguyen Van A",
-    "receiverPhone": "0987654321",
     "address": "456 New Street",
     "isDefault": false,
     "status": "ACTIVE"

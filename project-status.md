@@ -1,6 +1,6 @@
 # Project Status
 
-> Last updated: 2026-11-02 | By: @antigravity | Session: #9
+> Last updated: 2026-11-02 | By: @antigravity | Session: #10
 >
 > AI: update this file at the end of every session when asked.
 > Follow this exact format. Preserve full milestone checklists and project specifications.
@@ -8,6 +8,22 @@
 ---
 
 ## Completed
+- ✅ **Phase 4 (Step 1) — Customer Profile & Address Book completed**:
+  - **Thực thể & Quản lý Sổ địa chỉ [`CustomerAddress`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/user/entity/CustomerAddress.java)**:
+    - Bảng `customer_addresses` lưu địa chỉ giao nhận hàng của khách hàng với các trường `address_id`, `customer_id`, `address_line`, `is_default`, `status` (`AddressStatus.ACTIVE`/`INACTIVE`), audit timestamps và cờ xóa mềm `is_deleted`. Đã tinh giản loại bỏ `receiver_name` và `receiver_phone` khỏi sổ địa chỉ và đồng bộ 100% với `api-spec.md` (thông tin người nhận sẽ được snapshot trực tiếp vào `Orders`).
+    - [`CustomerAddressRepository`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/user/repository/CustomerAddressRepository.java): Truy vấn danh sách địa chỉ chưa xóa mềm, sắp xếp theo mặc định (`isDefault DESC`) và thời gian tạo giảm dần.
+    - Cơ chế độc quyền địa chỉ mặc định: Khi tạo mới hoặc cập nhật địa chỉ với `isDefault = true`, truy vấn `@Modifying resetDefaultAddress` tự động xóa cờ mặc định của các địa chỉ cũ cùng khách hàng. Nếu là địa chỉ đầu tiên, hệ thống tự động gán `isDefault = true`.
+    - Cơ chế tự động kế thừa mặc định khi xóa: Khi khách hàng xóa mềm địa chỉ mặc định, địa chỉ còn lại mới nhất sẽ được tự động kích hoạt làm mặc định thay thế.
+  - **Hồ sơ Cá nhân & Ràng buộc OTP [`UserProfileService`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/user/service/UserProfileService.java)**:
+    - `GET /api/v1/me`: Xem thông tin tài khoản cá nhân (họ tên, email, phone, status).
+    - `PATCH /api/v1/me`: Cập nhật họ tên và số điện thoại. Bắt buộc kiểm tra bảo chứng xác thực OTP (`phoneOtpService.isVerified(phone)` trên Redis) khi thay đổi hoặc nhập số điện thoại mới. Giữ nguyên số cũ hoặc chỉ đổi họ tên thì không yêu cầu OTP.
+  - **REST Controller [`MeController`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/user/controller/MeController.java)**:
+    - Cung cấp đầy đủ các endpoint theo chuẩn `api-spec.md` Section 6: `GET /api/v1/me`, `PATCH /api/v1/me`, `GET /api/v1/me/addresses`, `POST /api/v1/me/addresses` (201 Created), `PATCH /api/v1/me/addresses/{addressId}`, `DELETE /api/v1/me/addresses/{addressId}`.
+    - Tích hợp trích xuất `userId` từ `Authentication` qua `SecurityUtils.extractUserId()`.
+  - **Phân quyền động trong `DataInitializer` & RAM Cache**:
+    - Khởi tạo và cấp các quyền `ME_PROFILE_VIEW`, `ME_PROFILE_UPDATE`, `ME_ADDRESS_VIEW`, `ME_ADDRESS_CREATE`, `ME_ADDRESS_UPDATE`, `ME_ADDRESS_DELETE` cho `CUSTOMER`, `ADMIN` và `MANAGER`.
+  - **Sửa triệt để lệch `+ 1` trong [`PageResponse.from()`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/common/response/PageResponse.java)**: Đồng bộ `page.getNumber()` chuẩn 0-indexed theo đúng REST API spec.
+  - Toàn bộ **254/254 tests pass 100%** (bổ sung 23 test cases mới: `UserProfileServiceImplTest`, `CustomerAddressServiceImplTest`, `MeControllerTest`).
 - ✅ **Chuẩn hóa Phân trang chuẩn & Triệt tiêu Hardcode tham số `page`, `size`**:
   - **Sửa lỗi chỉ số trang `meta.page` trong [`PageResponse`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/common/response/PageResponse.java)**:
     - Loại bỏ lệch `+ 1` trong `PageResponse.from(Page<T> page)` để đồng bộ 0-indexed (`"page": 0`) chuẩn xác theo đúng hợp đồng REST API và `api-spec.md`.
@@ -187,11 +203,10 @@ _Nothing._
 - ⚠️ **Scope Protection**: Do NOT implement V1 excluded modules (payment gateways, promotions, reviews, inventory, quotation, warranty, laser cutting, blogs).
 
 ## Next Tasks
-1. **[P1]** Implement Phase 4: Customer Address entity, repository, and CRUD APIs (`GET/POST/PATCH/DELETE /api/v1/me/addresses`).
-2. **[P1]** Implement Phase 4: Customer profile APIs (`GET /api/v1/me`, `PATCH /api/v1/me`).
-3. **[P1]** Implement Phase 4: Order & OrderItem entities with immutable price snapshots (`UnitPrice`, `TotalPrice`, `TotalAmount`).
-4. **[P1]** Implement Phase 4: Customer order creation with phone OTP verification & direct PostgreSQL persistence (`PENDING` state).
-5. **[P1]** Implement Phase 4: Manager order calculation (`TotalPrice = UnitPrice × Size × Quantity`) and lifecycle transitions (`PENDING -> CONFIRMED -> PROCESSING -> COMPLETED`).
+1. **[P1]** Implement Phase 4 (Step 2): Order & OrderItem entities with immutable price snapshots (`UnitPrice`, `TotalPrice`, `TotalAmount`), receiver snapshot fields, and `OrderStatusHistory`.
+2. **[P1]** Implement Phase 4 (Step 2): Customer order creation API (`POST /api/v1/orders`) with phone OTP verification & direct PostgreSQL persistence (`PENDING` state).
+3. **[P1]** Implement Phase 4 (Step 2): Customer order listing & detail APIs (`GET /api/v1/orders`, `GET /api/v1/orders/{orderId}`) and order cancellation within allowed cancellation window (`POST /api/v1/orders/{orderId}/cancel`).
+4. **[P1]** Implement Phase 4 (Step 3): Manager order listing, calculation (`TotalPrice = UnitPrice × Size × Quantity`), and lifecycle transitions (`PENDING -> CONFIRMED -> PROCESSING -> COMPLETED`).
 
 ## Milestones
 
@@ -264,8 +279,8 @@ _Nothing._
 - [x] Catalog unit and integration tests (157/157 tests pass)
 
 ### Phase 4 — Ordering & Manufacturing Price Calculation
-- [ ] CustomerAddress entity, repository, and CRUD APIs (`GET/POST/PATCH/DELETE /api/v1/me/addresses`)
-- [ ] Customer profile APIs (`GET /api/v1/me`, `PATCH /api/v1/me`)
+- [x] CustomerAddress entity, repository, and CRUD APIs (`GET/POST/PATCH/DELETE /api/v1/me/addresses`)
+- [x] Customer profile APIs (`GET /api/v1/me`, `PATCH /api/v1/me`)
 - [ ] Order & OrderItem entities with immutable price snapshots (`UnitPrice`, `TotalPrice`, `TotalAmount`)
 - [ ] Receiver snapshot fields on Order (`ReceiverName`, `ReceiverPhone`, address fields)
 - [ ] OrderStatusHistory entity & repository
