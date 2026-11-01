@@ -13,8 +13,12 @@ import com.hmp.sales.feature.category.entity.CategoryStatus;
 import com.hmp.sales.feature.product.dto.ProductSummaryResponse;
 import com.hmp.sales.feature.product.entity.Product;
 import com.hmp.sales.feature.product.entity.ProductStatus;
+import com.hmp.sales.feature.search.dto.SearchResourceType;
+import com.hmp.sales.feature.search.event.SearchIndexInvalidationEvent;
 import com.hmp.sales.security.PermissionEvaluationService;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -40,6 +44,22 @@ public class CategoryServiceImpl implements CategoryService {
     private final ProductRepository productRepository;
     private final UserRepository userRepository;
     private final PermissionEvaluationService permissionEvaluationService;
+    private ApplicationEventPublisher eventPublisher;
+
+    @Autowired(required = false)
+    public void setEventPublisher(ApplicationEventPublisher eventPublisher) {
+        this.eventPublisher = eventPublisher;
+    }
+
+    private void publishSearchInvalidation(Long targetId, SearchIndexInvalidationEvent.Operation op) {
+        if (eventPublisher != null) {
+            try {
+                eventPublisher.publishEvent(new SearchIndexInvalidationEvent(SearchResourceType.CATEGORY, targetId, op));
+            } catch (Exception e) {
+                log.debug("[CategoryService] Không thể bắn event search index sync: {}", e.getMessage());
+            }
+        }
+    }
 
     /**
      * Khởi tạo CategoryServiceImpl với các dependency cần thiết.
@@ -120,6 +140,7 @@ public class CategoryServiceImpl implements CategoryService {
 
         category = categoryRepository.save(category);
         log.info("[CategoryService] Tạo danh mục gốc: {} (ID={})", category.getCategoryName(), category.getId());
+        publishSearchInvalidation(category.getId(), SearchIndexInvalidationEvent.Operation.UPSERT);
         return CategoryResponse.fromEntity(category);
     }
 
@@ -145,6 +166,7 @@ public class CategoryServiceImpl implements CategoryService {
 
         category = categoryRepository.save(category);
         log.info("[CategoryService] Tạo danh mục con '{}' (ID={}) trong cha ID={}", category.getCategoryName(), category.getId(), parentId);
+        publishSearchInvalidation(category.getId(), SearchIndexInvalidationEvent.Operation.UPSERT);
         return CategoryResponse.fromEntity(category);
     }
 
@@ -172,6 +194,7 @@ public class CategoryServiceImpl implements CategoryService {
         }
 
         category = categoryRepository.save(category);
+        publishSearchInvalidation(category.getId(), SearchIndexInvalidationEvent.Operation.UPSERT);
         return CategoryResponse.fromEntity(category);
     }
 
@@ -202,6 +225,7 @@ public class CategoryServiceImpl implements CategoryService {
             // Rỗng → xóa mềm ngay
             category.setIsDeleted(true);
             categoryRepository.save(category);
+            publishSearchInvalidation(categoryId, SearchIndexInvalidationEvent.Operation.DELETE);
             log.info("[CategoryService] Xóa mềm danh mục rỗng ID={}", categoryId);
             return;
         }
@@ -227,6 +251,9 @@ public class CategoryServiceImpl implements CategoryService {
         categoryRepository.softDeleteByIds(allDescendantIds);
         if (!productIds.isEmpty()) {
             productRepository.softDeleteByIds(productIds);
+        }
+        for (Long descId : allDescendantIds) {
+            publishSearchInvalidation(descId, SearchIndexInvalidationEvent.Operation.DELETE);
         }
         log.info("[CategoryService] Cascade soft-delete danh mục ID={} và {} danh mục con, {} sản phẩm",
                 categoryId, childCategoryCount, productCount);
@@ -265,6 +292,7 @@ public class CategoryServiceImpl implements CategoryService {
         Category category = findActiveCategory(categoryId);
         category.setStatus(CategoryStatus.LOCKED);
         category = categoryRepository.save(category);
+        publishSearchInvalidation(categoryId, SearchIndexInvalidationEvent.Operation.DELETE);
         log.info("[CategoryService] Khóa danh mục ID={}", categoryId);
         return CategoryResponse.fromEntity(category);
     }
@@ -276,6 +304,7 @@ public class CategoryServiceImpl implements CategoryService {
         Category category = findActiveCategory(categoryId);
         category.setStatus(CategoryStatus.ACTIVE);
         category = categoryRepository.save(category);
+        publishSearchInvalidation(categoryId, SearchIndexInvalidationEvent.Operation.UPSERT);
         log.info("[CategoryService] Mở khóa danh mục ID={}", categoryId);
         return CategoryResponse.fromEntity(category);
     }

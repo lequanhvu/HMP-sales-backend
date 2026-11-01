@@ -36,6 +36,34 @@ public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpec
     List<Product> findByCategoryIdAndStatusAndIsDeletedFalse(Long categoryId, ProductStatus status);
 
     /**
+     * Lấy danh sách tất cả sản phẩm ACTIVE chưa bị xóa kèm ảnh và danh mục để nạp chỉ mục tìm kiếm vào RAM.
+     * Dùng LEFT JOIN FETCH để tránh LazyInitializationException khi open-in-view = false.
+     *
+     * @return danh sách sản phẩm active đã fetch đầy đủ quan hệ
+     */
+    @Query("""
+            SELECT DISTINCT p FROM Product p
+            LEFT JOIN FETCH p.category c
+            LEFT JOIN FETCH p.images i
+            WHERE p.isDeleted = false AND p.status = 'ACTIVE'
+            """)
+    List<Product> findAllActiveForSearchIndex();
+
+    /**
+     * Lấy thông tin một sản phẩm kèm ảnh và danh mục phục vụ cập nhật chỉ mục tìm kiếm trong RAM.
+     *
+     * @param id ID sản phẩm
+     * @return Optional chứa sản phẩm đã fetch đầy đủ quan hệ
+     */
+    @Query("""
+            SELECT DISTINCT p FROM Product p
+            LEFT JOIN FETCH p.category c
+            LEFT JOIN FETCH p.images i
+            WHERE p.id = :id AND p.isDeleted = false
+            """)
+    Optional<Product> findByIdForSearchIndex(@Param("id") Long id);
+
+    /**
      * Lấy danh sách tất cả sản phẩm (bao gồm cả ACTIVE và INACTIVE) thuộc một danh mục cụ thể chưa bị xóa mềm.
      * Dành riêng cho màn hình điều hành của Quản lý (Manager) và Quản trị viên (Admin).
      *

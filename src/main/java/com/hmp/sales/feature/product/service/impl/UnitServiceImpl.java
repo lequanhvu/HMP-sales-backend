@@ -2,6 +2,7 @@ package com.hmp.sales.feature.product.service.impl;
 
 import com.hmp.sales.common.exception.BusinessRuleException;
 import com.hmp.sales.common.exception.ResourceNotFoundException;
+import com.hmp.sales.common.util.VietnameseStringUtils;
 import com.hmp.sales.feature.product.dto.UnitRequest;
 import com.hmp.sales.feature.product.dto.UnitResponse;
 import com.hmp.sales.feature.product.entity.Unit;
@@ -42,7 +43,8 @@ public class UnitServiceImpl implements UnitService {
     public Page<UnitResponse> searchUnits(String keyword, String status, int page, int size) {
         UnitStatus unitStatus = parseStatus(status);
         var pageable = PageRequest.of(page, size, Sort.by("unitName").ascending());
-        return unitRepository.searchUnits(keyword, unitStatus, pageable)
+        String normalizedKeyword = VietnameseStringUtils.toUnaccentLowerCase(keyword);
+        return unitRepository.searchUnits(normalizedKeyword, unitStatus, pageable)
                 .map(UnitResponse::fromEntity);
     }
 

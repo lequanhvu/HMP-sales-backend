@@ -1,5 +1,6 @@
 package com.hmp.sales.feature.product.entity;
 
+import com.hmp.sales.common.util.VietnameseStringUtils;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -38,6 +39,12 @@ public class Brand {
     private String brandName;
 
     /**
+     * Tên thương hiệu dạng chữ thường không dấu, phục vụ tìm kiếm.
+     */
+    @Column(name = "brand_name_unaccent", length = 150)
+    private String brandNameUnaccent;
+
+    /**
      * Trạng thái hoạt động của thương hiệu (ACTIVE hoặc LOCKED).
      */
     @Enumerated(EnumType.STRING)
@@ -70,11 +77,13 @@ public class Brand {
         this.updatedAt = Instant.now();
         if (this.isDeleted == null) this.isDeleted = false;
         if (this.status == null) this.status = BrandStatus.ACTIVE;
+        this.brandNameUnaccent = VietnameseStringUtils.toUnaccentLowerCase(this.brandName);
     }
 
     @PreUpdate
     protected void onUpdate() {
         this.updatedAt = Instant.now();
+        this.brandNameUnaccent = VietnameseStringUtils.toUnaccentLowerCase(this.brandName);
     }
 
     @Override

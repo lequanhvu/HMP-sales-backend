@@ -1,5 +1,6 @@
 package com.hmp.sales.feature.product.entity;
 
+import com.hmp.sales.common.util.VietnameseStringUtils;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -39,6 +40,12 @@ public class Unit {
     private String unitName;
 
     /**
+     * Tên đơn vị tính dạng chữ thường không dấu, phục vụ tìm kiếm.
+     */
+    @Column(name = "unit_name_unaccent", length = 50)
+    private String unitNameUnaccent;
+
+    /**
      * Trạng thái hoạt động của đơn vị tính (ACTIVE hoặc LOCKED).
      */
     @Enumerated(EnumType.STRING)
@@ -71,11 +78,13 @@ public class Unit {
         this.updatedAt = Instant.now();
         if (this.isDeleted == null) this.isDeleted = false;
         if (this.status == null) this.status = UnitStatus.ACTIVE;
+        this.unitNameUnaccent = VietnameseStringUtils.toUnaccentLowerCase(this.unitName);
     }
 
     @PreUpdate
     protected void onUpdate() {
         this.updatedAt = Instant.now();
+        this.unitNameUnaccent = VietnameseStringUtils.toUnaccentLowerCase(this.unitName);
     }
 
     @Override

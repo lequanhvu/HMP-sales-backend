@@ -2,13 +2,18 @@ package com.hmp.sales.feature.product.service.impl;
 
 import com.hmp.sales.common.exception.BusinessRuleException;
 import com.hmp.sales.common.exception.ResourceNotFoundException;
+import com.hmp.sales.common.util.VietnameseStringUtils;
 import com.hmp.sales.feature.product.dto.BrandRequest;
 import com.hmp.sales.feature.product.dto.BrandResponse;
 import com.hmp.sales.feature.product.entity.Brand;
 import com.hmp.sales.feature.product.entity.BrandStatus;
 import com.hmp.sales.feature.product.repository.BrandRepository;
 import com.hmp.sales.feature.product.service.BrandService;
+import com.hmp.sales.feature.search.dto.SearchResourceType;
+import com.hmp.sales.feature.search.event.SearchIndexInvalidationEvent;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -27,6 +32,22 @@ import java.util.stream.Collectors;
 public class BrandServiceImpl implements BrandService {
 
     private final BrandRepository brandRepository;
+    private ApplicationEventPublisher eventPublisher;
+
+    @Autowired(required = false)
+    public void setEventPublisher(ApplicationEventPublisher eventPublisher) {
+        this.eventPublisher = eventPublisher;
+    }
+
+    private void publishSearchInvalidation(Long targetId, SearchIndexInvalidationEvent.Operation op) {
+        if (eventPublisher != null) {
+            try {
+                eventPublisher.publishEvent(new SearchIndexInvalidationEvent(SearchResourceType.BRAND, targetId, op));
+            } catch (Exception e) {
+                log.debug("[BrandService] Không thể bắn event search index sync: {}", e.getMessage());
+            }
+        }
+    }
 
     /**
      * Khởi tạo BrandServiceImpl với repository thương hiệu.
@@ -43,7 +64,8 @@ public class BrandServiceImpl implements BrandService {
     public Page<BrandResponse> searchBrands(String keyword, String status, int page, int size) {
         BrandStatus brandStatus = parseStatus(status, BrandStatus.class);
         var pageable = PageRequest.of(page, size, Sort.by("brandName").ascending());
-        return brandRepository.searchBrands(keyword, brandStatus, pageable)
+        String normalizedKeyword = VietnameseStringUtils.toUnaccentLowerCase(keyword);
+        return brandRepository.searchBrands(normalizedKeyword, brandStatus, pageable)
                 .map(BrandResponse::fromEntity);
     }
 
@@ -64,6 +86,7 @@ public class BrandServiceImpl implements BrandService {
         Brand brand = Brand.builder().brandName(request.brandName()).build();
         brand = brandRepository.save(brand);
         log.info("[BrandService] Tạo thương hiệu: {} (ID={})", brand.getBrandName(), brand.getId());
+        publishSearchInvalidation(brand.getId(), SearchIndexInvalidationEvent.Operation.UPSERT);
         return BrandResponse.fromEntity(brand);
     }
 
@@ -77,6 +100,7 @@ public class BrandServiceImpl implements BrandService {
         }
         brand.setBrandName(request.brandName());
         brand = brandRepository.save(brand);
+        publishSearchInvalidation(brand.getId(), SearchIndexInvalidationEvent.Operation.UPSERT);
         return BrandResponse.fromEntity(brand);
     }
 
@@ -86,7 +110,9 @@ public class BrandServiceImpl implements BrandService {
     public BrandResponse lockBrand(Long brandId) {
         Brand brand = findActiveBrand(brandId);
         brand.setStatus(BrandStatus.LOCKED);
-        return BrandResponse.fromEntity(brandRepository.save(brand));
+        brand = brandRepository.save(brand);
+        publishSearchInvalidation(brandId, SearchIndexInvalidationEvent.Operation.DELETE);
+        return BrandResponse.fromEntity(brand);
     }
 
     /** {@inheritDoc} */
@@ -95,7 +121,9 @@ public class BrandServiceImpl implements BrandService {
     public BrandResponse unlockBrand(Long brandId) {
         Brand brand = findActiveBrand(brandId);
         brand.setStatus(BrandStatus.ACTIVE);
-        return BrandResponse.fromEntity(brandRepository.save(brand));
+        brand = brandRepository.save(brand);
+        publishSearchInvalidation(brandId, SearchIndexInvalidationEvent.Operation.UPSERT);
+        return BrandResponse.fromEntity(brand);
     }
 
     /** {@inheritDoc} */
@@ -108,6 +136,7 @@ public class BrandServiceImpl implements BrandService {
         }
         brand.setIsDeleted(true);
         brandRepository.save(brand);
+        publishSearchInvalidation(brandId, SearchIndexInvalidationEvent.Operation.DELETE);
         log.info("[BrandService] Xóa mềm thương hiệu ID={}", brandId);
     }
 

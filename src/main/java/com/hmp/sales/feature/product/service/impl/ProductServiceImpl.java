@@ -2,6 +2,7 @@ package com.hmp.sales.feature.product.service.impl;
 
 import com.hmp.sales.common.exception.BusinessRuleException;
 import com.hmp.sales.common.exception.ResourceNotFoundException;
+import com.hmp.sales.common.util.VietnameseStringUtils;
 import com.hmp.sales.config.AppProperties;
 import com.hmp.sales.feature.category.entity.Category;
 import com.hmp.sales.feature.category.repository.CategoryRepository;
@@ -9,8 +10,11 @@ import com.hmp.sales.feature.product.dto.*;
 import com.hmp.sales.feature.product.entity.*;
 import com.hmp.sales.feature.product.repository.*;
 import com.hmp.sales.feature.product.service.ProductService;
+import com.hmp.sales.feature.search.dto.SearchResourceType;
+import com.hmp.sales.feature.search.event.SearchIndexInvalidationEvent;
 import com.hmp.sales.feature.user.repository.UserRepository;
 import com.hmp.sales.security.PermissionEvaluationService;
+import org.springframework.context.ApplicationEventPublisher;
 
 import jakarta.persistence.criteria.Join;
 import jakarta.persistence.criteria.JoinType;
@@ -62,6 +66,22 @@ public class ProductServiceImpl implements ProductService {
     private final UserRepository userRepository;
     private final PermissionEvaluationService permissionEvaluationService;
     private final AppProperties appProperties;
+    private ApplicationEventPublisher eventPublisher;
+
+    @Autowired(required = false)
+    public void setEventPublisher(ApplicationEventPublisher eventPublisher) {
+        this.eventPublisher = eventPublisher;
+    }
+
+    private void publishSearchInvalidation(Long targetId, SearchIndexInvalidationEvent.Operation op) {
+        if (eventPublisher != null) {
+            try {
+                eventPublisher.publishEvent(new SearchIndexInvalidationEvent(SearchResourceType.PRODUCT, targetId, op));
+            } catch (Exception e) {
+                log.debug("[ProductService] Không thể bắn event search index sync: {}", e.getMessage());
+            }
+        }
+    }
 
     /**
      * Khởi tạo ProductServiceImpl với tất cả dependency và cấu hình ứng dụng.
@@ -170,21 +190,22 @@ public class ProductServiceImpl implements ProductService {
             // 1. Luôn lọc sản phẩm chưa bị xóa mềm
             predicates.add(cb.equal(root.get("isDeleted"), false));
 
-            // 2. Tìm kiếm theo tên sản phẩm (không phân biệt hoa thường)
+            // 2. Tìm kiếm theo tên sản phẩm (không phân biệt dấu và hoa thường)
             if (request.productName() != null && !request.productName().isBlank()) {
+                String normalizedProductName = VietnameseStringUtils.toUnaccentLowerCase(request.productName());
                 predicates.add(cb.like(
-                    cb.lower(root.get("productName")),
-                    "%" + request.productName().trim().toLowerCase() + "%"
+                    cb.lower(root.get("productNameUnaccent")),
+                    "%" + normalizedProductName + "%"
                 ));
             }
 
-            // 3. Tìm kiếm theo tên danh mục (Join sang Category và so sánh categoryName)
+            // 3. Tìm kiếm theo tên danh mục (không phân biệt dấu và hoa thường)
             if (request.categoryName() != null && !request.categoryName().isBlank()) {
-                // Join từ Product sang Category (thay "category" bằng tên thuộc tính Category trong Product entity)
                 Join<Product, Category> categoryJoin = root.join("category", JoinType.LEFT);
+                String normalizedCategoryName = VietnameseStringUtils.toUnaccentLowerCase(request.categoryName());
                 predicates.add(cb.like(
-                    cb.lower(categoryJoin.get("categoryName")),
-                    "%" + request.categoryName().trim().toLowerCase() + "%"
+                    cb.lower(categoryJoin.get("categoryNameUnaccent")),
+                    "%" + normalizedCategoryName + "%"
                 ));
             }
 
@@ -239,6 +260,7 @@ public class ProductServiceImpl implements ProductService {
         }
 
         log.info("[ProductService] Tạo sản phẩm '{}' (ID={}) trong danh mục ID={}", product.getProductName(), product.getId(), categoryId);
+        publishSearchInvalidation(product.getId(), SearchIndexInvalidationEvent.Operation.UPSERT);
         // Reload để có full children
         product = findActiveProduct(product.getId());
         boolean priceVisible = permissionEvaluationService.hasPermission("PRODUCT_PRICE_VIEW");
@@ -269,6 +291,7 @@ public class ProductServiceImpl implements ProductService {
         }
 
         product = productRepository.save(product);
+        publishSearchInvalidation(product.getId(), SearchIndexInvalidationEvent.Operation.UPSERT);
         boolean priceVisible = permissionEvaluationService.hasPermission("PRODUCT_PRICE_VIEW");
         return ProductDetailResponse.fromEntity(product, priceVisible);
     }
@@ -280,6 +303,7 @@ public class ProductServiceImpl implements ProductService {
         Product product = findActiveProduct(productId);
         product.setStatus(ProductStatus.INACTIVE);
         product = productRepository.save(product);
+        publishSearchInvalidation(productId, SearchIndexInvalidationEvent.Operation.DELETE);
         boolean priceVisible = permissionEvaluationService.hasPermission("PRODUCT_PRICE_VIEW");
         return ProductDetailResponse.fromEntity(product, priceVisible);
     }
@@ -291,6 +315,7 @@ public class ProductServiceImpl implements ProductService {
         Product product = findActiveProduct(productId);
         product.setStatus(ProductStatus.ACTIVE);
         product = productRepository.save(product);
+        publishSearchInvalidation(productId, SearchIndexInvalidationEvent.Operation.UPSERT);
         boolean priceVisible = permissionEvaluationService.hasPermission("PRODUCT_PRICE_VIEW");
         return ProductDetailResponse.fromEntity(product, priceVisible);
     }
@@ -309,6 +334,7 @@ public class ProductServiceImpl implements ProductService {
         productVariantRepository.softDeleteByProductId(productId);
         product.setIsDeleted(true);
         productRepository.save(product);
+        publishSearchInvalidation(productId, SearchIndexInvalidationEvent.Operation.DELETE);
         log.info("[ProductService] Xóa mềm sản phẩm ID={}", productId);
     }
 

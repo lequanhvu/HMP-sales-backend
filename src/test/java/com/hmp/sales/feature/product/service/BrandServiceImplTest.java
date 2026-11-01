@@ -56,7 +56,7 @@ class BrandServiceImplTest {
     @Test
     @DisplayName("searchBrands - Tìm kiếm phân trang trả về đúng dữ liệu")
     void searchBrands_returnsPage() {
-        when(brandRepository.searchBrands(eq("Hoa Sen"), eq(BrandStatus.ACTIVE), any(Pageable.class)))
+        when(brandRepository.searchBrands(eq("hoa sen"), eq(BrandStatus.ACTIVE), any(Pageable.class)))
                 .thenReturn(new PageImpl<>(List.of(brand)));
 
         Page<BrandResponse> page = brandService.searchBrands("Hoa Sen", "ACTIVE", 0, 10);

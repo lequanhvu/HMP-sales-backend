@@ -116,7 +116,7 @@ class ProductServiceImplTest {
     @DisplayName("searchProducts - Có quyền PRODUCT_PRICE_VIEW -> priceVisible = true")
     void searchProducts_withPermission_priceVisibleIsTrue() {
         when(permissionEvaluationService.hasPermission("PRODUCT_PRICE_VIEW")).thenReturn(true);
-        when(productRepository.searchProducts(any(), any(), any(), any(Pageable.class)))
+        when(productRepository.findAll(any(org.springframework.data.jpa.domain.Specification.class), any(Pageable.class)))
                 .thenReturn(new PageImpl<>(List.of(product)));
 
         ProductFilterParams params = new ProductFilterParams(null, null, null, "createdAt", "asc", 0, 10);
@@ -130,7 +130,7 @@ class ProductServiceImplTest {
     @DisplayName("searchProducts - Không có quyền PRODUCT_PRICE_VIEW -> priceVisible = false")
     void searchProducts_withoutPermission_priceVisibleIsFalse() {
         when(permissionEvaluationService.hasPermission("PRODUCT_PRICE_VIEW")).thenReturn(false);
-        when(productRepository.searchProducts(any(), any(), any(), any(Pageable.class)))
+        when(productRepository.findAll(any(org.springframework.data.jpa.domain.Specification.class), any(Pageable.class)))
                 .thenReturn(new PageImpl<>(List.of(product)));
 
         ProductFilterParams params = new ProductFilterParams(null, null, null, "createdAt", "asc", 0, 10);

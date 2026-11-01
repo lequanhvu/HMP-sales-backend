@@ -1,5 +1,6 @@
 package com.hmp.sales.feature.product.entity;
 
+import com.hmp.sales.common.util.VietnameseStringUtils;
 import com.hmp.sales.feature.category.entity.Category;
 import com.hmp.sales.feature.user.entity.User;
 import jakarta.persistence.*;
@@ -61,6 +62,12 @@ public class Product {
     private String productName;
 
     /**
+     * Tên sản phẩm dạng chữ thường không dấu, phục vụ tìm kiếm không phân biệt dấu.
+     */
+    @Column(name = "product_name_unaccent", length = 250)
+    private String productNameUnaccent;
+
+    /**
      * Mô tả chi tiết sản phẩm (tùy chọn, lưu dạng TEXT).
      */
     @Column(name = "description", columnDefinition = "TEXT")
@@ -120,11 +127,13 @@ public class Product {
         this.updatedAt = Instant.now();
         if (this.isDeleted == null) this.isDeleted = false;
         if (this.status == null) this.status = ProductStatus.ACTIVE;
+        this.productNameUnaccent = VietnameseStringUtils.toUnaccentLowerCase(this.productName);
     }
 
     @PreUpdate
     protected void onUpdate() {
         this.updatedAt = Instant.now();
+        this.productNameUnaccent = VietnameseStringUtils.toUnaccentLowerCase(this.productName);
     }
 
     @Override

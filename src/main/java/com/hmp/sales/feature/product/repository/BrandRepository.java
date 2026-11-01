@@ -62,7 +62,7 @@ public interface BrandRepository extends JpaRepository<Brand, Long> {
     @Query("""
             SELECT b FROM Brand b
             WHERE b.isDeleted = false
-              AND (:keyword IS NULL OR LOWER(b.brandName) LIKE LOWER(CONCAT('%', :keyword, '%')))
+              AND (:keyword IS NULL OR LOWER(b.brandNameUnaccent) LIKE LOWER(CONCAT('%', :keyword, '%')))
               AND (:status IS NULL OR b.status = :status)
             """)
     Page<Brand> searchBrands(@Param("keyword") String keyword,

@@ -59,6 +59,7 @@ Purpose: all application identities.
 |---|---|---:|---|
 | UserID | BIGINT IDENTITY | No | PK |
 | FullName | NVARCHAR(150) | No | Display name |
+| FullNameUnaccent | VARCHAR(150) | Yes | Normalized lowercase unaccented name for accent-insensitive search |
 | Email | NVARCHAR(255) | No | Unique for application account |
 | Phone | VARCHAR(100) | Yes | Customer contact; suffixed with UUID on soft delete |
 | PasswordHash | NVARCHAR(255) | Yes | Null for Google-authenticated Customer |
@@ -163,6 +164,7 @@ This is a self-referencing tree.
 | CategoryID | BIGINT IDENTITY | No | PK |
 | ParentCategoryID | BIGINT | Yes | FK Category.CategoryID; null = root |
 | CategoryName | NVARCHAR(150) | No | Name |
+| CategoryNameUnaccent | VARCHAR(150) | Yes | Normalized lowercase unaccented name for accent-insensitive search |
 | Status | VARCHAR(20) | No | `ACTIVE`, `INACTIVE` |
 | CreatedBy | BIGINT | No | FK User |
 | CreatedAt | DATETIME2 | No | Created timestamp |
@@ -186,6 +188,7 @@ Admin-configurable brand/manufacturer.
 |---|---|---:|---|
 | BrandID | BIGINT IDENTITY | No | PK |
 | BrandName | NVARCHAR(150) | No | Unique |
+| BrandNameUnaccent | VARCHAR(150) | Yes | Normalized lowercase unaccented name for accent-insensitive search |
 | Status | VARCHAR(20) | No | `ACTIVE`, `INACTIVE` / `LOCKED` |
 | CreatedAt | DATETIME2 | No | |
 | UpdatedAt | DATETIME2 | No | |
@@ -204,6 +207,7 @@ Admin-configurable selling unit.
 |---|---|---:|---|
 | UnitID | BIGINT IDENTITY | No | PK |
 | UnitName | NVARCHAR(50) | No | `m`, `cái`, `tấm`, etc. |
+| UnitNameUnaccent | VARCHAR(50) | Yes | Normalized lowercase unaccented name for accent-insensitive search |
 | Status | VARCHAR(20) | No | `ACTIVE`, `INACTIVE` / `LOCKED` |
 | CreatedAt | DATETIME2 | No | |
 | UpdatedAt | DATETIME2 | No | |
@@ -222,6 +226,7 @@ Rules:
 | CategoryID | BIGINT | No | FK Category |
 | BrandID | BIGINT | Yes | FK Brand |
 | ProductName | NVARCHAR(250) | No | Product name |
+| ProductNameUnaccent | VARCHAR(250) | Yes | Normalized lowercase unaccented name for accent-insensitive search |
 | Description | NVARCHAR(MAX) | Yes | Product description |
 | Status | VARCHAR(20) | No | `ACTIVE`, `INACTIVE` |
 | CreatedBy | BIGINT | No | FK User |
@@ -263,6 +268,7 @@ Admin-configurable manufacturing color.
 |---|---|---:|---|
 | ColorID | BIGINT IDENTITY | No | PK |
 | ColorName | NVARCHAR(100) | No | Manufacturing color (Unique) |
+| ColorNameUnaccent | VARCHAR(100) | Yes | Normalized lowercase unaccented name for accent-insensitive search |
 | ImageURL | NVARCHAR(500) | Yes | Color swatch / sample preview image URL |
 | Status | VARCHAR(20) | No | `ACTIVE`, `INACTIVE` / `LOCKED` |
 | CreatedAt | DATETIME2 | No | |

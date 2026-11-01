@@ -2,6 +2,7 @@ package com.hmp.sales.feature.product.service.impl;
 
 import com.hmp.sales.common.exception.BusinessRuleException;
 import com.hmp.sales.common.exception.ResourceNotFoundException;
+import com.hmp.sales.common.util.VietnameseStringUtils;
 import com.hmp.sales.feature.product.dto.ColorRequest;
 import com.hmp.sales.feature.product.dto.ColorResponse;
 import com.hmp.sales.feature.product.entity.Color;
@@ -42,7 +43,8 @@ public class ColorServiceImpl implements ColorService {
     public Page<ColorResponse> searchColors(String keyword, String status, int page, int size) {
         ColorStatus colorStatus = parseStatus(status);
         var pageable = PageRequest.of(page, size, Sort.by("colorName").ascending());
-        return colorRepository.searchColors(keyword, colorStatus, pageable)
+        String normalizedKeyword = VietnameseStringUtils.toUnaccentLowerCase(keyword);
+        return colorRepository.searchColors(normalizedKeyword, colorStatus, pageable)
                 .map(ColorResponse::fromEntity);
     }
 

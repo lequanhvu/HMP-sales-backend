@@ -55,7 +55,7 @@ class ColorServiceImplTest {
     @Test
     @DisplayName("searchColors - Phân trang màu sắc thành công")
     void searchColors_returnsPage() {
-        when(colorRepository.searchColors(eq("ngọc"), eq(ColorStatus.ACTIVE), any(Pageable.class)))
+        when(colorRepository.searchColors(eq("ngoc"), eq(ColorStatus.ACTIVE), any(Pageable.class)))
                 .thenReturn(new PageImpl<>(List.of(color)));
 
         Page<ColorResponse> page = colorService.searchColors("ngọc", "ACTIVE", 0, 10);

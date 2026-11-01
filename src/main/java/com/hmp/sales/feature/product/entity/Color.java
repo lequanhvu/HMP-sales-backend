@@ -1,5 +1,6 @@
 package com.hmp.sales.feature.product.entity;
 
+import com.hmp.sales.common.util.VietnameseStringUtils;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -36,6 +37,12 @@ public class Color {
      */
     @Column(name = "color_name", nullable = false, length = 100)
     private String colorName;
+
+    /**
+     * Tên màu sắc dạng chữ thường không dấu, phục vụ tìm kiếm.
+     */
+    @Column(name = "color_name_unaccent", length = 100)
+    private String colorNameUnaccent;
 
     /**
      * Đường dẫn hình ảnh mẫu màu sắc (tùy chọn, tối đa 500 ký tự).
@@ -76,11 +83,13 @@ public class Color {
         this.updatedAt = Instant.now();
         if (this.isDeleted == null) this.isDeleted = false;
         if (this.status == null) this.status = ColorStatus.ACTIVE;
+        this.colorNameUnaccent = VietnameseStringUtils.toUnaccentLowerCase(this.colorName);
     }
 
     @PreUpdate
     protected void onUpdate() {
         this.updatedAt = Instant.now();
+        this.colorNameUnaccent = VietnameseStringUtils.toUnaccentLowerCase(this.colorName);
     }
 
     @Override

@@ -61,7 +61,7 @@ public interface ColorRepository extends JpaRepository<Color, Long> {
     @Query("""
             SELECT c FROM Color c
             WHERE c.isDeleted = false
-              AND (:keyword IS NULL OR LOWER(c.colorName) LIKE LOWER(CONCAT('%', :keyword, '%')))
+              AND (:keyword IS NULL OR LOWER(c.colorNameUnaccent) LIKE LOWER(CONCAT('%', :keyword, '%')))
               AND (:status IS NULL OR c.status = :status)
             """)
     Page<Color> searchColors(@Param("keyword") String keyword,

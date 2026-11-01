@@ -485,6 +485,57 @@ Returns list of active manufacturing colors.
 
 # 5. Public product APIs
 
+## 5.0 Search Suggestions / Type-Ahead Autocomplete
+
+```http
+GET /api/v1/search/suggestions
+```
+
+Phục vụ thanh tìm kiếm nhanh (Type-ahead / Autocomplete) với tốc độ phản hồi tức thời từ bộ nhớ RAM ($< 2\text{ms}$).
+Hỗ trợ tìm kiếm tiếng Việt không dấu (`"ton"` $\rightarrow$ `"Tôn sóng"`), sai nguyên âm (`"lọp"` $\rightarrow$ `"lợp"`), và tự động sửa lỗi gõ trượt phím (Fuzzy Search Levenshtein Distance $\le 2$, ví dụ: `"ton sog"` $\rightarrow$ `"Tôn sóng"`, `"hoa senn"` $\rightarrow$ `"Hoa Sen"`).
+
+### Query parameters
+
+```text
+keyword # string, optional, tối đa 50 ký tự (từ khóa người dùng đang gõ)
+type    # PRODUCT | CATEGORY | BRAND, optional (loại tài nguyên cần lọc; nếu null sẽ tìm tổng hợp)
+limit   # int, optional, mặc định 10, tối đa 20
+```
+
+### Request example
+
+```http
+GET /api/v1/search/suggestions?keyword=ton&type=PRODUCT&limit=10
+```
+
+### Success response — 200
+
+```json
+{
+  "statusCode": 200,
+  "message": "Thành công",
+  "data": [
+    {
+      "id": 1,
+      "name": "Tôn sóng lợp mái Hoa Sen",
+      "type": "PRODUCT",
+      "imageUrl": "https://example.com/images/ton-hoa-sen.jpg",
+      "extraInfo": "Phụ kiện lợp mái"
+    },
+    {
+      "id": 2,
+      "name": "Tôn Đông Á lạnh màu",
+      "type": "PRODUCT",
+      "imageUrl": null,
+      "extraInfo": "Tôn lạnh"
+    }
+  ],
+  "timestamp": "2026-11-01T12:00:00"
+}
+```
+
+---
+
 ## 5.1 Search/filter products
 
 ```http

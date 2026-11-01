@@ -1,5 +1,6 @@
 package com.hmp.sales.feature.user.entity;
 
+import com.hmp.sales.common.util.VietnameseStringUtils;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -57,6 +58,12 @@ public class User {
      */
     @Column(name = "full_name", nullable = false, length = 150)
     private String fullName;
+
+    /**
+     * Họ và tên dạng chữ thường không dấu, phục vụ tìm kiếm.
+     */
+    @Column(name = "full_name_unaccent", length = 150)
+    private String fullNameUnaccent;
 
     /**
      * Địa chỉ email của người dùng (duy nhất trong toàn hệ thống).
@@ -135,11 +142,13 @@ public class User {
         if (this.status == null) {
             this.status = UserStatus.ACTIVE;
         }
+        this.fullNameUnaccent = VietnameseStringUtils.toUnaccentLowerCase(this.fullName);
     }
 
     @PreUpdate
     protected void onUpdate() {
         this.updatedAt = Instant.now();
+        this.fullNameUnaccent = VietnameseStringUtils.toUnaccentLowerCase(this.fullName);
     }
 
     @Override

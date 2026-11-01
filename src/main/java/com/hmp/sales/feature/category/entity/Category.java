@@ -1,5 +1,6 @@
 package com.hmp.sales.feature.category.entity;
 
+import com.hmp.sales.common.util.VietnameseStringUtils;
 import com.hmp.sales.feature.user.entity.User;
 import jakarta.persistence.*;
 import lombok.*;
@@ -60,6 +61,12 @@ public class Category {
     private String categoryName;
 
     /**
+     * Tên danh mục dạng chữ thường không dấu, phục vụ tìm kiếm.
+     */
+    @Column(name = "category_name_unaccent", length = 150)
+    private String categoryNameUnaccent;
+
+    /**
      * Trạng thái hoạt động của danh mục (ACTIVE hoặc LOCKED).
      */
     @Enumerated(EnumType.STRING)
@@ -99,11 +106,13 @@ public class Category {
         this.updatedAt = Instant.now();
         if (this.isDeleted == null) this.isDeleted = false;
         if (this.status == null) this.status = CategoryStatus.ACTIVE;
+        this.categoryNameUnaccent = VietnameseStringUtils.toUnaccentLowerCase(this.categoryName);
     }
 
     @PreUpdate
     protected void onUpdate() {
         this.updatedAt = Instant.now();
+        this.categoryNameUnaccent = VietnameseStringUtils.toUnaccentLowerCase(this.categoryName);
     }
 
     @Override

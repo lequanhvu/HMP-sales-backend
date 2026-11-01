@@ -2,6 +2,7 @@ package com.hmp.sales.feature.user.service;
 
 import com.hmp.sales.common.exception.BusinessRuleException;
 import com.hmp.sales.common.exception.ResourceNotFoundException;
+import com.hmp.sales.common.util.VietnameseStringUtils;
 import com.hmp.sales.feature.user.dto.CreateManagerRequest;
 import com.hmp.sales.feature.user.dto.UserSearchRequest;
 import com.hmp.sales.feature.user.dto.UserStatusResponse;
@@ -98,8 +99,9 @@ public class UserServiceImpl implements UserService {
             predicates.add(cb.equal(root.get("isDeleted"), false));
 
             if (request.name() != null && !request.name().isBlank()) {
-                predicates.add(cb.like(cb.lower(root.get("fullName")),
-                        "%" + request.name().toLowerCase() + "%"));
+                String normalizedName = VietnameseStringUtils.toUnaccentLowerCase(request.name());
+                predicates.add(cb.like(cb.lower(root.get("fullNameUnaccent")),
+                        "%" + normalizedName + "%"));
             }
             if (request.phone() != null && !request.phone().isBlank()) {
                 predicates.add(cb.like(root.get("phone"), "%" + request.phone() + "%"));

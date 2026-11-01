@@ -61,7 +61,7 @@ public interface UnitRepository extends JpaRepository<Unit, Long> {
     @Query("""
             SELECT u FROM Unit u
             WHERE u.isDeleted = false
-              AND (:keyword IS NULL OR LOWER(u.unitName) LIKE LOWER(CONCAT('%', :keyword, '%')))
+              AND (:keyword IS NULL OR LOWER(u.unitNameUnaccent) LIKE LOWER(CONCAT('%', :keyword, '%')))
               AND (:status IS NULL OR u.status = :status)
             """)
     Page<Unit> searchUnits(@Param("keyword") String keyword,

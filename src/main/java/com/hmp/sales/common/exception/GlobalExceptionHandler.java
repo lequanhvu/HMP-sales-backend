@@ -181,9 +181,45 @@ public class GlobalExceptionHandler {
 
         String paramName = ex.getName();
         Object value = ex.getValue();
+
+        String resourceName = resolveResourceName(paramName, request);
+        if (resourceName != null) {
+            String message = String.format("Không tìm thấy %s ID: %s", resourceName, value);
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(ApiErrorResponse.of(HttpStatus.NOT_FOUND.value(), message));
+        }
+
         String message = String.format("Giá trị tham số '%s' không hợp lệ: %s", paramName, value);
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(ApiErrorResponse.of(HttpStatus.BAD_REQUEST.value(), message));
+    }
+
+    private String resolveResourceName(String paramName, HttpServletRequest request) {
+        if (paramName == null) {
+            return null;
+        }
+        String lowerParam = paramName.toLowerCase();
+        if (lowerParam.contains("userid")) return "người dùng";
+        if (lowerParam.contains("categoryid")) return "danh mục";
+        if (lowerParam.contains("productid")) return "sản phẩm";
+        if (lowerParam.contains("brandid")) return "thương hiệu";
+        if (lowerParam.contains("unitid")) return "đơn vị tính";
+        if (lowerParam.contains("colorid")) return "màu sắc";
+        if (lowerParam.contains("roleid")) return "vai trò";
+        if (lowerParam.contains("variantid")) return "biến thể sản phẩm";
+        if (lowerParam.equals("id")) {
+            if (request != null && request.getRequestURI() != null) {
+                String uri = request.getRequestURI().toLowerCase();
+                if (uri.contains("/users/")) return "người dùng";
+                if (uri.contains("/categories/")) return "danh mục";
+                if (uri.contains("/products/")) return "sản phẩm";
+                if (uri.contains("/brands/")) return "thương hiệu";
+                if (uri.contains("/units/")) return "đơn vị tính";
+                if (uri.contains("/colors/")) return "màu sắc";
+                if (uri.contains("/roles/")) return "vai trò";
+            }
+        }
+        return null;
     }
 
     /**
