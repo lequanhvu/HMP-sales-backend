@@ -114,6 +114,72 @@ class AdminMasterDataControllerTest {
     }
 
     @Test
+    @DisplayName("GET /api/v1/admin/brands - Danh sách thương hiệu trả về format phân trang chuẩn")
+    void listBrands_returnsPagedResponse() throws Exception {
+        BrandResponse response = new BrandResponse(1L, "Tôn Hoa Sen", BrandStatus.ACTIVE, null, null);
+        org.springframework.data.domain.Page<BrandResponse> paged = new org.springframework.data.domain.PageImpl<>(
+                java.util.List.of(response),
+                org.springframework.data.domain.PageRequest.of(0, 20),
+                1
+        );
+        when(brandService.searchBrands(any(), any(), eq(0), eq(20))).thenReturn(paged);
+
+        mockMvcBrand.perform(get("/api/v1/admin/brands"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.statusCode").value(200))
+                .andExpect(jsonPath("$.message").value("Thành công"))
+                .andExpect(jsonPath("$.data.result[0].brandName").value("Tôn Hoa Sen"))
+                .andExpect(jsonPath("$.data.meta.page").value(0))
+                .andExpect(jsonPath("$.data.meta.size").value(20))
+                .andExpect(jsonPath("$.data.meta.totalElements").value(1))
+                .andExpect(jsonPath("$.data.meta.totalPages").value(1));
+    }
+
+    @Test
+    @DisplayName("GET /api/v1/admin/units - Danh sách đơn vị tính trả về format phân trang chuẩn")
+    void listUnits_returnsPagedResponse() throws Exception {
+        UnitResponse response = new UnitResponse(1L, "mét", UnitStatus.ACTIVE, null, null);
+        org.springframework.data.domain.Page<UnitResponse> paged = new org.springframework.data.domain.PageImpl<>(
+                java.util.List.of(response),
+                org.springframework.data.domain.PageRequest.of(0, 20),
+                1
+        );
+        when(unitService.searchUnits(any(), any(), eq(0), eq(20))).thenReturn(paged);
+
+        mockMvcUnit.perform(get("/api/v1/admin/units"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.statusCode").value(200))
+                .andExpect(jsonPath("$.message").value("Thành công"))
+                .andExpect(jsonPath("$.data.result[0].unitName").value("mét"))
+                .andExpect(jsonPath("$.data.meta.page").value(0))
+                .andExpect(jsonPath("$.data.meta.size").value(20))
+                .andExpect(jsonPath("$.data.meta.totalElements").value(1))
+                .andExpect(jsonPath("$.data.meta.totalPages").value(1));
+    }
+
+    @Test
+    @DisplayName("GET /api/v1/admin/colors - Danh sách màu sắc trả về format phân trang chuẩn")
+    void listColors_returnsPagedResponse() throws Exception {
+        ColorResponse response = new ColorResponse(1L, "Xanh ngọc", ColorStatus.ACTIVE, null, null);
+        org.springframework.data.domain.Page<ColorResponse> paged = new org.springframework.data.domain.PageImpl<>(
+                java.util.List.of(response),
+                org.springframework.data.domain.PageRequest.of(0, 20),
+                1
+        );
+        when(colorService.searchColors(any(), any(), eq(0), eq(20))).thenReturn(paged);
+
+        mockMvcColor.perform(get("/api/v1/admin/colors"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.statusCode").value(200))
+                .andExpect(jsonPath("$.message").value("Thành công"))
+                .andExpect(jsonPath("$.data.result[0].colorName").value("Xanh ngọc"))
+                .andExpect(jsonPath("$.data.meta.page").value(0))
+                .andExpect(jsonPath("$.data.meta.size").value(20))
+                .andExpect(jsonPath("$.data.meta.totalElements").value(1))
+                .andExpect(jsonPath("$.data.meta.totalPages").value(1));
+    }
+
+    @Test
     @DisplayName("POST /api/v1/admin/colors - Tạo màu sắc 201 Created")
     void createColor_returns201() throws Exception {
         ColorResponse response = new ColorResponse(1L, "Xanh ngọc", ColorStatus.ACTIVE, null, null);

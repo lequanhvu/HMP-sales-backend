@@ -63,7 +63,11 @@ class PublicProductControllerTest {
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.statusCode").value(200))
-                .andExpect(jsonPath("$.data.result[0].productName").value("Tôn Hoa Sen 11 sóng"));
+                .andExpect(jsonPath("$.message").value("Thành công"))
+                .andExpect(jsonPath("$.data.result[0].productName").value("Tôn Hoa Sen 11 sóng"))
+                .andExpect(jsonPath("$.data.meta.page").value(0))
+                .andExpect(jsonPath("$.data.meta.totalElements").value(1))
+                .andExpect(jsonPath("$.data.meta.totalPages").value(1));
     }
 
     @Test

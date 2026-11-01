@@ -2,10 +2,13 @@ package com.hmp.sales.feature.product.controller;
 
 import com.hmp.sales.common.response.ApiSuccessResponse;
 import com.hmp.sales.common.response.PageResponse;
+import com.hmp.sales.common.util.PaginationUtils;
+import com.hmp.sales.config.AppProperties;
 import com.hmp.sales.feature.product.dto.UnitRequest;
 import com.hmp.sales.feature.product.dto.UnitResponse;
 import com.hmp.sales.feature.product.service.UnitService;
 import jakarta.validation.Valid;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -22,32 +25,50 @@ import org.springframework.web.bind.annotation.*;
 public class AdminUnitController {
 
     private final UnitService unitService;
+    private final AppProperties appProperties;
 
     /**
-     * Khởi tạo AdminUnitController với UnitService.
+     * Khởi tạo AdminUnitController với UnitService và AppProperties.
+     *
+     * @param unitService   service quản lý đơn vị tính
+     * @param appProperties cấu hình ứng dụng bao gồm phân trang từ application.yaml
+     */
+    @Autowired
+    public AdminUnitController(UnitService unitService,
+                               @Autowired(required = false) AppProperties appProperties) {
+        this.unitService = unitService;
+        this.appProperties = appProperties;
+    }
+
+    /**
+     * Khởi tạo AdminUnitController đơn giản (dành cho unit test).
      *
      * @param unitService service quản lý đơn vị tính
      */
     public AdminUnitController(UnitService unitService) {
-        this.unitService = unitService;
+        this(unitService, null);
     }
 
     /**
      * Tìm kiếm và phân trang danh sách đơn vị tính.
+     * <p>
+     * Giá trị mặc định của {@code page} và {@code size} được nạp động từ file cấu hình {@code application.yaml}.
      *
      * @param keyword từ khóa tìm theo tên (tùy chọn)
      * @param status  lọc theo trạng thái (tùy chọn)
-     * @param page    chỉ số trang (mặc định 0)
-     * @param size    số lượng bản ghi mỗi trang (mặc định 20)
+     * @param page    chỉ số trang (tùy chọn, mặc định từ app.pagination.default-page)
+     * @param size    số lượng bản ghi mỗi trang (tùy chọn, mặc định từ app.pagination.default-page-size)
      * @return danh sách đơn vị tính có phân trang
      */
     @GetMapping
     public ResponseEntity<ApiSuccessResponse<PageResponse<UnitResponse>>> listUnits(
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) String status,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size) {
-        Page<UnitResponse> result = unitService.searchUnits(keyword, status, page, size);
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size) {
+        int pageNumber = PaginationUtils.resolvePage(page, appProperties);
+        int pageSize = PaginationUtils.resolveSize(size, appProperties);
+        Page<UnitResponse> result = unitService.searchUnits(keyword, status, pageNumber, pageSize);
         return ResponseEntity.ok(ApiSuccessResponse.success(PageResponse.from(result)));
     }
 

@@ -1,6 +1,6 @@
 # Project Status
 
-> Last updated: 2026-11-01 | By: @antigravity | Session: #8
+> Last updated: 2026-11-02 | By: @antigravity | Session: #9
 >
 > AI: update this file at the end of every session when asked.
 > Follow this exact format. Preserve full milestone checklists and project specifications.
@@ -8,6 +8,37 @@
 ---
 
 ## Completed
+- ✅ **Chuẩn hóa Phân trang chuẩn & Triệt tiêu Hardcode tham số `page`, `size`**:
+  - **Sửa lỗi chỉ số trang `meta.page` trong [`PageResponse`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/common/response/PageResponse.java)**:
+    - Loại bỏ lệch `+ 1` trong `PageResponse.from(Page<T> page)` để đồng bộ 0-indexed (`"page": 0`) chuẩn xác theo đúng hợp đồng REST API và `api-spec.md`.
+    - Đảm bảo envelope trả về luôn thống nhất chuẩn:
+      ```json
+      {
+        "statusCode": 200,
+        "data": {
+          "result": [ ... ],
+          "meta": {
+            "page": 0,
+            "size": 20,
+            "totalElements": N,
+            "totalPages": M
+          }
+        },
+        "message": "Thành công",
+        "timestamp": "..."
+      }
+      ```
+  - **Cơ chế nạp cấu hình phân trang động từ `application.yaml` qua [`PaginationUtils`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/common/util/PaginationUtils.java)**:
+    - Xây dựng tiện ích [`PaginationUtils`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/common/util/PaginationUtils.java) giải quyết giá trị mặc định cho `page` và `size` từ `AppProperties` (`app.pagination.default-page`, `app.pagination.default-page-size`, `app.pagination.max-page-size`).
+    - Cập nhật toàn bộ các REST Controller có chức năng danh sách phân trang:
+      - [`PublicProductController`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/product/controller/PublicProductController.java) (`GET /api/v1/products`)
+      - [`AdminBrandController`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/product/controller/AdminBrandController.java) (`GET /api/v1/admin/brands`)
+      - [`AdminUnitController`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/product/controller/AdminUnitController.java) (`GET /api/v1/admin/units`)
+      - [`AdminColorController`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/product/controller/AdminColorController.java) (`GET /api/v1/admin/colors`)
+      - [`UserController`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/user/controller/UserController.java) (`GET /api/v1/admin/users`)
+    - Loại bỏ hoàn toàn việc hardcode chuỗi `"0"` và `"20"` trong `@RequestParam`, thay bằng `@RequestParam(required = false) Integer page, @RequestParam(required = false) Integer size`.
+    - Bổ sung `UserControllerTest`, `PaginationUtilsTest` và mở rộng `AdminMasterDataControllerTest`, `PublicProductControllerTest` xác minh format `meta` và `result`.
+  - Toàn bộ **231/231 tests pass** (thêm 12 test cases mới).
 - ✅ **Kiến trúc Tìm kiếm Đa Tầng (Two-Tier Hybrid Search Architecture) — Chuẩn hóa tiếng Việt không dấu & Engine Gợi ý sửa lỗi**:
   - **Tầng Database (`xxx_name_unaccent`)**:
     - Bổ sung tiện ích [`VietnameseStringUtils`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/common/util/VietnameseStringUtils.java) chuyển đổi tiếng Việt có dấu thành chữ thường không dấu chuẩn xác (xử lý ký tự đặc thù `đ/Đ`, dấu tổ hợp `NFD`, khoảng trắng thừa) và thuật toán tính khoảng cách Levenshtein ($O(\min(M, N))$ space).

@@ -2,7 +2,9 @@ package com.hmp.sales.feature.user.controller;
 
 import com.hmp.sales.common.response.ApiSuccessResponse;
 import com.hmp.sales.common.response.PageResponse;
+import com.hmp.sales.common.util.PaginationUtils;
 import com.hmp.sales.common.util.SecurityUtils;
+import com.hmp.sales.config.AppProperties;
 import com.hmp.sales.feature.user.dto.CreateManagerRequest;
 import com.hmp.sales.feature.user.dto.UserSearchRequest;
 import com.hmp.sales.feature.user.dto.UserStatusResponse;
@@ -10,6 +12,7 @@ import com.hmp.sales.feature.user.dto.UserSummaryResponse;
 import com.hmp.sales.feature.user.entity.UserStatus;
 import com.hmp.sales.feature.user.service.UserService;
 import jakarta.validation.Valid;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -28,27 +31,42 @@ import org.springframework.web.bind.annotation.*;
 public class UserController {
 
     private final UserService userService;
+    private final AppProperties appProperties;
 
     /**
-     * Khởi tạo AdminUserController với dependency AdminUserService.
+     * Khởi tạo AdminUserController với UserService và AppProperties.
+     *
+     * @param userService   service xử lý nghiệp vụ quản trị người dùng
+     * @param appProperties cấu hình ứng dụng bao gồm phân trang từ application.yaml
+     */
+    @Autowired
+    public UserController(UserService userService,
+                          @Autowired(required = false) AppProperties appProperties) {
+        this.userService = userService;
+        this.appProperties = appProperties;
+    }
+
+    /**
+     * Khởi tạo AdminUserController đơn giản (dành cho unit test).
      *
      * @param userService service xử lý nghiệp vụ quản trị người dùng
      */
     public UserController(UserService userService) {
-        this.userService = userService;
+        this(userService, null);
     }
 
     /**
      * Tìm kiếm và lọc danh sách người dùng với phân trang.
      * <p>
      * Yêu cầu quyền {@code USER_LOCK} (quyền xem danh sách user).
+     * Giá trị mặc định của {@code page} và {@code size} được nạp động từ file cấu hình {@code application.yaml}.
      *
      * @param name   lọc theo tên (tùy chọn)
      * @param phone  lọc theo số điện thoại (tùy chọn)
      * @param email  lọc theo email (tùy chọn)
      * @param status lọc theo trạng thái (tùy chọn)
-     * @param page   trang hiện tại (mặc định 0)
-     * @param size   kích thước trang (mặc định 20)
+     * @param page   chỉ số trang (tùy chọn, mặc định từ app.pagination.default-page)
+     * @param size   kích thước trang (tùy chọn, mặc định từ app.pagination.default-page-size)
      * @return danh sách người dùng có phân trang theo cấu trúc chuẩn
      */
     @GetMapping("/users")
@@ -57,9 +75,11 @@ public class UserController {
             @RequestParam(required = false) String phone,
             @RequestParam(required = false) String email,
             @RequestParam(required = false) UserStatus status,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size) {
-        UserSearchRequest request = new UserSearchRequest(name, phone, email, status, page, size);
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size) {
+        int pageNumber = PaginationUtils.resolvePage(page, appProperties);
+        int pageSize = PaginationUtils.resolveSize(size, appProperties);
+        UserSearchRequest request = new UserSearchRequest(name, phone, email, status, pageNumber, pageSize);
         Page<UserSummaryResponse> result = userService.searchUsers(request);
         return ResponseEntity.ok(ApiSuccessResponse.success(PageResponse.from(result)));
     }

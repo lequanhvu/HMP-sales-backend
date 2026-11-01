@@ -2,10 +2,13 @@ package com.hmp.sales.feature.product.controller;
 
 import com.hmp.sales.common.response.ApiSuccessResponse;
 import com.hmp.sales.common.response.PageResponse;
+import com.hmp.sales.common.util.PaginationUtils;
+import com.hmp.sales.config.AppProperties;
 import com.hmp.sales.feature.product.dto.BrandRequest;
 import com.hmp.sales.feature.product.dto.BrandResponse;
 import com.hmp.sales.feature.product.service.BrandService;
 import jakarta.validation.Valid;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -22,32 +25,50 @@ import org.springframework.web.bind.annotation.*;
 public class AdminBrandController {
 
     private final BrandService brandService;
+    private final AppProperties appProperties;
 
     /**
-     * Khởi tạo AdminBrandController với BrandService.
+     * Khởi tạo AdminBrandController với BrandService và AppProperties.
+     *
+     * @param brandService  service quản lý thương hiệu
+     * @param appProperties cấu hình ứng dụng bao gồm phân trang từ application.yaml
+     */
+    @Autowired
+    public AdminBrandController(BrandService brandService,
+                                @Autowired(required = false) AppProperties appProperties) {
+        this.brandService = brandService;
+        this.appProperties = appProperties;
+    }
+
+    /**
+     * Khởi tạo AdminBrandController đơn giản (dành cho unit test).
      *
      * @param brandService service quản lý thương hiệu
      */
     public AdminBrandController(BrandService brandService) {
-        this.brandService = brandService;
+        this(brandService, null);
     }
 
     /**
      * Tìm kiếm và phân trang danh sách thương hiệu.
+     * <p>
+     * Giá trị mặc định của {@code page} và {@code size} được nạp động từ file cấu hình {@code application.yaml}.
      *
      * @param keyword từ khóa tìm theo tên (tùy chọn)
      * @param status  lọc theo trạng thái (tùy chọn)
-     * @param page    chỉ số trang (mặc định 0)
-     * @param size    số lượng bản ghi mỗi trang (mặc định 20)
+     * @param page    chỉ số trang (tùy chọn, mặc định từ app.pagination.default-page)
+     * @param size    số lượng bản ghi mỗi trang (tùy chọn, mặc định từ app.pagination.default-page-size)
      * @return danh sách thương hiệu có phân trang
      */
     @GetMapping
     public ResponseEntity<ApiSuccessResponse<PageResponse<BrandResponse>>> listBrands(
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) String status,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size) {
-        Page<BrandResponse> result = brandService.searchBrands(keyword, status, page, size);
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size) {
+        int pageNumber = PaginationUtils.resolvePage(page, appProperties);
+        int pageSize = PaginationUtils.resolveSize(size, appProperties);
+        Page<BrandResponse> result = brandService.searchBrands(keyword, status, pageNumber, pageSize);
         return ResponseEntity.ok(ApiSuccessResponse.success(PageResponse.from(result)));
     }
 
