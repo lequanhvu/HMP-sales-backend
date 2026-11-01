@@ -1,6 +1,6 @@
 # Project Status
 
-> Last updated: 2026-10-27 | By: @antigravity | Session: #6
+> Last updated: 2026-10-31 | By: @antigravity | Session: #7
 >
 > AI: update this file at the end of every session when asked.
 > Follow this exact format. Preserve full milestone checklists and project specifications.
@@ -8,6 +8,11 @@
 ---
 
 ## Completed
+- ✅ **Bugfix & Validation — Xử lý `MethodArgumentTypeMismatchException` tập trung**:
+  - Bổ sung `@ExceptionHandler(MethodArgumentTypeMismatchException.class)` vào `GlobalExceptionHandler` xử lý khi client truyền ID dạng chuỗi (ví dụ `"abc"`) cho các tham số số (`Long`/`Integer`).
+  - Tự động nhận diện loại tài nguyên từ tên tham số (`userId`, `categoryId`, `productId`, `brandId`, `unitId`, `colorId`, `variantId`, `roleId`,...) và URI để trả về mã 404 Not Found kèm thông điệp chuẩn tiếng Việt: `"Không tìm thấy [Tên tài nguyên] ID: [giá trị]"`, đồng bộ nhất quán với `ResourceNotFoundException`.
+  - Đối với các tham số khác không phải là ID định danh (như phân trang `page`, `size`), trả về mã 400 Bad Request rõ ràng.
+  - Thêm unit test và controller MockMvc tests xác minh, toàn bộ 181/181 tests pass.
 - ✅ **Phase 3 — Catalog & Category Hierarchy completed**:
   - `Category` entity & `CategoryRepository`: Cấu trúc cây tự tham chiếu cha - con (`parent_category_id`), phát hiện và chặn quan hệ vòng (cycle detection), hỗ trợ mô hình quản lý giống hệ thống thư mục (tạo danh mục con hoặc sản phẩm trực tiếp dưới danh mục hiện tại).
   - Master data động do Admin quản trị (`Brand`, `Unit`, `Color`):

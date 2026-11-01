@@ -8,6 +8,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.AuthenticationException;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -113,5 +114,57 @@ class GlobalExceptionHandlerTest {
         assertNotNull(response.getBody());
         assertEquals(500, response.getBody().statusCode());
         assertFalse(response.getBody().message().contains("Sensitive"));
+    }
+
+    @Test
+    @DisplayName("handleMethodArgumentTypeMismatch returns 404 for userId ID mismatch")
+    void handleMethodArgumentTypeMismatch_returns404_forUserId() {
+        MethodArgumentTypeMismatchException ex = new MethodArgumentTypeMismatchException(
+                "abc", Long.class, "userId", null, null);
+        ResponseEntity<ApiErrorResponse> response = exceptionHandler.handleMethodArgumentTypeMismatch(ex, null);
+
+        assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertEquals(404, response.getBody().statusCode());
+        assertEquals("Không tìm thấy người dùng ID: abc", response.getBody().message());
+    }
+
+    @Test
+    @DisplayName("handleMethodArgumentTypeMismatch returns 404 for categoryId ID mismatch")
+    void handleMethodArgumentTypeMismatch_returns404_forCategoryId() {
+        MethodArgumentTypeMismatchException ex = new MethodArgumentTypeMismatchException(
+                "abc", Long.class, "categoryId", null, null);
+        ResponseEntity<ApiErrorResponse> response = exceptionHandler.handleMethodArgumentTypeMismatch(ex, null);
+
+        assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertEquals(404, response.getBody().statusCode());
+        assertEquals("Không tìm thấy danh mục ID: abc", response.getBody().message());
+    }
+
+    @Test
+    @DisplayName("handleMethodArgumentTypeMismatch returns 404 for productId ID mismatch")
+    void handleMethodArgumentTypeMismatch_returns404_forProductId() {
+        MethodArgumentTypeMismatchException ex = new MethodArgumentTypeMismatchException(
+                "abc", Long.class, "productId", null, null);
+        ResponseEntity<ApiErrorResponse> response = exceptionHandler.handleMethodArgumentTypeMismatch(ex, null);
+
+        assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertEquals(404, response.getBody().statusCode());
+        assertEquals("Không tìm thấy sản phẩm ID: abc", response.getBody().message());
+    }
+
+    @Test
+    @DisplayName("handleMethodArgumentTypeMismatch returns 400 for non-ID param mismatch")
+    void handleMethodArgumentTypeMismatch_returns400_forNonIdParam() {
+        MethodArgumentTypeMismatchException ex = new MethodArgumentTypeMismatchException(
+                "xyz", int.class, "page", null, null);
+        ResponseEntity<ApiErrorResponse> response = exceptionHandler.handleMethodArgumentTypeMismatch(ex, null);
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertEquals(400, response.getBody().statusCode());
+        assertEquals("Giá trị tham số 'page' không hợp lệ: xyz", response.getBody().message());
     }
 }

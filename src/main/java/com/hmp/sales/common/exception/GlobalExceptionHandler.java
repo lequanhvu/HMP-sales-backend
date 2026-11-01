@@ -2,6 +2,7 @@ package com.hmp.sales.common.exception;
 
 import com.hmp.sales.common.response.ApiErrorResponse;
 import com.hmp.sales.common.response.ValidationErrorResponse;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -13,6 +14,7 @@ import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.util.List;
@@ -155,6 +157,33 @@ public class GlobalExceptionHandler {
                 "Dữ liệu tham số không hợp lệ.",
                 validationErrors
             ));
+    }
+
+    /**
+     * Xử lý ngoại lệ khi tham số trên URL hoặc query string không đúng kiểu dữ liệu
+     * (ví dụ: truyền chuỗi "abc" vào tham số ID kiểu Long/Integer) (404 Not Found hoặc 400 Bad Request).
+     * <p>
+     * Khi truy vấn theo ID tài nguyên (ví dụ: categoryId, productId, userId,...), hệ thống trả về
+     * mã 404 Not Found với thông điệp chuẩn tiếng Việt: "Không tìm thấy [Tên tài nguyên] ID: [giá trị]",
+     * đồng bộ nhất quán với hành vi khi tìm kiếm ID số không tồn tại trong hệ thống.
+     * Đối với các tham số khác không phải là ID định danh (như số trang, kích thước trang), trả về 400 Bad Request.
+     *
+     * @param ex      Ngoại lệ MethodArgumentTypeMismatchException do Spring ném ra khi ép kiểu tham số thất bại.
+     * @param request Yêu cầu HTTP hiện tại để hỗ trợ suy luận ngữ cảnh tài nguyên.
+     * @return Phản hồi lỗi theo cấu trúc chuẩn {@link ApiErrorResponse}.
+     */
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ApiErrorResponse> handleMethodArgumentTypeMismatch(
+            MethodArgumentTypeMismatchException ex,
+            HttpServletRequest request) {
+        log.warn("Method argument type mismatch for parameter '{}': value '{}', required type '{}'",
+                ex.getName(), ex.getValue(), ex.getRequiredType());
+
+        String paramName = ex.getName();
+        Object value = ex.getValue();
+        String message = String.format("Giá trị tham số '%s' không hợp lệ: %s", paramName, value);
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ApiErrorResponse.of(HttpStatus.BAD_REQUEST.value(), message));
     }
 
     /**

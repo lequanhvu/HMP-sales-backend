@@ -218,4 +218,15 @@ class ManagerProductControllerTest {
                 .andExpect(jsonPath("$.statusCode").value(200))
                 .andExpect(jsonPath("$.message").value("Xóa danh sách ảnh sản phẩm thành công."));
     }
+
+    @Test
+    @DisplayName("POST /api/v1/manager/categories/{id}/products - Category ID dạng chuỗi ném 404 Not Found")
+    void createProduct_invalidCategoryIdType_returns404() throws Exception {
+        mockMvc.perform(post("/api/v1/manager/categories/abc/products")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.statusCode").value(404))
+                .andExpect(jsonPath("$.message").value("Không tìm thấy danh mục ID: abc"));
+    }
 }
