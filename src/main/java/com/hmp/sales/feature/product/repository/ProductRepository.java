@@ -5,6 +5,7 @@ import com.hmp.sales.feature.product.entity.ProductStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -15,7 +16,7 @@ import java.util.Optional;
  * Repository truy vấn dữ liệu cho thực thể {@link Product}.
  * Hỗ trợ tìm kiếm theo tên, danh mục, trạng thái và kiểm tra ràng buộc đơn hàng.
  */
-public interface ProductRepository extends JpaRepository<Product, Long> {
+public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpecificationExecutor<Product> {
 
     /**
      * Tìm sản phẩm theo ID và chưa bị xóa mềm.
@@ -42,29 +43,6 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
      * @return danh sách tất cả sản phẩm thuộc danh mục
      */
     List<Product> findByCategoryIdAndIsDeletedFalse(Long categoryId);
-
-    /**
-     * Tìm kiếm sản phẩm theo tên và tên danh mục với phân trang.
-     * Hỗ trợ lọc theo trạng thái.
-     *
-     * @param productName  từ khóa tìm theo tên sản phẩm (có thể null)
-     * @param categoryName từ khóa tìm theo tên danh mục (có thể null)
-     * @param status       lọc theo trạng thái (có thể null)
-     * @param pageable     thông tin phân trang và sắp xếp
-     * @return trang sản phẩm phù hợp
-     */
-    @Query("""
-            SELECT p FROM Product p
-            JOIN p.category c
-            WHERE p.isDeleted = false
-              AND (:productName IS NULL OR LOWER(p.productName) LIKE LOWER(CONCAT('%', :productName, '%')))
-              AND (:categoryName IS NULL OR LOWER(c.categoryName) LIKE LOWER(CONCAT('%', :categoryName, '%')))
-              AND (:status IS NULL OR p.status = :status)
-            """)
-    Page<Product> searchProducts(@Param("productName") String productName,
-                                 @Param("categoryName") String categoryName,
-                                 @Param("status") ProductStatus status,
-                                 Pageable pageable);
 
     /**
      * Lấy danh sách ID sản phẩm nằm trong cây danh mục (bao gồm cả danh mục con) chưa bị xóa.

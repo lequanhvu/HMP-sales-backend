@@ -11,14 +11,22 @@ import com.hmp.sales.feature.product.repository.*;
 import com.hmp.sales.feature.product.service.ProductService;
 import com.hmp.sales.feature.user.repository.UserRepository;
 import com.hmp.sales.security.PermissionEvaluationService;
+
+import jakarta.persistence.criteria.Join;
+import jakarta.persistence.criteria.JoinType;
+import jakarta.persistence.criteria.Predicate;
 import lombok.extern.slf4j.Slf4j;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -142,11 +150,51 @@ public class ProductServiceImpl implements ProductService {
         String sortField = resolveSortField(params.sortBy());
         Sort.Direction direction = "desc".equalsIgnoreCase(params.sortDirection())
                 ? Sort.Direction.DESC : Sort.Direction.ASC;
-        var pageable = PageRequest.of(params.page(), params.size(), Sort.by(direction, sortField));
+        Pageable pageable = PageRequest.of(params.page(), params.size(), Sort.by(direction, sortField));
 
-        return productRepository.searchProducts(
-                params.productName(), params.categoryName(), params.status(), pageable)
+        Specification<Product> spec = buildProductSearchSpec(params);
+        return productRepository.findAll(spec, pageable)
                 .map(p -> ProductSummaryResponse.fromEntity(p, priceVisible));
+    }
+
+    /**
+     * Tạo {@link Specification} tìm kiếm sản phẩm theo tiêu chí lọc.
+     *
+     * @param request tiêu chí tìm kiếm
+     * @return Specification dùng cho JPA query
+     */
+    private Specification<Product> buildProductSearchSpec(ProductFilterParams request) {
+        return (root, query, cb) -> {
+            List<Predicate> predicates = new ArrayList<>();
+
+            // 1. Luôn lọc sản phẩm chưa bị xóa mềm
+            predicates.add(cb.equal(root.get("isDeleted"), false));
+
+            // 2. Tìm kiếm theo tên sản phẩm (không phân biệt hoa thường)
+            if (request.productName() != null && !request.productName().isBlank()) {
+                predicates.add(cb.like(
+                    cb.lower(root.get("productName")),
+                    "%" + request.productName().trim().toLowerCase() + "%"
+                ));
+            }
+
+            // 3. Tìm kiếm theo tên danh mục (Join sang Category và so sánh categoryName)
+            if (request.categoryName() != null && !request.categoryName().isBlank()) {
+                // Join từ Product sang Category (thay "category" bằng tên thuộc tính Category trong Product entity)
+                Join<Product, Category> categoryJoin = root.join("category", JoinType.LEFT);
+                predicates.add(cb.like(
+                    cb.lower(categoryJoin.get("categoryName")),
+                    "%" + request.categoryName().trim().toLowerCase() + "%"
+                ));
+            }
+
+            // 4. Lọc theo trạng thái
+            if (request.status() != null) {
+                predicates.add(cb.equal(root.get("status"), request.status()));
+            }
+
+            return cb.and(predicates.toArray(new Predicate[0]));
+        };
     }
 
     /** {@inheritDoc} */
