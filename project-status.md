@@ -1,6 +1,6 @@
 # Project Status
 
-> Last updated: 2026-11-02 | By: @antigravity | Session: #10
+> Last updated: 2026-11-02 | By: @antigravity | Session: #11
 >
 > AI: update this file at the end of every session when asked.
 > Follow this exact format. Preserve full milestone checklists and project specifications.
@@ -8,6 +8,19 @@
 ---
 
 ## Completed
+- ✅ **Chuẩn hóa Phân trang Category Products (`products: { result, meta }`)**:
+  - **DTO [`CategoryProductsResponse`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/category/dto/CategoryProductsResponse.java)**:
+    - Chuyển đổi thuộc tính `products` từ danh sách phẳng `List<ProductSummaryResponse>` sang đối tượng phân trang chuẩn `PageResponse<ProductSummaryResponse>` chứa `result` và `meta` (`page`, `size`, `totalElements`, `totalPages`).
+  - **Data Access & Service Layer**:
+    - [`ProductRepository`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/product/repository/ProductRepository.java): Bổ sung truy vấn phân trang `findByCategoryIdAndStatusAndIsDeletedFalse(Long, ProductStatus, Pageable)` và `findByCategoryIdAndIsDeletedFalse(Long, Pageable)`.
+    - [`CategoryService`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/category/service/CategoryService.java) & [`CategoryServiceImpl`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/category/service/impl/CategoryServiceImpl.java): Mở rộng `getProductsByCategory` và `getAllProductsByCategory` tiếp nhận `Pageable` và trả về `PageResponse.from(productDtos)`.
+  - **REST Controllers**:
+    - [`PublicCategoryController`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/category/controller/PublicCategoryController.java) (`GET /api/v1/categories/{categoryId}/products`): Tiếp nhận `@RequestParam(required = false) Integer page, Integer size`, phân giải động qua `PaginationUtils` và trả về danh sách phân trang.
+    - [`ManagerCategoryController`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/category/controller/ManagerCategoryController.java) (`GET /api/v1/manager/categories/{categoryId}/products`): Tiếp nhận `page`, `size` và trả về toàn bộ sản phẩm (kể cả INACTIVE) dạng phân trang.
+  - **Đồng bộ Tài liệu & Unit Tests**:
+    - Đồng bộ `api-spec.md` Section 4.3 và Section 9.7.
+    - Cập nhật test cases: `PublicCategoryControllerTest`, `ManagerCategoryControllerTest`, `CategoryServiceImplTest`. Khôi phục xử lý `resolveResourceName` trong `GlobalExceptionHandler`.
+    - Toàn bộ **255/255 tests pass 100%**.
 - ✅ **Phase 4 (Step 1) — Customer Profile & Address Book completed**:
   - **Thực thể & Quản lý Sổ địa chỉ [`CustomerAddress`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/user/entity/CustomerAddress.java)**:
     - Bảng `customer_addresses` lưu địa chỉ giao nhận hàng của khách hàng với các trường `address_id`, `customer_id`, `address_line`, `is_default`, `status` (`AddressStatus.ACTIVE`/`INACTIVE`), audit timestamps và cờ xóa mềm `is_deleted`. Đã tinh giản loại bỏ `receiver_name` và `receiver_phone` khỏi sổ địa chỉ và đồng bộ 100% với `api-spec.md` (thông tin người nhận sẽ được snapshot trực tiếp vào `Orders`).

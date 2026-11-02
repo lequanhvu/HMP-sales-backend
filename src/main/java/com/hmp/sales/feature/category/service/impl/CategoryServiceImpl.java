@@ -3,6 +3,7 @@ package com.hmp.sales.feature.category.service.impl;
 import com.hmp.sales.common.exception.BusinessRuleException;
 import com.hmp.sales.common.exception.ConflictWithPayloadException;
 import com.hmp.sales.common.exception.ResourceNotFoundException;
+import com.hmp.sales.common.response.PageResponse;
 import com.hmp.sales.feature.category.dto.*;
 import com.hmp.sales.feature.category.entity.Category;
 import com.hmp.sales.feature.category.repository.CategoryRepository;
@@ -19,6 +20,9 @@ import com.hmp.sales.security.PermissionEvaluationService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -262,27 +266,28 @@ public class CategoryServiceImpl implements CategoryService {
     /** {@inheritDoc} */
     @Override
     @Transactional(readOnly = true)
-    public CategoryProductsResponse getProductsByCategory(Long categoryId) {
+    public CategoryProductsResponse getProductsByCategory(Long categoryId, Pageable pageable) {
         Category category = findActiveCategory(categoryId);
-        List<Product> products = productRepository.findByCategoryIdAndStatusAndIsDeletedFalse(categoryId, ProductStatus.ACTIVE);
+        Pageable resolvedPageable = (pageable != null) ? pageable : PageRequest.of(0, 20);
+        Page<Product> products = productRepository.findByCategoryIdAndStatusAndIsDeletedFalse(
+                categoryId, ProductStatus.ACTIVE, resolvedPageable);
         boolean priceVisible = permissionEvaluationService.canViewProductPrice();
-        List<ProductSummaryResponse> productDtos = products.stream()
-                .map(p -> ProductSummaryResponse.fromEntity(p, priceVisible))
-                .toList();
-        return new CategoryProductsResponse(category.getId(), category.getCategoryName(), productDtos);
+        Page<ProductSummaryResponse> productDtos = products
+                .map(p -> ProductSummaryResponse.fromEntity(p, priceVisible));
+        return new CategoryProductsResponse(category.getId(), category.getCategoryName(), PageResponse.from(productDtos));
     }
 
     /** {@inheritDoc} */
     @Override
     @Transactional(readOnly = true)
-    public CategoryProductsResponse getAllProductsByCategory(Long categoryId) {
+    public CategoryProductsResponse getAllProductsByCategory(Long categoryId, Pageable pageable) {
         Category category = findActiveCategory(categoryId);
-        List<Product> products = productRepository.findByCategoryIdAndIsDeletedFalse(categoryId);
+        Pageable resolvedPageable = (pageable != null) ? pageable : PageRequest.of(0, 20);
+        Page<Product> products = productRepository.findByCategoryIdAndIsDeletedFalse(categoryId, resolvedPageable);
         boolean priceVisible = permissionEvaluationService.canViewProductPrice();
-        List<ProductSummaryResponse> productDtos = products.stream()
-                .map(p -> ProductSummaryResponse.fromEntity(p, priceVisible))
-                .toList();
-        return new CategoryProductsResponse(category.getId(), category.getCategoryName(), productDtos);
+        Page<ProductSummaryResponse> productDtos = products
+                .map(p -> ProductSummaryResponse.fromEntity(p, priceVisible));
+        return new CategoryProductsResponse(category.getId(), category.getCategoryName(), PageResponse.from(productDtos));
     }
 
     /** {@inheritDoc} */

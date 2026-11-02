@@ -1,13 +1,18 @@
 package com.hmp.sales.feature.category.controller;
 
 import com.hmp.sales.common.response.ApiSuccessResponse;
+import com.hmp.sales.common.util.PaginationUtils;
 import com.hmp.sales.common.util.SecurityUtils;
+import com.hmp.sales.config.AppProperties;
 import com.hmp.sales.feature.category.dto.CategoryCreateRequest;
 import com.hmp.sales.feature.category.dto.CategoryProductsResponse;
 import com.hmp.sales.feature.category.dto.CategoryResponse;
 import com.hmp.sales.feature.category.dto.CategoryUpdateRequest;
 import com.hmp.sales.feature.category.service.CategoryService;
 import jakarta.validation.Valid;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -25,14 +30,28 @@ import org.springframework.web.bind.annotation.*;
 public class ManagerCategoryController {
 
     private final CategoryService categoryService;
+    private final AppProperties appProperties;
 
     /**
-     * Khởi tạo ManagerCategoryController với CategoryService.
+     * Khởi tạo ManagerCategoryController với CategoryService và AppProperties.
+     *
+     * @param categoryService service quản lý danh mục sản phẩm
+     * @param appProperties  cấu hình hệ thống bao gồm phân trang
+     */
+    @Autowired
+    public ManagerCategoryController(CategoryService categoryService,
+                                     @Autowired(required = false) AppProperties appProperties) {
+        this.categoryService = categoryService;
+        this.appProperties = appProperties;
+    }
+
+    /**
+     * Khởi tạo ManagerCategoryController đơn giản (dành cho unit test).
      *
      * @param categoryService service quản lý danh mục sản phẩm
      */
     public ManagerCategoryController(CategoryService categoryService) {
-        this.categoryService = categoryService;
+        this(categoryService, null);
     }
 
     /**
@@ -113,16 +132,23 @@ public class ManagerCategoryController {
     }
 
     /**
-     * Lấy danh sách toàn bộ sản phẩm (bao gồm cả ACTIVE và INACTIVE) thuộc một danh mục.
+     * Lấy danh sách toàn bộ sản phẩm (bao gồm cả ACTIVE và INACTIVE) thuộc một danh mục có phân trang.
      * Dành riêng cho Quản lý (Manager) và Quản trị viên (Admin) phục vụ công tác điều hành.
      *
      * @param categoryId ID danh mục cần lấy danh sách sản phẩm
-     * @return danh sách sản phẩm (cả active và inactive) trong danh mục
+     * @param page       chỉ số trang (tùy chọn, 0-indexed)
+     * @param size       kích thước trang (tùy chọn)
+     * @return danh sách sản phẩm (cả active và inactive) trong danh mục dạng phân trang (result, meta)
      */
     @GetMapping("/{categoryId}/products")
     public ResponseEntity<ApiSuccessResponse<CategoryProductsResponse>> getProductsByCategory(
-            @PathVariable Long categoryId) {
-        CategoryProductsResponse response = categoryService.getAllProductsByCategory(categoryId);
+            @PathVariable Long categoryId,
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size) {
+        int pageIndex = PaginationUtils.resolvePage(page, appProperties);
+        int pageSize = PaginationUtils.resolveSize(size, appProperties);
+        Pageable pageable = PageRequest.of(pageIndex, pageSize);
+        CategoryProductsResponse response = categoryService.getAllProductsByCategory(categoryId, pageable);
         return ResponseEntity.ok(ApiSuccessResponse.success(response));
     }
 

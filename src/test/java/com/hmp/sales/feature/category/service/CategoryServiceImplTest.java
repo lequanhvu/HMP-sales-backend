@@ -25,6 +25,9 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
 
 import java.util.List;
 import java.util.Optional;
@@ -240,8 +243,9 @@ class CategoryServiceImplTest {
                 .isDeleted(false)
                 .build();
 
-        when(productRepository.findByCategoryIdAndIsDeletedFalse(10L))
-                .thenReturn(List.of(activeProduct, inactiveProduct));
+        when(categoryRepository.findByIdAndIsDeletedFalse(10L)).thenReturn(Optional.of(rootCategory));
+        when(productRepository.findByCategoryIdAndIsDeletedFalse(eq(10L), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(activeProduct, inactiveProduct)));
         when(permissionEvaluationService.canViewProductPrice()).thenReturn(true);
 
         CategoryProductsResponse response = categoryService.getAllProductsByCategory(10L);
@@ -249,9 +253,10 @@ class CategoryServiceImplTest {
         assertThat(response).isNotNull();
         assertThat(response.categoryId()).isEqualTo(10L);
         assertThat(response.categoryName()).isEqualTo("Tôn lợp mái");
-        assertThat(response.products()).hasSize(2);
-        assertThat(response.products()).extracting("status")
+        assertThat(response.products().result()).hasSize(2);
+        assertThat(response.products().result()).extracting("status")
                 .containsExactly(ProductStatus.ACTIVE, ProductStatus.INACTIVE);
+        assertThat(response.products().meta().totalElements()).isEqualTo(2);
     }
 
     @Test
@@ -268,16 +273,17 @@ class CategoryServiceImplTest {
                 .isDeleted(false)
                 .build();
 
-        when(productRepository.findByCategoryIdAndStatusAndIsDeletedFalse(10L, ProductStatus.ACTIVE))
-                .thenReturn(List.of(activeProduct));
+        when(productRepository.findByCategoryIdAndStatusAndIsDeletedFalse(eq(10L), eq(ProductStatus.ACTIVE), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(activeProduct)));
         when(permissionEvaluationService.canViewProductPrice()).thenReturn(false);
 
         CategoryProductsResponse response = categoryService.getProductsByCategory(10L);
 
         assertThat(response).isNotNull();
         assertThat(response.categoryId()).isEqualTo(10L);
-        assertThat(response.products()).hasSize(1);
-        assertThat(response.products().get(0).status()).isEqualTo(ProductStatus.ACTIVE);
-        assertThat(response.products().get(0).priceVisible()).isFalse();
+        assertThat(response.products().result()).hasSize(1);
+        assertThat(response.products().result().get(0).status()).isEqualTo(ProductStatus.ACTIVE);
+        assertThat(response.products().result().get(0).priceVisible()).isFalse();
+        assertThat(response.products().meta().totalElements()).isEqualTo(1);
     }
 }

@@ -2,6 +2,9 @@ package com.hmp.sales.feature.category.service;
 
 import com.hmp.sales.feature.category.dto.*;
 
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+
 import java.util.List;
 
 /**
@@ -63,23 +66,47 @@ public interface CategoryService {
     CategoryResponse updateCategory(Long categoryId, CategoryUpdateRequest request);
 
     /**
-     * Lấy thông tin danh mục và danh sách sản phẩm ACTIVE trực thuộc.
+     * Lấy thông tin danh mục và danh sách sản phẩm ACTIVE trực thuộc có phân trang.
      *
      * @param categoryId ID danh mục
-     * @return danh sách sản phẩm thuộc danh mục
+     * @param pageable   thông tin phân trang (nếu null, mặc định lấy trang 0 với 20 phần tử)
+     * @return danh sách sản phẩm thuộc danh mục dạng phân trang (result, meta)
      * @throws com.hmp.sales.common.exception.ResourceNotFoundException nếu không tìm thấy danh mục
      */
-    CategoryProductsResponse getProductsByCategory(Long categoryId);
+    CategoryProductsResponse getProductsByCategory(Long categoryId, Pageable pageable);
 
     /**
-     * Lấy thông tin danh mục và danh sách tất cả sản phẩm (bao gồm cả ACTIVE và INACTIVE) trực thuộc.
+     * Lấy thông tin danh mục và danh sách sản phẩm ACTIVE trực thuộc với phân trang mặc định.
+     *
+     * @param categoryId ID danh mục
+     * @return danh sách sản phẩm thuộc danh mục dạng phân trang (result, meta)
+     * @throws com.hmp.sales.common.exception.ResourceNotFoundException nếu không tìm thấy danh mục
+     */
+    default CategoryProductsResponse getProductsByCategory(Long categoryId) {
+        return getProductsByCategory(categoryId, PageRequest.of(0, 20));
+    }
+
+    /**
+     * Lấy thông tin danh mục và danh sách tất cả sản phẩm (bao gồm cả ACTIVE và INACTIVE) trực thuộc có phân trang.
      * Dành cho màn hình điều hành của Quản lý (Manager) và Quản trị viên (Admin).
      *
      * @param categoryId ID danh mục
-     * @return danh sách tất cả sản phẩm thuộc danh mục
+     * @param pageable   thông tin phân trang (nếu null, mặc định lấy trang 0 với 20 phần tử)
+     * @return danh sách tất cả sản phẩm thuộc danh mục dạng phân trang (result, meta)
      * @throws com.hmp.sales.common.exception.ResourceNotFoundException nếu không tìm thấy danh mục
      */
-    CategoryProductsResponse getAllProductsByCategory(Long categoryId);
+    CategoryProductsResponse getAllProductsByCategory(Long categoryId, Pageable pageable);
+
+    /**
+     * Lấy thông tin danh mục và danh sách tất cả sản phẩm trực thuộc với phân trang mặc định.
+     *
+     * @param categoryId ID danh mục
+     * @return danh sách tất cả sản phẩm thuộc danh mục dạng phân trang (result, meta)
+     * @throws com.hmp.sales.common.exception.ResourceNotFoundException nếu không tìm thấy danh mục
+     */
+    default CategoryProductsResponse getAllProductsByCategory(Long categoryId) {
+        return getAllProductsByCategory(categoryId, PageRequest.of(0, 20));
+    }
 
     /**
      * Khóa danh mục (chuyển sang LOCKED).

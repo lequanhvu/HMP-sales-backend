@@ -1,6 +1,7 @@
 package com.hmp.sales.feature.category.controller;
 
 import com.hmp.sales.common.exception.GlobalExceptionHandler;
+import com.hmp.sales.common.response.PageResponse;
 import com.hmp.sales.feature.category.dto.CategoryProductsResponse;
 import com.hmp.sales.feature.category.dto.CategoryTreeResponse;
 import com.hmp.sales.feature.category.entity.CategoryStatus;
@@ -12,12 +13,15 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import java.util.List;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -59,17 +63,21 @@ class PublicCategoryControllerTest {
     }
 
     @Test
-    @DisplayName("GET /api/v1/categories/{id}/products - Trả về danh sách sản phẩm trong danh mục 200 OK")
+    @DisplayName("GET /api/v1/categories/{id}/products - Trả về danh sách sản phẩm trong danh mục 200 OK dạng phân trang")
     void getProductsByCategory_returns200() throws Exception {
-        CategoryProductsResponse resp = new CategoryProductsResponse(1L, "Tôn lợp mái", List.of());
-        when(categoryService.getProductsByCategory(1L)).thenReturn(resp);
+        CategoryProductsResponse resp = new CategoryProductsResponse(
+                1L, "Tôn lợp mái", PageResponse.of(List.of(), 0, 20, 0, 0));
+        when(categoryService.getProductsByCategory(eq(1L), any(Pageable.class))).thenReturn(resp);
 
         mockMvc.perform(get("/api/v1/categories/1/products")
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.statusCode").value(200))
                 .andExpect(jsonPath("$.data.categoryId").value(1))
-                .andExpect(jsonPath("$.data.categoryName").value("Tôn lợp mái"));
+                .andExpect(jsonPath("$.data.categoryName").value("Tôn lợp mái"))
+                .andExpect(jsonPath("$.data.products.result").isArray())
+                .andExpect(jsonPath("$.data.products.meta.page").value(0))
+                .andExpect(jsonPath("$.data.products.meta.size").value(20));
     }
 
     @Test

@@ -365,13 +365,21 @@ Only products with `ACTIVE` status are returned to public clients.
   "data": {
     "categoryId": 10,
     "categoryName": "Tôn sóng",
-    "products": [
-      {
-        "productId": 100,
-        "name": "Tôn sóng A",
-        "status": "ACTIVE"
+    "products": {
+      "result": [
+        {
+          "id": 100,
+          "productName": "Tôn sóng A",
+          "status": "ACTIVE"
+        }
+      ],
+      "meta": {
+        "page": 0,
+        "size": 20,
+        "totalElements": 1,
+        "totalPages": 1
       }
-    ]
+    }
   },
   "message": "Thành công",
   "timestamp": "2026-10-01T10:00:00"
@@ -1729,30 +1737,38 @@ Requires permission `PRODUCT_CATEGORY_VIEW` (granted to `ADMIN` and `MANAGER`).
   "data": {
     "categoryId": 1,
     "categoryName": "Tôn lợp mái",
-    "products": [
-      {
-        "id": 1,
-        "productName": "Tôn Hoa Sen 11 sóng vuông",
-        "status": "ACTIVE",
-        "categoryId": 1,
-        "categoryName": "Tôn lợp mái",
-        "brandId": 1,
-        "brandName": "Tôn Hoa Sen",
-        "primaryImageUrl": "https://cdn.example.com/products/ton-hoa-sen-1.jpg",
-        "priceVisible": true
-      },
-      {
-        "id": 2,
-        "productName": "Tôn sóng cũ ngừng sản xuất",
-        "status": "INACTIVE",
-        "categoryId": 1,
-        "categoryName": "Tôn lợp mái",
-        "brandId": 1,
-        "brandName": "Tôn Hoa Sen",
-        "primaryImageUrl": null,
-        "priceVisible": true
+    "products": {
+      "result": [
+        {
+          "id": 1,
+          "productName": "Tôn Hoa Sen 11 sóng vuông",
+          "status": "ACTIVE",
+          "categoryId": 1,
+          "categoryName": "Tôn lợp mái",
+          "brandId": 1,
+          "brandName": "Tôn Hoa Sen",
+          "primaryImageUrl": "https://cdn.example.com/products/ton-hoa-sen-1.jpg",
+          "priceVisible": true
+        },
+        {
+          "id": 2,
+          "productName": "Tôn sóng cũ ngừng sản xuất",
+          "status": "INACTIVE",
+          "categoryId": 1,
+          "categoryName": "Tôn lợp mái",
+          "brandId": 1,
+          "brandName": "Tôn Hoa Sen",
+          "primaryImageUrl": null,
+          "priceVisible": true
+        }
+      ],
+      "meta": {
+        "page": 0,
+        "size": 20,
+        "totalElements": 2,
+        "totalPages": 1
       }
-    ]
+    }
   },
   "message": "Thành công",
   "timestamp": "2026-10-28T20:00:00"
