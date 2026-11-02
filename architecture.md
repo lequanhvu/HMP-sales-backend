@@ -507,6 +507,11 @@ COMPLETED
 
 Every status change must create `OrderStatusHistory`.
 
+Note on `CONFIRMED -> PROCESSING` transition:
+- Khi Quản lý tính xong giá và xác nhận (`CONFIRMED`), khách hàng chỉ cần vào xem giá chi tiết, không cần duyệt đơn thủ công.
+- Trạng thái `CONFIRMED` được duy trì trong thời hạn `cancellationWindowMinutes` (cấu hình động qua bảng `system_settings` với key `ORDER_CUSTOMER_CANCELLATION_WINDOW_MINUTES`, fallback về 30 phút trong `application.yaml`) để khách hàng có quyền hủy đơn nếu không đồng ý với mức giá.
+- Khi hết thời gian hủy, hệ thống (`OrderAutoTransitionScheduler`) tự động chuyển trạng thái đơn sang `PROCESSING` và ghi nhận bản ghi `OrderStatusHistory` (với `changedBy = null` - Hệ thống).
+
 ## 16. Flow: product status / locking
 
 ```text

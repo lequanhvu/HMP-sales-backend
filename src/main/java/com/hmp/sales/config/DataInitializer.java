@@ -5,6 +5,8 @@ import com.hmp.sales.feature.category.entity.CategoryStatus;
 import com.hmp.sales.feature.category.repository.CategoryRepository;
 import com.hmp.sales.feature.product.entity.*;
 import com.hmp.sales.feature.product.repository.*;
+import com.hmp.sales.feature.setting.entity.SystemSetting;
+import com.hmp.sales.feature.setting.repository.SystemSettingRepository;
 import com.hmp.sales.feature.user.entity.AuthProvider;
 import com.hmp.sales.feature.user.entity.Permission;
 import com.hmp.sales.feature.user.entity.Role;
@@ -53,6 +55,7 @@ public class DataInitializer implements ApplicationRunner {
     private final ProductImageRepository productImageRepository;
     private final ProductColorRepository productColorRepository;
     private final ProductPriceRepository productPriceRepository;
+    private final SystemSettingRepository systemSettingRepository;
     private final com.hmp.sales.security.PermissionAuthorizationManager permissionAuthorizationManager;
 
     /**
@@ -71,6 +74,7 @@ public class DataInitializer implements ApplicationRunner {
      * @param productImageRepository         repository quản lý ảnh sản phẩm
      * @param productColorRepository         repository quản lý màu biến thể
      * @param productPriceRepository         repository quản lý bảng giá
+     * @param systemSettingRepository        repository quản lý tham số cấu hình hệ thống
      * @param permissionAuthorizationManager bộ quản lý phân quyền động trên RAM
      */
     public DataInitializer(
@@ -87,6 +91,7 @@ public class DataInitializer implements ApplicationRunner {
             ProductImageRepository productImageRepository,
             ProductColorRepository productColorRepository,
             ProductPriceRepository productPriceRepository,
+            SystemSettingRepository systemSettingRepository,
             com.hmp.sales.security.PermissionAuthorizationManager permissionAuthorizationManager) {
         this.roleRepository = roleRepository;
         this.permissionRepository = permissionRepository;
@@ -101,6 +106,7 @@ public class DataInitializer implements ApplicationRunner {
         this.productImageRepository = productImageRepository;
         this.productColorRepository = productColorRepository;
         this.productPriceRepository = productPriceRepository;
+        this.systemSettingRepository = systemSettingRepository;
         this.permissionAuthorizationManager = permissionAuthorizationManager;
     }
 
@@ -115,6 +121,7 @@ public class DataInitializer implements ApplicationRunner {
         seedMasterData();
         seedCategories();
         seedProducts();
+        seedSystemSettings();
 
         // Nạp dữ liệu vừa seed vào bộ nhớ đệm RAM của PermissionAuthorizationManager
         if (permissionAuthorizationManager != null) {
@@ -197,9 +204,9 @@ public class DataInitializer implements ApplicationRunner {
             new Object[]{"COLOR_DELETE",              "COLOR",    "/api/v1/admin/colors/**",                      "DELETE", "Xóa màu sắc"},
             // --- ORDER module ---
             new Object[]{"ORDER_CREATE",              "ORDER",    "/api/v1/orders",                               "POST",   "Tạo đơn hàng mới"},
-            new Object[]{"ORDER_VIEW_OWN",            "ORDER",    "/api/v1/orders",                               "GET",    "Xem danh sách đơn hàng của chính mình"},
-            new Object[]{"ORDER_CANCEL_OWN",          "ORDER",    "/api/v1/orders/{id}/cancel",                   "POST",   "Hủy đơn hàng của chính mình (trong cửa sổ cho phép)"},
-            new Object[]{"ORDER_CONFIRM_OWN",         "ORDER",    "/api/v1/orders/{id}/confirm",                  "POST",   "Xác nhận đơn hàng đã được tính giá"},
+            new Object[]{"ORDER_VIEW_OWN",            "ORDER",    "/api/v1/orders/**",                            "GET",    "Xem danh sách và chi tiết đơn hàng của chính mình"},
+            new Object[]{"ORDER_CANCEL_OWN",          "ORDER",    "/api/v1/orders/**/cancel",                     "POST",   "Hủy đơn hàng của chính mình (trong cửa sổ cho phép)"},
+            new Object[]{"ORDER_CONFIRM_OWN",         "ORDER",    "/api/v1/orders/**/confirm",                    "POST",   "Xác nhận đơn hàng đã được tính giá"},
             new Object[]{"ORDER_OTP_REQUEST",         "ORDER",    "/api/v1/orders/otp/request",                   "POST",   "Gửi mã OTP xác thực số điện thoại"},
             new Object[]{"ORDER_OTP_VERIFY",          "ORDER",    "/api/v1/orders/otp/verify",                    "POST",   "Xác minh mã OTP số điện thoại"},
             new Object[]{"ME_OTP_REQUEST",            "ORDER",    "/api/v1/me/otp/request",                       "POST",   "Gửi mã OTP xác minh số điện thoại cá nhân"},
@@ -260,6 +267,7 @@ public class DataInitializer implements ApplicationRunner {
             "UNIT_VIEW_ALL", "UNIT_CREATE", "UNIT_UPDATE", "UNIT_LOCK", "UNIT_UNLOCK", "UNIT_DELETE",
             "COLOR_VIEW_ALL", "COLOR_CREATE", "COLOR_UPDATE", "COLOR_LOCK", "COLOR_UNLOCK", "COLOR_DELETE",
             "USER_VIEW_ALL", "USER_LOCK", "USER_UNLOCK", "USER_DELETE", "MANAGER_CREATE",
+            "ORDER_CREATE", "ORDER_VIEW_OWN", "ORDER_CANCEL_OWN",
             "ME_PROFILE_VIEW", "ME_PROFILE_UPDATE", "ME_ADDRESS_VIEW", "ME_ADDRESS_CREATE", "ME_ADDRESS_UPDATE", "ME_ADDRESS_DELETE",
             "SYSTEM_LOG_VIEW", "SYSTEM_SETTING_UPDATE",
             "ROLE_PERMISSION_VIEW", "ROLE_PERMISSION_UPDATE"
@@ -272,6 +280,7 @@ public class DataInitializer implements ApplicationRunner {
             "PRODUCT_VARIANT_CREATE", "PRODUCT_VARIANT_UPDATE", "PRODUCT_VARIANT_LOCK", "PRODUCT_VARIANT_UNLOCK", "PRODUCT_VARIANT_DELETE",
             "PRODUCT_CATEGORY_VIEW", "PRODUCT_CATEGORY_CREATE", "PRODUCT_CATEGORY_UPDATE", "PRODUCT_CATEGORY_LOCK", "PRODUCT_CATEGORY_UNLOCK", "PRODUCT_CATEGORY_DELETE",
             "ORDER_VIEW_ALL", "ORDER_CALCULATE", "ORDER_CANCEL_ANY", "ORDER_STATUS_UPDATE",
+            "ORDER_CREATE", "ORDER_VIEW_OWN", "ORDER_CANCEL_OWN",
             "ME_PROFILE_VIEW", "ME_PROFILE_UPDATE", "ME_ADDRESS_VIEW", "ME_ADDRESS_CREATE", "ME_ADDRESS_UPDATE", "ME_ADDRESS_DELETE"
     );
 
@@ -584,5 +593,31 @@ public class DataInitializer implements ApplicationRunner {
                 .variant(variant2).unit(unitSheet).price(165000).isDeleted(false).build());
 
         log.info("[DataInitializer] Đã khởi tạo sản phẩm mẫu thành công: {}", sampleProductName);
+    }
+
+    /**
+     * Khởi tạo các tham số cấu hình hệ thống mặc định (SystemSetting).
+     */
+    private void seedSystemSettings() {
+        if (systemSettingRepository == null) {
+            return;
+        }
+
+        systemSettingRepository.findBySettingKeyAndIsDeletedFalse("ORDER_CUSTOMER_CANCELLATION_WINDOW_MINUTES")
+                .ifPresentOrElse(
+                        setting -> log.debug("[DataInitializer] SystemSetting '{}' đã tồn tại: {}",
+                                setting.getSettingKey(), setting.getSettingValue()),
+                        () -> {
+                            SystemSetting setting = SystemSetting.builder()
+                                    .settingKey("ORDER_CUSTOMER_CANCELLATION_WINDOW_MINUTES")
+                                    .settingValue("30")
+                                    .dataType("INT")
+                                    .description("Thời gian tối đa (phút) khách hàng được phép hủy đơn hàng sau khi tạo đơn hoặc sau khi Quản lý chốt giá")
+                                    .isDeleted(false)
+                                    .build();
+                            systemSettingRepository.save(setting);
+                            log.info("[DataInitializer] Khởi tạo SystemSetting mặc định '{}' = 30", setting.getSettingKey());
+                        }
+                );
     }
 }

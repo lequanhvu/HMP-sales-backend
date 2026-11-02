@@ -1260,12 +1260,14 @@ status
 {
   "statusCode": 200,
   "data": {
-    "content": [
+    "result": [
       {
         "orderId": 10025,
         "status": "PENDING",
         "totalAmount": null,
-        "createdAt": "2026-10-01T09:30:00"
+        "receiverName": "Nguyen Van A",
+        "createdAt": "2026-10-01T09:30:00",
+        "confirmedAt": null
       }
     ],
     "meta": {
@@ -1346,53 +1348,9 @@ The customer can see `TotalAmount` after Manager has calculated the order.
 
 ---
 
-## 8.4 Confirm calculated order
+## 8.4 Order confirmation & automatic progression
 
-```http
-POST /api/v1/orders/{orderId}/confirm
-```
-
-Preconditions:
-
-```text
-caller owns order
-AND
-order has calculated total
-AND
-order is waiting for customer confirmation
-```
-
-### Request example
-
-```json
-{}
-```
-
-### Success response — 200
-
-```json
-{
-  "statusCode": 200,
-  "data": {
-    "orderId": 10025,
-    "status": "CONFIRMED",
-    "totalAmount": 5000000
-  },
-  "message": "Thành công",
-  "timestamp": "2026-10-01T10:00:00"
-}
-```
-
-### Failure response — 409
-
-```json
-{
-  "statusCode": 409,
-  "data": null,
-  "message": "Order cannot be confirmed in its current state.",
-  "timestamp": "2026-10-01T10:00:00"
-}
-```
+> **Lưu ý nghiệp vụ**: Khách hàng không cần thực hiện thao tác duyệt đơn thủ công. Sau khi Quản lý tính giá và xác nhận (`CONFIRMED`), khách hàng có thể vào xem giá chi tiết (`GET /api/v1/orders/{orderId}`). Đơn hàng sẽ được giữ ở trạng thái `CONFIRMED` trong khoảng thời gian `cancellationWindowMinutes` (cấu hình động qua `SystemSetting: ORDER_CUSTOMER_CANCELLATION_WINDOW_MINUTES`, mặc định 30 phút). Nếu khách hàng không hủy đơn trong thời gian này, hệ thống sẽ tự động chuyển trạng thái đơn hàng sang `PROCESSING` (bắt đầu gia công sản xuất tôn / chuẩn bị hàng).
 
 ---
 

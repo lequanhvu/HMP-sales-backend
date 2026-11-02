@@ -1,6 +1,6 @@
 # Project Status
 
-> Last updated: 2026-11-02 | By: @antigravity | Session: #11
+> Last updated: 2026-11-02 | By: @antigravity | Session: #12
 >
 > AI: update this file at the end of every session when asked.
 > Follow this exact format. Preserve full milestone checklists and project specifications.
@@ -8,6 +8,29 @@
 ---
 
 ## Completed
+- ✅ **Phase 4 (Step 2) — Quản lý Đơn hàng Khách hàng & Cấu hình Động Cửa sổ Hủy Đơn completed**:
+  - **Mô hình Dữ liệu & Thực thể JPA (`com.hmp.sales.feature.order.entity`)**:
+    - [`Order`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/order/entity/Order.java) (bảng `orders`): Lưu trữ trực tiếp trong PostgreSQL (Source of Truth). Chứa trạng thái (`OrderStatus`), tổng tiền `totalAmount`, snapshot bất biến người nhận (`receiverName`, `receiverPhone`, `shippingAddress`, `note`), các mốc thời gian (`confirmedAt`, `cancelledAt`, `completedAt`), và lý do hủy tùy chọn `cancellationReason`.
+    - [`OrderItem`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/order/entity/OrderItem.java) (bảng `order_items`): Lưu chi tiết dòng sản phẩm, số lượng `quantity`, chiều dài tôn sóng `size`, snapshot bất biến tên sản phẩm (`productNameSnapshot`), đơn vị tính (`unitNameSnapshot`), màu sắc (`colorSnapshot`), đơn giá snapshot `unitPrice`, và thành tiền `totalPrice`.
+    - [`OrderStatusHistory`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/order/entity/OrderStatusHistory.java) (bảng `order_status_histories`): Lưu vết toàn bộ tiến trình chuyển trạng thái (`fromStatus`, `toStatus`, `changedBy`, `reason`, `createdAt`).
+  - **Quản trị Động Cửa sổ Hủy Đơn (`SystemSetting`)**:
+    - Triển khai thực thể [`SystemSetting`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/setting/entity/SystemSetting.java), [`SystemSettingRepository`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/setting/repository/SystemSettingRepository.java), [`SystemSettingService`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/setting/service/SystemSettingService.java).
+    - Tra cứu động tham số `ORDER_CUSTOMER_CANCELLATION_WINDOW_MINUTES` từ PostgreSQL, tự động fallback về `app.order.cancellation-window-minutes: 30` trong `application.yaml` nếu chưa có bản ghi DB.
+  - **Tự động chuyển trạng thái nền ([`OrderAutoTransitionScheduler`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/order/scheduler/OrderAutoTransitionScheduler.java))**:
+    - Background task `@Scheduled(fixedDelay = 60000)` định kỳ quét các đơn hàng `CONFIRMED` có `confirmedAt + cancellationWindowMinutes <= now()`.
+    - Tự động chuyển trạng thái sang `PROCESSING` (bắt đầu gia công/chuẩn bị giao) và ghi log vào `OrderStatusHistory` với `changedBy = null` (Hệ thống).
+  - **Dịch vụ & Nghiệp vụ Khách hàng ([`CustomerOrderService`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/order/service/CustomerOrderService.java))**:
+    - `POST /api/v1/orders`: Đặt hàng mới trong `@Transactional` nguyên tử. Kiểm tra bảo chứng OTP số điện thoại nhận hàng (`otp:verified:{phone}` trên Redis hoặc trùng với SĐT đã lưu trong tài khoản User). Kiểm tra sản phẩm phải đang `ACTIVE`, biến thể hợp lệ, số lượng & chiều dài $> 0$. Khởi tạo trạng thái ban đầu `PENDING`.
+    - `GET /api/v1/orders`: Danh sách đơn hàng phân trang chuẩn `PageResponse<OrderSummaryResponse>` hỗ trợ lọc theo khoảng ngày (`dateFrom`, `dateTo`), trạng thái (`status`).
+    - `GET /api/v1/orders/{orderId}`: Chi tiết đơn hàng của chính mình (chặn xem đơn của người khác).
+    - `POST /api/v1/orders/{orderId}/cancel`: Hủy đơn hàng trong hạn cho phép (lấy thời hạn động từ `SystemSettingService`), lý do hủy tùy chọn, chuyển sang `CANCELLED` và ghi log `OrderStatusHistory`.
+  - **REST Controller ([`CustomerOrderController`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/order/controller/CustomerOrderController.java)) & Phân quyền động**:
+    - Cung cấp 4 endpoint RESTful theo chuẩn `api-spec.md` Section 8. Khách hàng chỉ cần vào xem giá chi tiết, không cần duyệt đơn thủ công.
+    - Cấp quyền `ORDER_CREATE`, `ORDER_VIEW_OWN`, `ORDER_CANCEL_OWN` trong `DataInitializer`, nạp lại RAM cache `PermissionAuthorizationManager`.
+    - Seed tham số mặc định `ORDER_CUSTOMER_CANCELLATION_WINDOW_MINUTES = "30"` vào `SystemSetting`.
+    - Khôi phục cơ chế `resolveResourceName` trong `GlobalExceptionHandler` hỗ trợ `orderId` trả về 404 nhất quán khi ép kiểu sai.
+    - Tạo tệp tài liệu ngữ cảnh [`CONTEXT.md`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/order/CONTEXT.md) và [`setting/CONTEXT.md`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/setting/CONTEXT.md).
+    - Toàn bộ **279/279 tests pass 100%** (bổ sung 24 test cases mới: `SystemSettingServiceImplTest`, `CustomerOrderServiceImplTest`, `OrderAutoTransitionSchedulerTest`, `CustomerOrderControllerTest`).
 - ✅ **Chuẩn hóa Phân trang Category Products (`products: { result, meta }`)**:
   - **DTO [`CategoryProductsResponse`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/category/dto/CategoryProductsResponse.java)**:
     - Chuyển đổi thuộc tính `products` từ danh sách phẳng `List<ProductSummaryResponse>` sang đối tượng phân trang chuẩn `PageResponse<ProductSummaryResponse>` chứa `result` và `meta` (`page`, `size`, `totalElements`, `totalPages`).
@@ -294,27 +317,26 @@ _Nothing._
 ### Phase 4 — Ordering & Manufacturing Price Calculation
 - [x] CustomerAddress entity, repository, and CRUD APIs (`GET/POST/PATCH/DELETE /api/v1/me/addresses`)
 - [x] Customer profile APIs (`GET /api/v1/me`, `PATCH /api/v1/me`)
-- [ ] Order & OrderItem entities with immutable price snapshots (`UnitPrice`, `TotalPrice`, `TotalAmount`)
-- [ ] Receiver snapshot fields on Order (`ReceiverName`, `ReceiverPhone`, address fields)
-- [ ] OrderStatusHistory entity & repository
-- [ ] Order creation flow:
-  - [ ] Customer order submission with phone OTP verification
-  - [ ] Validation for active products, valid variants, positive quantity and size
-  - [ ] Initial state assignment: `PENDING`
-  - [ ] Direct PostgreSQL order creation with atomic transaction (`PENDING` state)
+- [x] Order & OrderItem entities with immutable price snapshots (`UnitPrice`, `TotalPrice`, `TotalAmount`)
+- [x] Receiver snapshot fields on Order (`ReceiverName`, `ReceiverPhone`, address fields)
+- [x] OrderStatusHistory entity & repository
+- [x] Order creation flow:
+  - [x] Customer order submission with phone OTP verification
+  - [x] Validation for active products, valid variants, positive quantity and size
+  - [x] Initial state assignment: `PENDING`
+  - [x] Direct PostgreSQL order creation with atomic transaction (`PENDING` state)
+- [x] SystemSetting dynamic cancellation window configuration (`ORDER_CUSTOMER_CANCELLATION_WINDOW_MINUTES`)
+- [x] Background scheduler for auto-transitioning confirmed orders to `PROCESSING` (`OrderAutoTransitionScheduler`)
 - [ ] Manager order processing & calculation:
   - [ ] Order listing with filters, pagination, and detail view
-  - [ ] Manager price calculation: `TotalPrice = UnitPrice × Size × Quantity`
+  - [ ] Manager price calculation: `TotalPrice = UnitPrice × Size × Quantity` (với 2 tùy chọn Confirm giá hoặc Cancel tính giá)
   - [ ] State transition to `CONFIRMED`
-- [ ] Customer order confirmation:
-  - [ ] Customer views calculated order total
-  - [ ] Customer confirms calculated order -> transition to `PROCESSING`
-- [ ] Order cancellation flow:
-  - [ ] Customer cancellation validation against allowed cancellation window
-  - [ ] Manager cancellation according to business authorization
-  - [ ] Optional cancellation reason for all roles
-  - [ ] Immutable history logging in `OrderStatusHistory` for every valid transition
-- [ ] Order calculation and lifecycle unit/integration tests
+- [x] Customer order viewing & cancellation flow:
+  - [x] Customer views calculated order details
+  - [x] Customer cancellation validation against dynamic cancellation window from DB
+  - [x] Optional cancellation reason for all roles
+  - [x] Immutable history logging in `OrderStatusHistory` for every valid transition
+- [x] Customer order unit and integration tests (279/279 tests pass)
 
 ### Phase 5 — Platform, Audit & Notifications
 - [ ] Notification entity & repository

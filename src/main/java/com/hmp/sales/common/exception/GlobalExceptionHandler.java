@@ -161,21 +161,13 @@ public class GlobalExceptionHandler {
 
     /**
      * Xử lý ngoại lệ khi tham số trên URL hoặc query string không đúng kiểu dữ liệu
-     * (ví dụ: truyền chuỗi "abc" vào tham số ID kiểu Long/Integer) (404 Not Found hoặc 400 Bad Request).
-     * <p>
-     * Khi truy vấn theo ID tài nguyên (ví dụ: categoryId, productId, userId,...), hệ thống trả về
-     * mã 404 Not Found với thông điệp chuẩn tiếng Việt: "Không tìm thấy [Tên tài nguyên] ID: [giá trị]",
-     * đồng bộ nhất quán với hành vi khi tìm kiếm ID số không tồn tại trong hệ thống.
-     * Đối với các tham số khác không phải là ID định danh (như số trang, kích thước trang), trả về 400 Bad Request.
+     * (ví dụ: truyền chuỗi "abc" vào tham số số Long/Integer) (400 Bad Request).
      *
-     * @param ex      Ngoại lệ MethodArgumentTypeMismatchException do Spring ném ra khi ép kiểu tham số thất bại.
-     * @param request Yêu cầu HTTP hiện tại để hỗ trợ suy luận ngữ cảnh tài nguyên.
-     * @return Phản hồi lỗi theo cấu trúc chuẩn {@link ApiErrorResponse}.
+     * @param ex Ngoại lệ MethodArgumentTypeMismatchException do Spring ném ra khi ép kiểu tham số thất bại.
+     * @return Phản hồi lỗi 400 Bad Request theo cấu trúc chuẩn {@link ApiErrorResponse}.
      */
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
-    public ResponseEntity<ApiErrorResponse> handleMethodArgumentTypeMismatch(
-            MethodArgumentTypeMismatchException ex,
-            HttpServletRequest request) {
+    public ResponseEntity<ApiErrorResponse> handleMethodArgumentTypeMismatch(MethodArgumentTypeMismatchException ex) {
         log.warn("Method argument type mismatch for parameter '{}': value '{}', required type '{}'",
                 ex.getName(), ex.getValue(), ex.getRequiredType());
 

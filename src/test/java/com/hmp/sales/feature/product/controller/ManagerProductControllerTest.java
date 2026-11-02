@@ -220,13 +220,13 @@ class ManagerProductControllerTest {
     }
 
     @Test
-    @DisplayName("POST /api/v1/manager/categories/{id}/products - Category ID dạng chuỗi ném 404 Not Found")
-    void createProduct_invalidCategoryIdType_returns404() throws Exception {
+    @DisplayName("POST /api/v1/manager/categories/{id}/products - Category ID dạng chuỗi ném 400 Bad Request")
+    void createProduct_invalidCategoryIdType_returns400() throws Exception {
         mockMvc.perform(post("/api/v1/manager/categories/abc/products")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{}"))
-                .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.statusCode").value(404))
-                .andExpect(jsonPath("$.message").value("Không tìm thấy danh mục ID: abc"));
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.statusCode").value(400))
+                .andExpect(jsonPath("$.message").value("Giá trị tham số 'categoryId' không hợp lệ: abc"));
     }
 }
