@@ -1,4 +1,4 @@
-package com.hmp.sales.feature.user.service;
+package com.hmp.sales.feature.user.service.impl;
 
 import com.hmp.sales.common.exception.BusinessRuleException;
 import com.hmp.sales.common.exception.ResourceNotFoundException;
@@ -13,7 +13,8 @@ import com.hmp.sales.feature.user.entity.User;
 import com.hmp.sales.feature.user.entity.UserStatus;
 import com.hmp.sales.feature.user.repository.RoleRepository;
 import com.hmp.sales.feature.user.repository.UserRepository;
-import com.hmp.sales.feature.systemlog.SystemLogService;
+import com.hmp.sales.feature.user.service.UserService;
+import com.hmp.sales.feature.systemlog.service.SystemLogService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;

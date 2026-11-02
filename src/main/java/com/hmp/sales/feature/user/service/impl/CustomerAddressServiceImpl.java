@@ -1,4 +1,4 @@
-package com.hmp.sales.feature.user.service;
+package com.hmp.sales.feature.user.service.impl;
 
 import com.hmp.sales.common.exception.ResourceNotFoundException;
 import com.hmp.sales.feature.user.dto.AddressRequest;
@@ -8,6 +8,7 @@ import com.hmp.sales.feature.user.entity.CustomerAddress;
 import com.hmp.sales.feature.user.entity.User;
 import com.hmp.sales.feature.user.repository.CustomerAddressRepository;
 import com.hmp.sales.feature.user.repository.UserRepository;
+import com.hmp.sales.feature.user.service.CustomerAddressService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

@@ -3,6 +3,7 @@ package com.hmp.sales.feature.auth.service;
 import org.mockito.quality.Strictness;
 
 import com.hmp.sales.config.AppProperties;
+import com.hmp.sales.feature.auth.service.impl.JwtTokenServiceImpl;
 import com.hmp.sales.feature.user.entity.Role;
 import com.hmp.sales.feature.user.entity.RoleCode;
 import com.hmp.sales.feature.user.entity.User;

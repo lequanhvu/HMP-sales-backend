@@ -1,4 +1,6 @@
-package com.hmp.sales.feature.systemlog;
+package com.hmp.sales.feature.systemlog.service.impl;
+
+import com.hmp.sales.feature.systemlog.service.SystemLogService;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;

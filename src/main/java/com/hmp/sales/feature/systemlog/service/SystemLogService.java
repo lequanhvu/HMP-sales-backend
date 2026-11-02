@@ -1,4 +1,4 @@
-package com.hmp.sales.feature.systemlog;
+package com.hmp.sales.feature.systemlog.service;
 
 /**
  * Service ghi nhật ký nghiệp vụ quan trọng vào bảng {@code system_logs}.

@@ -2,8 +2,8 @@ package com.hmp.sales.feature.user.service;
 
 import com.hmp.sales.common.exception.BusinessRuleException;
 import com.hmp.sales.common.exception.ResourceNotFoundException;
-import com.hmp.sales.feature.systemlog.SystemLogService;
-import com.hmp.sales.feature.user.service.UserServiceImpl;
+import com.hmp.sales.feature.systemlog.service.SystemLogService;
+import com.hmp.sales.feature.user.service.impl.UserServiceImpl;
 import com.hmp.sales.feature.user.dto.CreateManagerRequest;
 import com.hmp.sales.feature.user.dto.UserStatusResponse;
 import com.hmp.sales.feature.user.dto.UserSummaryResponse;

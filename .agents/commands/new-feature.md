@@ -12,10 +12,11 @@ Create a new feature module. Follow these steps in exact order.
 ## Step 2: Create Package Structure
 ```
 feature/{feature_name}/
-├── {Feature}.java                    # Entity
 ├── {Feature}Controller.java          # REST controller
-├── {Feature}Service.java             # Service interface
-├── {Feature}ServiceImpl.java         # Service implementation (implements {Feature}Service)
+├── service/
+│   ├── {Feature}Service.java         # Service interface
+│   └── impl/
+│       └── {Feature}ServiceImpl.java # Service implementation (implements {Feature}Service)
 ├── {Feature}Repository.java          # Spring Data JPA repository
 └── dto/
     ├── Create{Feature}Request.java   # Create request DTO (record)

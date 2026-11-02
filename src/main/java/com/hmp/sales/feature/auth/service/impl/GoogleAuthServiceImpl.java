@@ -1,6 +1,7 @@
-package com.hmp.sales.feature.auth.service;
+package com.hmp.sales.feature.auth.service.impl;
 
 import com.hmp.sales.common.exception.UnauthorizedOperationException;
+import com.hmp.sales.feature.auth.service.GoogleAuthService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;

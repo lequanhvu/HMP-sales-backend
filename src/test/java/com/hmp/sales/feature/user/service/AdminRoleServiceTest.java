@@ -2,8 +2,8 @@ package com.hmp.sales.feature.user.service;
 
 import com.hmp.sales.common.exception.BusinessRuleException;
 import com.hmp.sales.common.exception.ResourceNotFoundException;
-import com.hmp.sales.feature.systemlog.SystemLogService;
-import com.hmp.sales.feature.user.service.RoleServiceImpl;
+import com.hmp.sales.feature.systemlog.service.SystemLogService;
+import com.hmp.sales.feature.user.service.impl.RoleServiceImpl;
 import com.hmp.sales.feature.user.dto.RolePermissionsResponse;
 import com.hmp.sales.feature.user.dto.UpdateRolePermissionsRequest;
 import com.hmp.sales.feature.user.entity.Permission;

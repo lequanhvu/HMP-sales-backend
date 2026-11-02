@@ -1,7 +1,8 @@
-package com.hmp.sales.feature.auth.service;
+package com.hmp.sales.feature.auth.service.impl;
 
 import com.hmp.sales.common.exception.UnauthorizedOperationException;
 import com.hmp.sales.config.AppProperties;
+import com.hmp.sales.feature.auth.service.JwtTokenService;
 import com.hmp.sales.feature.user.entity.User;
 import com.nimbusds.jose.JWSAlgorithm;
 import com.nimbusds.jose.JWSHeader;

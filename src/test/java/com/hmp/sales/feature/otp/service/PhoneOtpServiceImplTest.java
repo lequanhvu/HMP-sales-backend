@@ -5,6 +5,7 @@ import org.mockito.quality.Strictness;
 import com.hmp.sales.common.exception.BusinessRuleException;
 import com.hmp.sales.common.exception.OtpVerificationException;
 import com.hmp.sales.config.AppProperties;
+import com.hmp.sales.feature.otp.service.impl.PhoneOtpServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

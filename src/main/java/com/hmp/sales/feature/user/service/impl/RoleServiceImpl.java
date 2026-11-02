@@ -1,8 +1,8 @@
-package com.hmp.sales.feature.user.service;
+package com.hmp.sales.feature.user.service.impl;
 
 import com.hmp.sales.common.exception.BusinessRuleException;
 import com.hmp.sales.common.exception.ResourceNotFoundException;
-import com.hmp.sales.feature.systemlog.SystemLogService;
+import com.hmp.sales.feature.systemlog.service.SystemLogService;
 import com.hmp.sales.feature.user.dto.RolePermissionsResponse;
 import com.hmp.sales.feature.user.dto.UpdateRolePermissionsRequest;
 import com.hmp.sales.feature.user.entity.Permission;
@@ -13,6 +13,7 @@ import com.hmp.sales.feature.user.repository.PermissionRepository;
 import com.hmp.sales.feature.user.repository.RolePermissionRepository;
 import com.hmp.sales.feature.user.repository.RoleRepository;
 import com.hmp.sales.feature.user.repository.UserRepository;
+import com.hmp.sales.feature.user.service.RoleService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;

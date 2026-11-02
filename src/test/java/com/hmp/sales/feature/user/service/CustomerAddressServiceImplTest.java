@@ -10,6 +10,7 @@ import com.hmp.sales.feature.user.entity.User;
 import com.hmp.sales.feature.user.entity.UserStatus;
 import com.hmp.sales.feature.user.repository.CustomerAddressRepository;
 import com.hmp.sales.feature.user.repository.UserRepository;
+import com.hmp.sales.feature.user.service.impl.CustomerAddressServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

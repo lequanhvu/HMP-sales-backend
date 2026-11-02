@@ -71,6 +71,7 @@ A feature package under `feature/` may contain only the technical layers it actu
 ```text
 controller/
 service/
+│   └── impl/
 repository/
 entity/
 dto/
@@ -367,6 +368,7 @@ Rules:
 ## 13. Service Layer Rules
 
 - Services must strictly follow the `Interface + Impl` pattern (e.g., `OrderService` interface and `OrderServiceImpl` class).
+- Implementation classes must be located in the `impl` subpackage inside `service` (e.g., `com.hmp.sales.feature.<feature>.service.impl.<Service>Impl`).
 - Controllers and other dependent classes must inject the Service interface, never the concrete implementation class.
 
 Business rules belong in services or domain policies, especially:

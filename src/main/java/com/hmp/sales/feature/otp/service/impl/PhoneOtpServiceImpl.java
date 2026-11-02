@@ -1,8 +1,9 @@
-package com.hmp.sales.feature.otp.service;
+package com.hmp.sales.feature.otp.service.impl;
 
 import com.hmp.sales.common.exception.BusinessRuleException;
 import com.hmp.sales.common.exception.OtpVerificationException;
 import com.hmp.sales.config.AppProperties;
+import com.hmp.sales.feature.otp.service.PhoneOtpService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.redis.core.StringRedisTemplate;

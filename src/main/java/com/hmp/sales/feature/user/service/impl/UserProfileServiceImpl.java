@@ -1,4 +1,4 @@
-package com.hmp.sales.feature.user.service;
+package com.hmp.sales.feature.user.service.impl;
 
 import com.hmp.sales.common.exception.BusinessRuleException;
 import com.hmp.sales.common.exception.ResourceNotFoundException;
@@ -7,6 +7,7 @@ import com.hmp.sales.feature.user.dto.UpdateProfileRequest;
 import com.hmp.sales.feature.user.dto.UserProfileResponse;
 import com.hmp.sales.feature.user.entity.User;
 import com.hmp.sales.feature.user.repository.UserRepository;
+import com.hmp.sales.feature.user.service.UserProfileService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

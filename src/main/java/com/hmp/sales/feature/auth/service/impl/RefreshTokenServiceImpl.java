@@ -1,9 +1,10 @@
-package com.hmp.sales.feature.auth.service;
+package com.hmp.sales.feature.auth.service.impl;
 
 import com.hmp.sales.common.exception.UnauthorizedOperationException;
 import com.hmp.sales.config.AppProperties;
 import com.hmp.sales.feature.auth.entity.RefreshToken;
 import com.hmp.sales.feature.auth.repository.RefreshTokenRepository;
+import com.hmp.sales.feature.auth.service.RefreshTokenService;
 import com.hmp.sales.feature.auth.util.HashUtils;
 import com.hmp.sales.feature.user.entity.User;
 import org.slf4j.Logger;
