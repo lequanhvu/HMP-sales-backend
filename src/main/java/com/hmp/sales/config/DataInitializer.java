@@ -238,17 +238,46 @@ public class DataInitializer implements ApplicationRunner {
     private void seedPermissions() {
         for (Object[] p : PERMISSIONS) {
             String permName = (String) p[0];
-            if (permissionRepository.findByPermissionNameAndIsDeletedFalse(permName).isEmpty()) {
+            String module = (String) p[1];
+            String apiPath = (String) p[2];
+            String method = (String) p[3];
+            String description = (String) p[4];
+
+            var existingOpt = permissionRepository.findByPermissionNameAndIsDeletedFalse(permName);
+            if (existingOpt.isEmpty()) {
                 Permission perm = Permission.builder()
                         .permissionName(permName)
-                        .module((String) p[1])
-                        .apiPath((String) p[2])
-                        .method((String) p[3])
-                        .description((String) p[4])
+                        .module(module)
+                        .apiPath(apiPath)
+                        .method(method)
+                        .description(description)
                         .isDeleted(false)
                         .build();
                 permissionRepository.save(perm);
                 log.info("[DataInitializer] Đã tạo quyền: {}", permName);
+            } else {
+                Permission perm = existingOpt.get();
+                boolean changed = false;
+                if (!apiPath.equals(perm.getApiPath())) {
+                    perm.setApiPath(apiPath);
+                    changed = true;
+                }
+                if (!method.equals(perm.getMethod())) {
+                    perm.setMethod(method);
+                    changed = true;
+                }
+                if (!module.equals(perm.getModule())) {
+                    perm.setModule(module);
+                    changed = true;
+                }
+                if (!description.equals(perm.getDescription())) {
+                    perm.setDescription(description);
+                    changed = true;
+                }
+                if (changed) {
+                    permissionRepository.save(perm);
+                    log.info("[DataInitializer] Đã cập nhật quyền: {} (apiPath={}, method={})", permName, apiPath, method);
+                }
             }
         }
     }

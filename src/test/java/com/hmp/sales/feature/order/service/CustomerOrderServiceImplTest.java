@@ -56,6 +56,7 @@ import org.springframework.data.jpa.domain.Specification;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.Collections;
 import java.util.List;
@@ -580,6 +581,21 @@ class CustomerOrderServiceImplTest {
     }
 
     @Test
+    @DisplayName("Ném BusinessRuleException khi dateFrom lớn hơn dateTo")
+    void getOwnOrders_throwsBusinessRuleException_whenDateFromAfterDateTo() {
+        OrderFilterRequest filter = new OrderFilterRequest(
+                LocalDate.of(2026, 11, 10),
+                LocalDate.of(2026, 11, 1),
+                null, 0, 10
+        );
+        Pageable pageable = PageRequest.of(0, 10);
+
+        assertThatThrownBy(() -> customerOrderService.getOwnOrders(1L, filter, pageable))
+                .isInstanceOf(BusinessRuleException.class)
+                .hasMessageContaining("Ngày bắt đầu");
+    }
+
+    @Test
     @DisplayName("Xem chi tiết đơn hàng thành công")
     void getOwnOrderDetail_success() {
         when(orderRepository.findByIdAndCustomerIdAndIsDeletedFalse(10L, 1L))
@@ -594,11 +610,30 @@ class CustomerOrderServiceImplTest {
         assertThat(response.orderId()).isEqualTo(10L);
         assertThat(response.status()).isEqualTo(OrderStatus.PENDING);
     }
+    @Test
+    @DisplayName("Hủy đơn hàng thành công với trạng thái pending (PENDING)")
+    void cancelOwnOrder_success_withPendingStatus_withinCancellationWindow() {
+        sampleOrder.setStatus(OrderStatus.PENDING);
+        sampleOrder.setCreatedAt(Instant.now().minus(35, ChronoUnit.MINUTES));
+
+        when(orderRepository.findByIdAndCustomerIdAndIsDeletedFalse(10L, 1L)).thenReturn(Optional.of(sampleOrder));
+        when(userRepository.findById(1L)).thenReturn(Optional.of(sampleCustomer));
+        when(systemSettingService.getCancellationWindowMinutes()).thenReturn(30);
+        when(orderRepository.save(any(Order.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        CancelOrderRequest cancelReq = new CancelOrderRequest("");
+        OrderDetailResponse response = customerOrderService.cancelOwnOrder(1L, 10L, cancelReq);
+
+        assertThat(response).isNotNull();
+        assertThat(sampleOrder.getStatus()).isEqualTo(OrderStatus.CANCELLED);
+        assertThat(sampleOrder.getCancellationReason()).isEqualTo(null);
+        verify(orderStatusHistoryRepository).save(any(OrderStatusHistory.class));
+    }
 
     @Test
-    @DisplayName("Hủy đơn hàng thành công trong hạn cho phép (PENDING)")
-    void cancelOwnOrder_success_withinCancellationWindow() {
-        sampleOrder.setStatus(OrderStatus.PENDING);
+    @DisplayName("Hủy đơn hàng thành công trong hạn cho phép (CONFIRMED)")
+    void cancelOwnOrder_success_withConfirmedStatus_withinCancellationWindow() {
+        sampleOrder.setStatus(OrderStatus.CONFIRMED);
         sampleOrder.setCreatedAt(Instant.now().minus(5, ChronoUnit.MINUTES));
 
         when(orderRepository.findByIdAndCustomerIdAndIsDeletedFalse(10L, 1L)).thenReturn(Optional.of(sampleOrder));
@@ -631,7 +666,7 @@ class CustomerOrderServiceImplTest {
     @Test
     @DisplayName("Ném BusinessRuleException khi đã quá thời hạn cancellationWindowMinutes cho phép hủy")
     void cancelOwnOrder_throwsBusinessRuleException_whenWindowExpired() {
-        sampleOrder.setStatus(OrderStatus.PENDING);
+        sampleOrder.setStatus(OrderStatus.CONFIRMED);
         sampleOrder.setCreatedAt(Instant.now().minus(35, ChronoUnit.MINUTES)); // Đã quá 30 phút
 
         when(orderRepository.findByIdAndCustomerIdAndIsDeletedFalse(10L, 1L)).thenReturn(Optional.of(sampleOrder));

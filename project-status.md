@@ -1,6 +1,6 @@
 # Project Status
 
-> Last updated: 2026-11-02 | By: @antigravity | Session: #12
+> Last updated: 2026-11-04 | By: @antigravity | Session: #13
 >
 > AI: update this file at the end of every session when asked.
 > Follow this exact format. Preserve full milestone checklists and project specifications.
@@ -8,6 +8,13 @@
 ---
 
 ## Completed
+- ✅ **Bổ sung Tiện ích Xác thực Khoảng Thời gian (`DateUtils`)**:
+  - Tạo lớp tiện ích [`DateUtils`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/common/util/DateUtils.java) trong package `com.hmp.sales.common.util` (tuân thủ quy chuẩn đặt tên `*Utils`).
+  - Cung cấp các phương thức `isValidDateRange(fromDate, toDate)` và `validateDateRange(fromDate, toDate)` hỗ trợ đa dạng kiểu dữ liệu: `LocalDate`, `LocalDateTime`, `Instant`.
+  - Kiểm tra điều kiện `fromDate <= toDate`. Nếu một trong hai giá trị là `null`, coi như không bị chặn biên (hợp lệ). Nếu `fromDate > toDate`, `validateDateRange` ném `BusinessRuleException` với thông điệp tiếng Việt thân thiện, rõ ràng.
+  - Tích hợp vào [`CustomerOrderServiceImpl.getOwnOrders`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/order/service/impl/CustomerOrderServiceImpl.java) để xác thực khoảng lọc ngày trước khi truy vấn cơ sở dữ liệu.
+  - Viết bộ test đầy đủ tại [`DateUtilsTest`](file:///d:/HMP/sales-backend/src/test/java/com/hmp/sales/common/util/DateUtilsTest.java) và bổ sung test case tại [`CustomerOrderServiceImplTest`](file:///d:/HMP/sales-backend/src/test/java/com/hmp/sales/feature/order/service/CustomerOrderServiceImplTest.java).
+  - Toàn bộ **295/295 tests pass 100%**.
 - ✅ **Phase 4 (Step 2) — Quản lý Đơn hàng Khách hàng, Cấu hình Động Cửa sổ Hủy Đơn & Chuẩn hóa `colorId`, `unitId` completed**:
   - **Chuẩn hóa Định danh Màu sắc & Đơn vị tính trong `OrderItemRequest`**:
     - Thay thế trường văn bản thuần `color`, `unit` thành ID số nguyên dương [`colorId`, `unitId`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/order/dto/OrderItemRequest.java) (`@Positive`).

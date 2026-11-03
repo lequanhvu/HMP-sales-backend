@@ -5,6 +5,7 @@ import com.hmp.sales.common.exception.InvalidOrderStateException;
 import com.hmp.sales.common.exception.OtpVerificationException;
 import com.hmp.sales.common.exception.ResourceNotFoundException;
 import com.hmp.sales.common.response.PageResponse;
+import com.hmp.sales.common.util.DateUtils;
 import com.hmp.sales.feature.order.dto.CancelOrderRequest;
 import com.hmp.sales.feature.order.dto.CreateOrderRequest;
 import com.hmp.sales.feature.order.dto.OrderDetailResponse;
@@ -175,6 +176,9 @@ public class CustomerOrderServiceImpl implements CustomerOrderService {
     @Override
     @Transactional(readOnly = true)
     public PageResponse<OrderSummaryResponse> getOwnOrders(Long customerId, OrderFilterRequest filter, Pageable pageable) {
+        if (filter != null) {
+            DateUtils.validateDateRange(filter.dateFrom(), filter.dateTo());
+        }
         Specification<Order> spec = buildOrderSpecification(customerId, filter);
         Page<Order> orderPage = orderRepository.findAll(spec, pageable);
         return PageResponse.from(orderPage.map(OrderSummaryResponse::fromEntity));
@@ -368,7 +372,8 @@ public class CustomerOrderServiceImpl implements CustomerOrderService {
         Instant baseTime = order.getConfirmedAt() != null ? order.getConfirmedAt() : order.getCreatedAt();
         Instant deadline = baseTime.plus(cancellationWindow, ChronoUnit.MINUTES);
 
-        if (Instant.now().isAfter(deadline)) {
+        // khi trạng thái đơn hàng là PENDING thì khách hàng hoàn toàn có thể hủy đơn
+        if (Instant.now().isAfter(deadline) && order.getStatus() == OrderStatus.CONFIRMED) {
             throw new BusinessRuleException("Đã quá thời hạn " + cancellationWindow + " phút cho phép hủy đơn hàng. Vui lòng liên hệ bộ phận hỗ trợ.");
         }
     }
