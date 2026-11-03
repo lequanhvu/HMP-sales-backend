@@ -105,6 +105,12 @@ public class OrderItem {
     private String productNameSnapshot;
 
     /**
+     * Snapshot tên biến thể sản phẩm tại thời điểm đặt hàng.
+     */
+    @Column(name = "variant_name_snapshot", length = 150)
+    private String variantNameSnapshot;
+
+    /**
      * Snapshot tên đơn vị tính tại thời điểm đặt hàng.
      */
     @Column(name = "unit_name_snapshot", length = 50)

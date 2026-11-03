@@ -25,6 +25,16 @@ public interface ProductColorRepository extends JpaRepository<ProductColor, Prod
     List<ProductColor> findByVariantIdAndIsDeletedFalse(Long variantId);
 
     /**
+     * Kiểm tra xem màu sắc có liên kết với biến thể sản phẩm và chưa bị xóa mềm hay không.
+     *
+     * @param variantId ID biến thể sản phẩm
+     * @param colorId   ID màu sắc
+     * @return true nếu màu sắc tồn tại trong biến thể và chưa xóa mềm
+     */
+    @Query("SELECT COUNT(pc) > 0 FROM ProductColor pc WHERE pc.variant.id = :variantId AND pc.color.id = :colorId AND pc.isDeleted = false")
+    boolean existsByVariantIdAndColorId(@Param("variantId") Long variantId, @Param("colorId") Long colorId);
+
+    /**
      * Soft-delete tất cả màu sắc liên kết của một biến thể (dùng khi xóa mềm biến thể).
      *
      * @param variantId ID biến thể cần xóa mềm toàn bộ màu

@@ -12,6 +12,7 @@ import java.math.BigDecimal;
  * @param productId   ID sản phẩm
  * @param productName tên sản phẩm (snapshot)
  * @param variantId   ID biến thể sản phẩm (nếu có)
+ * @param variantName tên biến thể sản phẩm (snapshot)
  * @param color       màu sắc đã chọn (snapshot)
  * @param unit        đơn vị tính (snapshot)
  * @param quantity    số lượng đặt mua
@@ -25,6 +26,7 @@ public record OrderItemResponse(
         Long productId,
         String productName,
         Long variantId,
+        String variantName,
         String color,
         String unit,
         BigDecimal quantity,
@@ -48,6 +50,7 @@ public record OrderItemResponse(
                 item.getProduct() != null ? item.getProduct().getId() : null,
                 item.getProductNameSnapshot(),
                 item.getVariant() != null ? item.getVariant().getId() : null,
+                item.getVariantNameSnapshot(),
                 item.getColorSnapshot(),
                 item.getUnitNameSnapshot(),
                 item.getQuantity(),
@@ -57,4 +60,3 @@ public record OrderItemResponse(
         );
     }
 }
-

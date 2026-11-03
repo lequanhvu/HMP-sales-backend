@@ -404,6 +404,7 @@ The order is the durable business record. Orders are persisted and managed direc
 | TotalPrice | BIGINT | Yes | Calculated line total |
 | ColorSnapshot | NVARCHAR(100) | Yes | Preserve customer-selected color |
 | ProductNameSnapshot | NVARCHAR(250) | No | Protect order history from product rename |
+| VariantNameSnapshot | NVARCHAR(150) | Yes | Protect order history from variant rename |
 | UnitNameSnapshot | NVARCHAR(50) | Yes | Protect unit display history |
 | IsDeleted | BOOLEAN | No | Default false; soft delete flag |
 

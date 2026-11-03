@@ -1170,11 +1170,10 @@ Manufacturing item in V1 (tôn sóng): type + color + size/length + quantity.
     {
       "productId": 100,
       "variantId": 1001,
+      "colorId": 1,
+      "unitId": 2,
       "quantity": 10,
-      "size": 5,
-      "type": "Type A",
-      "color": "Xanh",
-      "unit": "m"
+      "size": 5
     }
   ]
 }
@@ -1195,6 +1194,8 @@ The authenticated user's ID must be taken from the JWT subject/server-side authe
       {
         "orderItemId": 1,
         "productId": 100,
+        "variantId": 1001,
+        "variantName": "Tôn 0.35mm - 5 sóng",
         "quantity": 10,
         "size": 5,
         "unit": "m",
@@ -1322,6 +1323,9 @@ The customer can see `TotalAmount` after Manager has calculated the order.
       {
         "orderItemId": 1,
         "productId": 100,
+        "productName": "Tôn lạnh Hoa Sen",
+        "variantId": 1001,
+        "variantName": "Tôn 0.35mm - 5 sóng",
         "quantity": 10,
         "size": 5,
         "unit": "m",

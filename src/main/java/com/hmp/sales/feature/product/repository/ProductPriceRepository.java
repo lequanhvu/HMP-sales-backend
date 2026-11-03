@@ -26,6 +26,16 @@ public interface ProductPriceRepository extends JpaRepository<ProductPrice, Prod
     List<ProductPrice> findByVariantIdAndIsDeletedFalse(Long variantId);
 
     /**
+     * Kiểm tra xem đơn vị tính có trong bảng giá của biến thể sản phẩm và chưa bị xóa mềm hay không.
+     *
+     * @param variantId ID biến thể sản phẩm
+     * @param unitId    ID đơn vị tính
+     * @return true nếu đơn vị tính tồn tại trong bảng giá của biến thể và chưa xóa mềm
+     */
+    @Query("SELECT COUNT(pp) > 0 FROM ProductPrice pp WHERE pp.variant.id = :variantId AND pp.unit.id = :unitId AND pp.isDeleted = false")
+    boolean existsByVariantIdAndUnitId(@Param("variantId") Long variantId, @Param("unitId") Long unitId);
+
+    /**
      * Soft-delete tất cả bảng giá của một biến thể (dùng khi xóa mềm biến thể).
      *
      * @param variantId ID biến thể cần xóa mềm toàn bộ bảng giá

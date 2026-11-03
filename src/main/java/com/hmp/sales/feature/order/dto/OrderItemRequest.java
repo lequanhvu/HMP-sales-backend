@@ -2,7 +2,7 @@ package com.hmp.sales.feature.order.dto;
 
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Size;
+import jakarta.validation.constraints.Positive;
 
 import java.math.BigDecimal;
 
@@ -11,8 +11,8 @@ import java.math.BigDecimal;
  *
  * @param productId ID sản phẩm đặt mua
  * @param variantId ID biến thể sản phẩm (nếu có)
- * @param color     màu sắc khách hàng chọn
- * @param unit      tên đơn vị tính (m, tấm, cái,...)
+ * @param colorId   mã ID màu sắc khách hàng chọn (phải thuộc biến thể của sản phẩm)
+ * @param unitId    mã ID đơn vị tính khách hàng chọn (phải thuộc bảng giá của biến thể)
  * @param quantity  số lượng đặt mua (phải lớn hơn 0)
  * @param size      kích thước/chiều dài sản xuất (mét, phải lớn hơn 0 nếu có)
  */
@@ -22,11 +22,11 @@ public record OrderItemRequest(
 
         Long variantId,
 
-        @Size(max = 100, message = "Màu sắc không được vượt quá 100 ký tự")
-        String color,
+        @Positive(message = "Mã màu sắc không hợp lệ")
+        Long colorId,
 
-        @Size(max = 50, message = "Đơn vị tính không được vượt quá 50 ký tự")
-        String unit,
+        @Positive(message = "Mã đơn vị tính không hợp lệ")
+        Long unitId,
 
         @NotNull(message = "Số lượng không được để trống")
         @DecimalMin(value = "0.0001", message = "Số lượng phải lớn hơn 0")
@@ -35,4 +35,3 @@ public record OrderItemRequest(
         @DecimalMin(value = "0.0001", message = "Kích thước/chiều dài phải lớn hơn 0")
         BigDecimal size
 ) {}
-

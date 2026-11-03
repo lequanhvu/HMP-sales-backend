@@ -22,14 +22,24 @@ import com.hmp.sales.feature.order.repository.OrderRepository;
 import com.hmp.sales.feature.order.repository.OrderStatusHistoryRepository;
 import com.hmp.sales.feature.order.service.CustomerOrderService;
 import com.hmp.sales.feature.otp.service.PhoneOtpService;
+import com.hmp.sales.feature.product.entity.Color;
+import com.hmp.sales.feature.product.entity.ColorStatus;
 import com.hmp.sales.feature.product.entity.Product;
 import com.hmp.sales.feature.product.entity.ProductStatus;
 import com.hmp.sales.feature.product.entity.ProductVariant;
+import com.hmp.sales.feature.product.entity.Unit;
+import com.hmp.sales.feature.product.entity.UnitStatus;
 import com.hmp.sales.feature.product.entity.VariantStatus;
+import com.hmp.sales.feature.product.repository.ColorRepository;
+import com.hmp.sales.feature.product.repository.ProductColorRepository;
+import com.hmp.sales.feature.product.repository.ProductPriceRepository;
 import com.hmp.sales.feature.product.repository.ProductRepository;
 import com.hmp.sales.feature.product.repository.ProductVariantRepository;
+import com.hmp.sales.feature.product.repository.UnitRepository;
 import com.hmp.sales.feature.setting.service.SystemSettingService;
+import com.hmp.sales.feature.user.entity.CustomerAddress;
 import com.hmp.sales.feature.user.entity.User;
+import com.hmp.sales.feature.user.repository.CustomerAddressRepository;
 import com.hmp.sales.feature.user.repository.UserRepository;
 import jakarta.persistence.criteria.Predicate;
 import lombok.extern.slf4j.Slf4j;
@@ -59,11 +69,30 @@ public class CustomerOrderServiceImpl implements CustomerOrderService {
     private final UserRepository userRepository;
     private final ProductRepository productRepository;
     private final ProductVariantRepository productVariantRepository;
+    private final ColorRepository colorRepository;
+    private final UnitRepository unitRepository;
+    private final ProductColorRepository productColorRepository;
+    private final ProductPriceRepository productPriceRepository;
     private final PhoneOtpService phoneOtpService;
     private final SystemSettingService systemSettingService;
+    private final CustomerAddressRepository customerAddressRepository;
 
     /**
      * Khởi tạo service với các repositories và services phụ thuộc.
+     *
+     * @param orderRepository              repository quản lý đơn hàng
+     * @param orderItemRepository          repository quản lý chi tiết dòng đơn hàng
+     * @param orderStatusHistoryRepository repository quản lý lịch sử trạng thái đơn hàng
+     * @param userRepository               repository quản lý người dùng
+     * @param productRepository            repository quản lý sản phẩm
+     * @param productVariantRepository     repository quản lý biến thể sản phẩm
+     * @param colorRepository              repository quản lý màu sắc
+     * @param unitRepository               repository quản lý đơn vị tính
+     * @param productColorRepository       repository quản lý liên kết màu sắc của biến thể
+     * @param productPriceRepository       repository quản lý bảng giá theo đơn vị tính của biến thể
+     * @param phoneOtpService              service xác thực mã OTP số điện thoại
+     * @param systemSettingService         service cấu hình hệ thống động
+     * @param customerAddressRepository    repository quản lý sổ địa chỉ khách hàng
      */
     public CustomerOrderServiceImpl(
             OrderRepository orderRepository,
@@ -72,16 +101,26 @@ public class CustomerOrderServiceImpl implements CustomerOrderService {
             UserRepository userRepository,
             ProductRepository productRepository,
             ProductVariantRepository productVariantRepository,
+            ColorRepository colorRepository,
+            UnitRepository unitRepository,
+            ProductColorRepository productColorRepository,
+            ProductPriceRepository productPriceRepository,
             PhoneOtpService phoneOtpService,
-            SystemSettingService systemSettingService) {
+            SystemSettingService systemSettingService,
+            CustomerAddressRepository customerAddressRepository) {
         this.orderRepository = orderRepository;
         this.orderItemRepository = orderItemRepository;
         this.orderStatusHistoryRepository = orderStatusHistoryRepository;
         this.userRepository = userRepository;
         this.productRepository = productRepository;
         this.productVariantRepository = productVariantRepository;
+        this.colorRepository = colorRepository;
+        this.unitRepository = unitRepository;
+        this.productColorRepository = productColorRepository;
+        this.productPriceRepository = productPriceRepository;
         this.phoneOtpService = phoneOtpService;
         this.systemSettingService = systemSettingService;
+        this.customerAddressRepository = customerAddressRepository;
     }
 
     /**
@@ -95,12 +134,14 @@ public class CustomerOrderServiceImpl implements CustomerOrderService {
 
         validatePhoneOtp(customer, request.receiverPhone());
 
+        String shippingAddress = resolveShippingAddress(customer.getId(), request.addressId());
+
         Order order = Order.builder()
                 .customer(customer)
                 .status(OrderStatus.PENDING)
                 .receiverName(request.receiverName().trim())
                 .receiverPhone(request.receiverPhone().trim())
-                .shippingAddress(request.shippingAddress().trim())
+                .shippingAddress(shippingAddress)
                 .note(request.note() != null ? request.note().trim() : null)
                 .build();
 
@@ -217,6 +258,25 @@ public class CustomerOrderServiceImpl implements CustomerOrderService {
         }
     }
 
+    private String resolveShippingAddress(Long customerId, Long addressId) {
+        if (addressId == null) {
+            throw new BusinessRuleException("Địa chỉ nhận hàng không được để trống.");
+        }
+
+        CustomerAddress savedAddress = customerAddressRepository
+                .findByIdAndCustomerIdAndIsDeletedFalse(addressId, customerId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy địa chỉ nhận hàng ID: " + addressId));
+
+        if (!Boolean.TRUE.equals(savedAddress.getIsDefault())) {
+            customerAddressRepository.resetDefaultAddress(customerId);
+            savedAddress.setIsDefault(true);
+            customerAddressRepository.save(savedAddress);
+            log.info("[Order] Đã tự động cập nhật địa chỉ ID: {} thành địa chỉ mặc định cho khách hàng ID: {}", savedAddress.getId(), customerId);
+        }
+
+        return savedAddress.getAddressLine().trim();
+    }
+
     private List<OrderItem> buildAndSaveOrderItems(Order order, List<OrderItemRequest> itemRequests) {
         List<OrderItem> itemsToSave = new ArrayList<>();
 
@@ -244,13 +304,51 @@ public class CustomerOrderServiceImpl implements CustomerOrderService {
                 }
             }
 
+            Color color = null;
+            if (req.colorId() != null) {
+                color = colorRepository.findByIdAndIsDeletedFalse(req.colorId())
+                        .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy màu sắc ID: " + req.colorId()));
+
+                if (color.getStatus() != ColorStatus.ACTIVE) {
+                    throw new BusinessRuleException("Màu sắc '" + color.getColorName() + "' hiện đang bị khóa.");
+                }
+
+                if (variant == null) {
+                    throw new BusinessRuleException("Sản phẩm '" + product.getProductName() + "' chưa chọn biến thể, không thể chọn màu sắc.");
+                }
+
+                if (!productColorRepository.existsByVariantIdAndColorId(variant.getId(), color.getId())) {
+                    throw new BusinessRuleException("Màu sắc '" + color.getColorName() + "' không thuộc biến thể ID " + variant.getId() + " của sản phẩm '" + product.getProductName() + "'.");
+                }
+            }
+
+            Unit unit = null;
+            if (req.unitId() != null) {
+                unit = unitRepository.findByIdAndIsDeletedFalse(req.unitId())
+                        .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy đơn vị tính ID: " + req.unitId()));
+
+                if (unit.getStatus() != UnitStatus.ACTIVE) {
+                    throw new BusinessRuleException("Đơn vị tính '" + unit.getUnitName() + "' hiện đang bị khóa.");
+                }
+
+                if (variant == null) {
+                    throw new BusinessRuleException("Sản phẩm '" + product.getProductName() + "' chưa chọn biến thể, không thể chọn đơn vị tính.");
+                }
+
+                if (!productPriceRepository.existsByVariantIdAndUnitId(variant.getId(), unit.getId())) {
+                    throw new BusinessRuleException("Đơn vị tính '" + unit.getUnitName() + "' không thuộc biến thể ID " + variant.getId() + " của sản phẩm '" + product.getProductName() + "'.");
+                }
+            }
+
             OrderItem item = OrderItem.builder()
                     .order(order)
                     .product(product)
                     .variant(variant)
+                    .unit(unit)
                     .productNameSnapshot(product.getProductName())
-                    .colorSnapshot(req.color() != null ? req.color().trim() : null)
-                    .unitNameSnapshot(req.unit() != null ? req.unit().trim() : null)
+                    .variantNameSnapshot(variant != null ? variant.getVariantName() : null)
+                    .colorSnapshot(color != null ? color.getColorName() : null)
+                    .unitNameSnapshot(unit != null ? unit.getUnitName() : null)
                     .quantity(req.quantity())
                     .size(req.size())
                     .build();

@@ -10,6 +10,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.AuthenticationException;
+import org.springframework.http.converter.HttpMessageNotReadableException;
+import tools.jackson.databind.exc.InvalidFormatException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -18,6 +20,7 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * Bộ xử lý ngoại lệ tập trung (Centralized Exception Handler) cho toàn bộ ứng dụng REST API.
@@ -176,6 +179,43 @@ public class GlobalExceptionHandler {
         String message = String.format("Giá trị tham số '%s' không hợp lệ: %s", paramName, value);
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(ApiErrorResponse.of(HttpStatus.BAD_REQUEST.value(), message));
+    }
+
+    /**
+     * Xử lý lỗi khi Request Body không thể phân giải hoặc sai định dạng dữ liệu JSON
+     * (ví dụ: truyền chuỗi "abc" vào trường số Long như colorId, productId, hoặc JSON sai cú pháp) (400 Bad Request).
+     *
+     * @param ex Ngoại lệ HttpMessageNotReadableException do Spring MVC ném ra khi parse JSON thất bại.
+     * @return Phản hồi lỗi 400 Bad Request kèm chi tiết trường và thông điệp tiếng Việt chuẩn.
+     */
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ApiErrorResponse> handleHttpMessageNotReadable(HttpMessageNotReadableException ex) {
+        log.warn("Http message not readable: {}", ex.getMessage());
+
+        Throwable cause = ex.getCause();
+        if (cause instanceof InvalidFormatException ifx) {
+            String fieldName = ifx.getPath().stream()
+                    .map(ref -> ref.getPropertyName() != null ? ref.getPropertyName() : ("[" + ref.getIndex() + "]"))
+                    .collect(Collectors.joining("."))
+                    .replace(".[", "[");
+
+            String errorMessage = String.format("Trường '%s' có giá trị không đúng định dạng: '%s'",
+                    fieldName, ifx.getValue());
+
+            ValidationErrorResponse error = new ValidationErrorResponse(fieldName, errorMessage);
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(ApiErrorResponse.of(
+                            HttpStatus.BAD_REQUEST.value(),
+                            "Dữ liệu yêu cầu không hợp lệ.",
+                            List.of(error)
+                    ));
+        }
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ApiErrorResponse.of(
+                        HttpStatus.BAD_REQUEST.value(),
+                        "Định dạng dữ liệu yêu cầu không hợp lệ."
+                ));
     }
 
     /**

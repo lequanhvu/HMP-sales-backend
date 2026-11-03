@@ -1,14 +1,20 @@
 package com.hmp.sales.common.exception;
 
 import com.hmp.sales.common.response.ApiErrorResponse;
+import com.hmp.sales.common.response.ValidationErrorResponse;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.exc.InvalidFormatException;
+
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -127,5 +133,41 @@ class GlobalExceptionHandlerTest {
         assertNotNull(response.getBody());
         assertEquals(400, response.getBody().statusCode());
         assertEquals("Giá trị tham số 'userId' không hợp lệ: abc", response.getBody().message());
+    }
+
+    @Test
+    @DisplayName("handleHttpMessageNotReadable returns 400 with field error when caused by InvalidFormatException")
+    void handleHttpMessageNotReadable_withInvalidFormatException_returns400() {
+        InvalidFormatException ifx = InvalidFormatException.from(
+                null, "Cannot deserialize value of type `java.lang.Long` from String \"abc\"",
+                "abc", Long.class);
+        ifx.prependPath(new JacksonException.Reference(null, "colorId"));
+        ifx.prependPath(new JacksonException.Reference(null, 0));
+        ifx.prependPath(new JacksonException.Reference(null, "items"));
+
+        HttpMessageNotReadableException ex = new HttpMessageNotReadableException("JSON parse error", ifx, null);
+        ResponseEntity<ApiErrorResponse> response = exceptionHandler.handleHttpMessageNotReadable(ex);
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertEquals(400, response.getBody().statusCode());
+        assertEquals("Dữ liệu yêu cầu không hợp lệ.", response.getBody().message());
+        assertNotNull(response.getBody().errors());
+        assertEquals(1, response.getBody().errors().size());
+        ValidationErrorResponse error = (ValidationErrorResponse) response.getBody().errors().get(0);
+        assertEquals("items[0].colorId", error.field());
+        assertTrue(error.message().contains("abc"));
+    }
+
+    @Test
+    @DisplayName("handleHttpMessageNotReadable returns 400 for generic JSON syntax error")
+    void handleHttpMessageNotReadable_genericError_returns400() {
+        HttpMessageNotReadableException ex = new HttpMessageNotReadableException("Malformed JSON", null, null);
+        ResponseEntity<ApiErrorResponse> response = exceptionHandler.handleHttpMessageNotReadable(ex);
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertEquals(400, response.getBody().statusCode());
+        assertEquals("Định dạng dữ liệu yêu cầu không hợp lệ.", response.getBody().message());
     }
 }

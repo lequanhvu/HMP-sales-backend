@@ -73,14 +73,14 @@ class CustomerOrderControllerTest {
                 {
                     "receiverName": "Nguyễn Văn A",
                     "receiverPhone": "0987654321",
-                    "shippingAddress": "123 Đường ABC",
+                    "addressId": 1,
                     "note": "Giao giờ hành chính",
                     "items": [
                         {
                             "productId": 100,
                             "variantId": 1001,
-                            "color": "Xanh",
-                            "unit": "m",
+                            "colorId": 1,
+                            "unitId": 2,
                             "quantity": 10,
                             "size": 5
                         }
@@ -89,7 +89,7 @@ class CustomerOrderControllerTest {
                 """;
 
         OrderItemResponse itemResp = new OrderItemResponse(
-                1L, 100L, "Tôn sóng Hoa Sen", 1001L, "Xanh", "m",
+                1L, 100L, "Tôn sóng Hoa Sen", 1001L, "Tôn 0.35mm - 5 sóng", "Xanh", "m",
                 new BigDecimal("10"), new BigDecimal("5"), null, null);
         OrderStatusHistoryResponse historyResp = new OrderStatusHistoryResponse(
                 1L, null, OrderStatus.PENDING, 1L, "Khách hàng tạo đơn hàng mới", Instant.now());
@@ -120,7 +120,7 @@ class CustomerOrderControllerTest {
                 {
                     "receiverName": "",
                     "receiverPhone": "0987654321",
-                    "shippingAddress": "123 Đường ABC",
+                    "addressId": 1,
                     "items": [
                         {
                             "productId": 100,
@@ -138,6 +138,37 @@ class CustomerOrderControllerTest {
                 .andExpect(jsonPath("$.statusCode").value(400))
                 .andExpect(jsonPath("$.message").value("Dữ liệu yêu cầu không hợp lệ."))
                 .andExpect(jsonPath("$.errors[0].field").value("receiverName"));
+    }
+
+    @Test
+    @DisplayName("POST /api/v1/orders - Validate thất bại khi colorId không phải kiểu số trả về 400")
+    void createOrder_invalidColorIdFormat_returns400() throws Exception {
+        String jsonPayload = """
+                {
+                    "receiverName": "Nguyễn Văn A",
+                    "receiverPhone": "0987654321",
+                    "addressId": 1,
+                    "items": [
+                        {
+                            "productId": 100,
+                            "variantId": 1001,
+                            "colorId": "abc",
+                            "unitId": 2,
+                            "quantity": 10
+                        }
+                    ]
+                }
+                """;
+
+        mockMvc.perform(post("/api/v1/orders")
+                        .principal(authentication)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(jsonPayload))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.statusCode").value(400))
+                .andExpect(jsonPath("$.message").value("Dữ liệu yêu cầu không hợp lệ."))
+                .andExpect(jsonPath("$.errors[0].field").value("items[0].colorId"))
+                .andExpect(jsonPath("$.errors[0].message").value(org.hamcrest.Matchers.containsString("abc")));
     }
 
     @Test

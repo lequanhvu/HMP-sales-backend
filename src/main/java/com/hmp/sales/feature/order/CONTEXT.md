@@ -17,7 +17,7 @@ Các thực thể JPA tại `com.hmp.sales.feature.order.entity`:
   - Khóa chính `order_item_id` (`Long`).
   - Liên kết `@ManyToOne` với `Order`, `Product`, `ProductVariant`, `Unit`.
   - Thông số kỹ thuật: `quantity` (`BigDecimal`), `size` (`BigDecimal`, chiều dài tôn sóng tính bằng mét).
-  - Snapshot bất biến: `product_name_snapshot` (`VARCHAR(250)`), `unit_name_snapshot` (`VARCHAR(50)`), `color_snapshot` (`VARCHAR(100)`).
+  - Snapshot bất biến: `product_name_snapshot` (`VARCHAR(250)`), `variant_name_snapshot` (`VARCHAR(150)`), `unit_name_snapshot` (`VARCHAR(50)`), `color_snapshot` (`VARCHAR(100)`).
   - Đơn giá & thành tiền: `unit_price` (`Integer`), `total_price` (`Long`).
 - `OrderStatusHistory`: Đại diện bảng `order_status_histories`.
   - Khóa chính `history_id` (`Long`).
@@ -51,9 +51,18 @@ Tại `com.hmp.sales.feature.order.repository`:
 1. **Bảo chứng xác thực OTP**:
    - Khi tạo đơn hàng (`POST /api/v1/orders`), số điện thoại người nhận `receiverPhone` bắt buộc phải có bảo chứng xác thực trên Redis (`otp:verified:{phone}`) HOẶC trùng khớp với số điện thoại đã được xác thực lưu trên tài khoản `User`.
    - Nếu không thỏa mãn, ném ngoại lệ `OtpVerificationException`.
-2. **Kiểm tra trạng thái sản phẩm (ACTIVE)**:
+2. **Kiểm tra trạng thái sản phẩm, biến thể, màu sắc (`colorId`) & đơn vị tính (`unitId`)**:
    - Các sản phẩm đặt mua phải đang ở trạng thái `ACTIVE` và chưa xóa mềm. Nếu sản phẩm bị khóa `INACTIVE`, ném `BusinessRuleException` từ chối đặt hàng.
-   - Biến thể sản phẩm phải thuộc đúng sản phẩm và đang ở trạng thái `ACTIVE`.
+   - Biến thể sản phẩm (`variantId` nếu có) phải thuộc đúng sản phẩm và đang ở trạng thái `ACTIVE`.
+   - `OrderItemRequest` sử dụng định danh `colorId` và `unitId` (thay thế chuỗi text thuần `color`, `unit`).
+   - Khi đặt hàng với `colorId`:
+     - Màu sắc phải tồn tại trong DB, chưa xóa mềm và đang ở trạng thái `ACTIVE`.
+     - Sản phẩm phải có biến thể được chọn và màu sắc bắt buộc phải tồn tại trong danh sách màu sắc của biến thể (`ProductColorRepository.existsByVariantIdAndColorId`). Nếu không thỏa mãn, ném `BusinessRuleException`.
+     - Tên màu sắc được snapshot bất biến vào `OrderItem.colorSnapshot`.
+   - Khi đặt hàng với `unitId`:
+     - Đơn vị tính phải tồn tại trong DB, chưa xóa mềm và đang ở trạng thái `ACTIVE`.
+     - Sản phẩm phải có biến thể được chọn và đơn vị tính bắt buộc phải tồn tại trong bảng giá của biến thể (`ProductPriceRepository.existsByVariantIdAndUnitId`). Nếu không thỏa mãn, ném `BusinessRuleException`.
+     - Liên kết khóa ngoại `OrderItem.unit` tới thực thể `Unit` và snapshot tên đơn vị tính vào `OrderItem.unitNameSnapshot`.
 3. **Snapshot bất biến**:
    - Tên sản phẩm, đơn vị tính, màu sắc được snapshot trực tiếp vào `OrderItem` để bảo vệ lịch sử đơn hàng ngay cả khi sản phẩm hoặc danh mục bị sửa đổi hoặc xóa mềm sau này.
 4. **Khách hàng không cần xác nhận duyệt đơn**:
@@ -70,6 +79,11 @@ Tại `com.hmp.sales.feature.order.repository`:
    - `OrderAutoTransitionScheduler` chạy định kỳ mỗi 60 giây (`@Scheduled(fixedDelay = 60000)`).
    - Quét các đơn `CONFIRMED` có `confirmedAt + cancellationWindowMinutes <= now()`.
    - Tự động cập nhật `status = PROCESSING` và ghi nhận bản ghi `OrderStatusHistory` với `changedBy = null` (Hệ thống).
+8. **Cấu trúc DTO `CreateOrderRequest` & Phân giải Địa chỉ**:
+   - `customerId` được trích xuất an toàn trực tiếp từ JWT token đăng nhập hiện tại thông qua `SecurityUtils.extractUserId(authentication)`, không nhận từ request body để đảm bảo tính an toàn dữ liệu và chống giả mạo danh tính.
+   - Tiếp nhận `Long addressId`: hệ thống tra cứu địa chỉ từ sổ địa chỉ (`CustomerAddressRepository`) của chính khách hàng đó.
+   - **Tự động đặt làm địa chỉ mặc định**: Nếu địa chỉ được chọn chưa phải là mặc định (`isDefault = false`), hệ thống sẽ reset địa chỉ mặc định cũ và cập nhật địa chỉ được chọn thành mặc định mới (`isDefault = true`).
+   - Snapshot chuỗi `addressLine` bất biến vào trường `shippingAddress` của `Order`.
 
 ## 6. REST API Endpoints
 Prefix: `/api/v1/orders`
