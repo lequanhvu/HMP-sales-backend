@@ -1,6 +1,6 @@
 # Project Status
 
-> Last updated: 2026-11-04 | By: @antigravity | Session: #13
+> Last updated: 2026-11-04 | By: @antigravity | Session: #14
 >
 > AI: update this file at the end of every session when asked.
 > Follow this exact format. Preserve full milestone checklists and project specifications.
@@ -8,6 +8,31 @@
 ---
 
 ## Completed
+- ✅ **Phase 4 (Step 3) — Xử lý Đơn hàng Quản lý, Tính giá & Chiết khấu Linh hoạt, Tách biệt Confirm & Hủy đơn SHIPPING completed**:
+  - **Mở rộng Mô hình Thực thể & Schema Database (`orders`, `order_items`)**:
+    - [`OrderItem`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/order/entity/OrderItem.java): Bổ sung cột `discount_amount` (`BIGINT NOT NULL DEFAULT 0`) lưu trữ số tiền giảm giá cho từng dòng sản phẩm.
+    - [`Order`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/order/entity/Order.java): Bổ sung cột `subtotal_amount` (`BIGINT`) lưu tổng tiền hàng trước giảm giá đơn và `discount_amount` (`BIGINT NOT NULL DEFAULT 0`) lưu số tiền giảm giá chung cho toàn bộ đơn hàng. Tổng tiền thanh toán: `totalAmount = max(0, subtotalAmount - discountAmount)`.
+    - Đồng bộ DTOs: [`OrderItemResponse`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/order/dto/OrderItemResponse.java) và [`OrderDetailResponse`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/order/dto/OrderDetailResponse.java).
+  - **Cơ chế Tính giá & Giảm giá Đa tầng Linh hoạt (Pricing & Discount)**:
+    - Quản lý có thể tùy chọn:
+      1. Giảm giá theo đơn giá: Nhập `unitPrice` mới cho từng item. Nếu không truyền, hệ thống tự động tra cứu từ bảng giá niêm yết `ProductPrice` theo `(variantId, unitId)`.
+      2. Giảm giá theo số tiền: Nhập `discountAmount` cho từng dòng hoặc cho toàn bộ đơn hàng.
+      3. Kết hợp cả hai: Vừa giảm đơn giá, vừa giảm thêm số tiền thành tiền của dòng hoặc của cả đơn.
+    - Công thức dòng: $\text{TotalPrice} = \max(0, [\text{UnitPrice} \times (\text{Size} \neq \text{null} \ ?\ \text{Size} : 1) \times \text{Quantity}] - \text{DiscountAmount})$.
+  - **Tách biệt Hoàn toàn Tính giá (`calculate`) & Xác nhận đơn (`confirm`)**:
+    - `POST /api/v1/manager/orders/{orderId}/calculate`: Tính toán và cập nhật số tiền, **giữ nguyên trạng thái `PENDING`** (Quản lý có thể tính lại nhiều lần khi thỏa thuận giá thay đổi).
+    - `POST /api/v1/manager/orders/{orderId}/confirm`: Hành động riêng biệt để chốt giá và chuyển sang `CONFIRMED`. Bắt buộc đơn phải có `totalAmount != null` mới được confirm. Khi confirm mới bắt đầu ghi nhận `confirmedAt` và kích hoạt cửa sổ hủy của khách hàng.
+  - **Mở rộng Quyền Hủy Đơn & Quản lý Tiến trình Vòng đời**:
+    - Cho phép Quản lý hủy đơn hàng ở tất cả các trạng thái trước khi hoàn tất: `PENDING`, `CONFIRMED`, `PROCESSING`, và **`SHIPPING`** (lý do hủy tùy chọn, ghi vết `OrderStatusHistory`).
+    - Hỗ trợ cập nhật tiến trình đơn hàng tuần tự (`PATCH /api/v1/manager/orders/{orderId}/status`): `CONFIRMED -> PROCESSING -> SHIPPING -> COMPLETED`.
+  - **Tra cứu, Tìm kiếm Tiếng Việt Không Dấu & Phân trang Chuẩn**:
+    - Xây dựng [`OrderSpecification.forManager`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/order/repository/OrderSpecification.java) hỗ trợ tìm kiếm tên khách hàng không dấu qua `VietnameseStringUtils`, tìm theo SĐT, email, lọc khoảng ngày, trạng thái.
+    - Cung cấp danh sách phân trang chuẩn `PageResponse<ManagerOrderSummaryResponse>`.
+  - **Dịch vụ & REST Controller Quản lý**:
+    - Triển khai [`ManagerOrderService`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/order/service/ManagerOrderService.java) và [`ManagerOrderServiceImpl`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/order/service/impl/ManagerOrderServiceImpl.java).
+    - Cung cấp 6 RESTful endpoints tại [`ManagerOrderController`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/order/controller/ManagerOrderController.java) (`/api/v1/manager/orders/**`).
+    - Cấu hình phân quyền động trong `DataInitializer`: `ORDER_VIEW_ALL`, `ORDER_CALCULATE`, `ORDER_CONFIRM`, `ORDER_CANCEL_ANY`, `ORDER_STATUS_UPDATE` cho `ROLE_MANAGER` và `ROLE_ADMIN`.
+  - Toàn bộ **321/321 tests pass 100%** (bổ sung 25 test cases mới: 16 service unit tests và 9 controller MockMvc tests).
 - ✅ **Bổ sung Tiện ích Xác thực Khoảng Thời gian (`DateUtils`)**:
   - Tạo lớp tiện ích [`DateUtils`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/common/util/DateUtils.java) trong package `com.hmp.sales.common.util` (tuân thủ quy chuẩn đặt tên `*Utils`).
   - Cung cấp các phương thức `isValidDateRange(fromDate, toDate)` và `validateDateRange(fromDate, toDate)` hỗ trợ đa dạng kiểu dữ liệu: `LocalDate`, `LocalDateTime`, `Instant`.
@@ -251,10 +276,11 @@ _Nothing._
 - ⚠️ **Scope Protection**: Do NOT implement V1 excluded modules (payment gateways, promotions, reviews, inventory, quotation, warranty, laser cutting, blogs).
 
 ## Next Tasks
-1. **[P1]** Implement Phase 4 (Step 2): Order & OrderItem entities with immutable price snapshots (`UnitPrice`, `TotalPrice`, `TotalAmount`), receiver snapshot fields, and `OrderStatusHistory`.
-2. **[P1]** Implement Phase 4 (Step 2): Customer order creation API (`POST /api/v1/orders`) with phone OTP verification & direct PostgreSQL persistence (`PENDING` state).
-3. **[P1]** Implement Phase 4 (Step 2): Customer order listing & detail APIs (`GET /api/v1/orders`, `GET /api/v1/orders/{orderId}`) and order cancellation within allowed cancellation window (`POST /api/v1/orders/{orderId}/cancel`).
-4. **[P1]** Implement Phase 4 (Step 3): Manager order listing, calculation (`TotalPrice = UnitPrice × Size × Quantity`), and lifecycle transitions (`PENDING -> CONFIRMED -> PROCESSING -> COMPLETED`).
+1. **[P1]** Implement Phase 5: Notification entity & repository in PostgreSQL.
+2. **[P1]** Implement Phase 5: Notification service (dispatch in-app notifications on order status changes, e.g. when order is CONFIRMED, PROCESSING, SHIPPING, COMPLETED, CANCELLED).
+3. **[P1]** Implement Phase 5: Customer notification APIs (`GET /api/v1/me/notifications`, mark as read).
+4. **[P2]** Implement Phase 5: SystemSetting entity, repository, and Admin configuration APIs (`GET /api/v1/admin/settings`, `PATCH /api/v1/admin/settings`).
+5. **[P2]** Implement Phase 5: SystemLog entity, repository, and business audit logging service (`GET /api/v1/admin/logs`).
 
 ## Milestones
 
@@ -339,16 +365,17 @@ _Nothing._
   - [x] Direct PostgreSQL order creation with atomic transaction (`PENDING` state)
 - [x] SystemSetting dynamic cancellation window configuration (`ORDER_CUSTOMER_CANCELLATION_WINDOW_MINUTES`)
 - [x] Background scheduler for auto-transitioning confirmed orders to `PROCESSING` (`OrderAutoTransitionScheduler`)
-- [ ] Manager order processing & calculation:
-  - [ ] Order listing with filters, pagination, and detail view
-  - [ ] Manager price calculation: `TotalPrice = UnitPrice × Size × Quantity` (với 2 tùy chọn Confirm giá hoặc Cancel tính giá)
-  - [ ] State transition to `CONFIRMED`
+- [x] Manager order processing & calculation:
+  - [x] Order listing with filters, pagination, and detail view (`GET /api/v1/manager/orders`, `GET /api/v1/manager/orders/{orderId}`)
+  - [x] Manager price & discount calculation: by unit price, item discount amount, or whole-order discount (`POST /api/v1/manager/orders/{orderId}/calculate`)
+  - [x] Decoupled order confirmation (`POST /api/v1/manager/orders/{orderId}/confirm`) transitioning to `CONFIRMED`
+  - [x] Lifecycle status updates (`CONFIRMED -> PROCESSING -> SHIPPING -> COMPLETED`) and cancellations (including `SHIPPING` state)
 - [x] Customer order viewing & cancellation flow:
   - [x] Customer views calculated order details
   - [x] Customer cancellation validation against dynamic cancellation window from DB
   - [x] Optional cancellation reason for all roles
   - [x] Immutable history logging in `OrderStatusHistory` for every valid transition
-- [x] Customer order unit and integration tests (279/279 tests pass)
+- [x] Order unit and integration tests (321/321 tests pass)
 
 ### Phase 5 — Platform, Audit & Notifications
 - [ ] Notification entity & repository

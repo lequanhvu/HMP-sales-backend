@@ -370,8 +370,10 @@ Avoid the SQL keyword `Order` as an unquoted physical table name if the project 
 |---|---|---:|---|
 | OrderID | BIGINT IDENTITY | No | PK |
 | CustomerID | BIGINT | No | FK User |
-| Status | VARCHAR(30) | No | `PENDING`, `CONFIRMED`, `PROCESSING`, `COMPLETED`, `CANCELLED` |
+| Status | VARCHAR(30) | No | `PENDING`, `CONFIRMED`, `PROCESSING`, `SHIPPING`, `COMPLETED`, `CANCELLED` |
 | TotalAmount | BIGINT | Yes | Null until price calculation is complete when applicable |
+| SubtotalAmount | BIGINT | Yes | Total before order-level discount; sum of OrderItem TotalPrice |
+| DiscountAmount | BIGINT | No | Default 0; whole-order discount |
 | ReceiverName | NVARCHAR(150) | No | Historical snapshot |
 | ReceiverPhone | VARCHAR(20) | No | Historical snapshot |
 | ShippingAddress | NVARCHAR(1000) | No | Historical snapshot |
@@ -401,6 +403,7 @@ The order is the durable business record. Orders are persisted and managed direc
 | Quantity | DECIMAL(18,4) | No | For future unit flexibility; integer-only enforcement may be business-specific |
 | Size | DECIMAL(18,4) | Yes | Customer-entered length/size for size-based products |
 | UnitPrice | INT | Yes | Price snapshot after Manager calculation |
+| DiscountAmount | BIGINT | No | Default 0; line item discount |
 | TotalPrice | BIGINT | Yes | Calculated line total |
 | ColorSnapshot | NVARCHAR(100) | Yes | Preserve customer-selected color |
 | ProductNameSnapshot | NVARCHAR(250) | No | Protect order history from product rename |

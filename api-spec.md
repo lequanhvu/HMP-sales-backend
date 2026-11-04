@@ -2368,25 +2368,32 @@ POST /api/v1/manager/orders/{orderId}/calculate
 For manufacturing items in V1:
 
 ```text
-TotalPrice = UnitPrice × Size × Quantity
+Gross = UnitPrice × (Size != null ? Size : 1) × Quantity
+Item TotalPrice = max(0, Gross - ItemDiscountAmount)
+SubtotalAmount = sum(Item TotalPrice)
+Order TotalAmount = max(0, SubtotalAmount - OrderDiscountAmount)
 ```
 
-The unit price is selected from the product's price map using the order item's selected unit.
+Quản lý có thể tùy chọn:
+1. Giảm giá theo đơn giá: truyền `unitPrice` mới trong `items`. Nếu không truyền, hệ thống tự động tra cứu từ bảng giá niêm yết `ProductPrice`.
+2. Giảm giá theo số tiền: truyền `discountAmount` cho từng dòng hoặc cho toàn bộ đơn hàng.
+3. Kết hợp cả hai: vừa giảm đơn giá, vừa giảm thêm số tiền thành tiền.
 
-Example price map:
-
-```json
-{
-  "m": 100000,
-  "tam": 150000
-}
-```
+*Lưu ý:* Thao tác tính giá **không tự động chuyển trạng thái đơn hàng** (giữ nguyên `PENDING`, Quản lý có thể tính lại nhiều lần khi thỏa thuận giá thay đổi).
 
 ### Request example
 
 ```json
 {
-  "unit": "m"
+  "discountAmount": 100000,
+  "items": [
+    {
+      "orderItemId": 1,
+      "unitPrice": 95000,
+      "discountAmount": 20000
+    }
+  ],
+  "note": "Giảm 5k/m đơn giá và giảm 100k tổng hóa đơn"
 }
 ```
 
@@ -2397,20 +2404,28 @@ Example price map:
   "statusCode": 200,
   "data": {
     "orderId": 10025,
-    "status": "WAITING_FOR_CUSTOMER_CONFIRMATION",
-    "totalAmount": 5000000,
+    "status": "PENDING",
+    "subtotalAmount": 4730000,
+    "discountAmount": 100000,
+    "totalAmount": 4630000,
+    "receiverName": "Nguyen Van A",
+    "receiverPhone": "0987654321",
+    "shippingAddress": "123 Duong ABC",
     "items": [
       {
         "orderItemId": 1,
+        "productId": 10,
+        "productName": "Tôn sóng Hoa Sen",
         "unit": "m",
-        "unitPrice": 100000,
+        "unitPrice": 95000,
+        "discountAmount": 20000,
         "size": 5,
         "quantity": 10,
-        "totalPrice": 5000000
+        "totalPrice": 4730000
       }
     ]
   },
-  "message": "Thành công",
+  "message": "Tính giá đơn hàng thành công.",
   "timestamp": "2026-10-01T10:00:00"
 }
 ```
@@ -2421,26 +2436,61 @@ Example price map:
 {
   "statusCode": 409,
   "data": null,
-  "message": "Order cannot be calculated in its current state.",
+  "message": "Không thể tính giá đơn hàng đang ở trạng thái 'COMPLETED'.",
   "timestamp": "2026-10-01T10:00:00"
 }
 ```
 
-After calculation, the Manager contacts the customer to communicate the calculated price. The customer then sees the total amount and can confirm the order.
+## 11.4 Confirm order price
 
-## 11.4 Cancel order
+```http
+POST /api/v1/manager/orders/{orderId}/confirm
+```
+
+Xác nhận chốt giá đơn hàng và chuyển trạng thái sang `CONFIRMED`.
+Yêu cầu đơn hàng bắt buộc phải đã được tính giá trước đó (`totalAmount != null`). Thao tác này kích hoạt `confirmedAt` và bắt đầu thời hạn cho phép hủy đơn (`cancellationWindowMinutes`) của khách hàng.
+
+### Success response — 200
+
+```json
+{
+  "statusCode": 200,
+  "data": {
+    "orderId": 10025,
+    "status": "CONFIRMED",
+    "totalAmount": 4630000,
+    "confirmedAt": "2026-10-01T10:05:00"
+  },
+  "message": "Xác nhận đơn hàng thành công.",
+  "timestamp": "2026-10-01T10:05:00"
+}
+```
+
+### Failure response — 400
+
+```json
+{
+  "statusCode": 400,
+  "data": null,
+  "message": "Đơn hàng chưa được tính giá, không thể xác nhận.",
+  "timestamp": "2026-10-01T10:05:00"
+}
+```
+
+## 11.5 Cancel order
 
 ```http
 POST /api/v1/manager/orders/{orderId}/cancel
 ```
 
-Cancellation reason is optional.
+Quản lý có thể hủy đơn hàng ở các trạng thái: `PENDING`, `CONFIRMED`, `PROCESSING`, và **`SHIPPING`**.
+Lý do hủy là tùy chọn (optional).
 
 ### Request example
 
 ```json
 {
-  "reason": "Sản phẩm không đáp ứng yêu cầu"
+  "reason": "Khách hàng từ chối nhận hàng lúc giao"
 }
 ```
 
@@ -2452,9 +2502,9 @@ Cancellation reason is optional.
   "data": {
     "orderId": 10025,
     "status": "CANCELLED",
-    "reason": "Sản phẩm không đáp ứng yêu cầu"
+    "cancellationReason": "Khách hàng từ chối nhận hàng lúc giao"
   },
-  "message": "Thành công",
+  "message": "Hủy đơn hàng thành công.",
   "timestamp": "2026-10-01T10:00:00"
 }
 ```
@@ -2465,16 +2515,18 @@ Cancellation reason is optional.
 {
   "statusCode": 409,
   "data": null,
-  "message": "Order cannot be cancelled in its current state.",
+  "message": "Không thể hủy đơn hàng đang ở trạng thái 'COMPLETED'.",
   "timestamp": "2026-10-01T10:00:00"
 }
 ```
 
-## 11.5 Update order status
+## 11.6 Update order status
 
 ```http
 PATCH /api/v1/manager/orders/{orderId}/status
 ```
+
+Cập nhật trạng thái tiến trình đơn hàng tuần tự: `CONFIRMED -> PROCESSING -> SHIPPING -> COMPLETED`.
 
 ### Request example
 

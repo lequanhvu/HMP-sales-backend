@@ -16,9 +16,10 @@ import java.math.BigDecimal;
  * @param color       màu sắc đã chọn (snapshot)
  * @param unit        đơn vị tính (snapshot)
  * @param quantity    số lượng đặt mua
- * @param size        kích thước/chiều dài sản xuất
- * @param unitPrice   đơn giá snapshot được tính (null khi chưa tính giá)
- * @param totalPrice  thành tiền dòng sản phẩm (null khi chưa tính giá)
+ * @param size           kích thước/chiều dài sản xuất
+ * @param unitPrice      đơn giá snapshot được tính (null khi chưa tính giá)
+ * @param discountAmount số tiền giảm giá dòng sản phẩm
+ * @param totalPrice     thành tiền dòng sản phẩm (null khi chưa tính giá)
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record OrderItemResponse(
@@ -32,6 +33,7 @@ public record OrderItemResponse(
         BigDecimal quantity,
         BigDecimal size,
         Integer unitPrice,
+        Long discountAmount,
         Long totalPrice
 ) {
 
@@ -56,6 +58,7 @@ public record OrderItemResponse(
                 item.getQuantity(),
                 item.getSize(),
                 item.getUnitPrice(),
+                item.getDiscountAmount(),
                 item.getTotalPrice()
         );
     }

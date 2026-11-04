@@ -90,11 +90,11 @@ class CustomerOrderControllerTest {
 
         OrderItemResponse itemResp = new OrderItemResponse(
                 1L, 100L, "Tôn sóng Hoa Sen", 1001L, "Tôn 0.35mm - 5 sóng", "Xanh", "m",
-                new BigDecimal("10"), new BigDecimal("5"), null, null);
+                new BigDecimal("10"), new BigDecimal("5"), null, null, null);
         OrderStatusHistoryResponse historyResp = new OrderStatusHistoryResponse(
                 1L, null, OrderStatus.PENDING, 1L, "Khách hàng tạo đơn hàng mới", Instant.now());
         OrderDetailResponse detailResp = new OrderDetailResponse(
-                10L, OrderStatus.PENDING, null, "Nguyễn Văn A", "0987654321",
+                10L, OrderStatus.PENDING, null, null, null, "Nguyễn Văn A", "0987654321",
                 "123 Đường ABC", "Giao giờ hành chính", null, Instant.now(), null,
                 List.of(itemResp), List.of(historyResp));
 
@@ -198,7 +198,7 @@ class CustomerOrderControllerTest {
     @DisplayName("GET /api/v1/orders/{orderId} - Lấy chi tiết đơn hàng thành công trả về 200")
     void getOwnOrderDetail_success_returns200() throws Exception {
         OrderDetailResponse detailResp = new OrderDetailResponse(
-                10L, OrderStatus.PENDING, null, "Nguyễn Văn A", "0987654321",
+                10L, OrderStatus.PENDING, null, null, null, "Nguyễn Văn A", "0987654321",
                 "123 Đường ABC", null, null, Instant.now(), null,
                 Collections.emptyList(), Collections.emptyList());
 
@@ -234,7 +234,7 @@ class CustomerOrderControllerTest {
                 """;
 
         OrderDetailResponse detailResp = new OrderDetailResponse(
-                10L, OrderStatus.CANCELLED, null, "Nguyễn Văn A", "0987654321",
+                10L, OrderStatus.CANCELLED, null, null, null, "Nguyễn Văn A", "0987654321",
                 "123 Đường ABC", null, "Thay đổi kế hoạch", Instant.now(), null,
                 Collections.emptyList(), Collections.emptyList());
 

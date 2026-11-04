@@ -93,7 +93,14 @@ public class OrderItem {
     private Integer unitPrice;
 
     /**
-     * Thành tiền của dòng sản phẩm (VND, số nguyên: UnitPrice × Size × Quantity).
+     * Số tiền giảm giá cho dòng sản phẩm (VND, số nguyên: mặc định 0).
+     */
+    @Column(name = "discount_amount", nullable = false)
+    @Builder.Default
+    private Long discountAmount = 0L;
+
+    /**
+     * Thành tiền của dòng sản phẩm (VND, số nguyên: UnitPrice × Size × Quantity - discountAmount).
      */
     @Column(name = "total_price")
     private Long totalPrice;
@@ -133,6 +140,9 @@ public class OrderItem {
     public void prePersist() {
         if (this.isDeleted == null) {
             this.isDeleted = false;
+        }
+        if (this.discountAmount == null) {
+            this.discountAmount = 0L;
         }
     }
 

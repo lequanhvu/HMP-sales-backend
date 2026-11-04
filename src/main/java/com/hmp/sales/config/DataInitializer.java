@@ -211,10 +211,11 @@ public class DataInitializer implements ApplicationRunner {
             new Object[]{"ORDER_OTP_VERIFY",          "ORDER",    "/api/v1/orders/otp/verify",                    "POST",   "Xác minh mã OTP số điện thoại"},
             new Object[]{"ME_OTP_REQUEST",            "ORDER",    "/api/v1/me/otp/request",                       "POST",   "Gửi mã OTP xác minh số điện thoại cá nhân"},
             new Object[]{"ME_OTP_VERIFY",             "ORDER",    "/api/v1/me/otp/verify",                        "POST",   "Xác minh mã OTP số điện thoại cá nhân"},
-            new Object[]{"ORDER_VIEW_ALL",            "ORDER",    "/api/v1/manager/orders",                       "GET",    "Xem toàn bộ đơn hàng trong hệ thống"},
-            new Object[]{"ORDER_CALCULATE",           "ORDER",    "/api/v1/manager/orders/{id}/calculate",        "POST",   "Tính giá đơn hàng sản xuất"},
-            new Object[]{"ORDER_CANCEL_ANY",          "ORDER",    "/api/v1/manager/orders/{id}/cancel",           "POST",   "Hủy bất kỳ đơn hàng nào"},
-            new Object[]{"ORDER_STATUS_UPDATE",       "ORDER",    "/api/v1/manager/orders/{id}/status",           "PATCH",  "Cập nhật trạng thái đơn hàng"},
+            new Object[]{"ORDER_VIEW_ALL",            "ORDER",    "/api/v1/manager/orders/**",                    "GET",    "Xem toàn bộ đơn hàng trong hệ thống"},
+            new Object[]{"ORDER_CALCULATE",           "ORDER",    "/api/v1/manager/orders/**/calculate",          "POST",   "Tính giá đơn hàng sản xuất"},
+            new Object[]{"ORDER_CONFIRM",             "ORDER",    "/api/v1/manager/orders/**/confirm",            "POST",   "Quản lý xác nhận giá đơn hàng"},
+            new Object[]{"ORDER_CANCEL_ANY",          "ORDER",    "/api/v1/manager/orders/**/cancel",             "POST",   "Hủy bất kỳ đơn hàng nào"},
+            new Object[]{"ORDER_STATUS_UPDATE",       "ORDER",    "/api/v1/manager/orders/**/status",             "PATCH",  "Cập nhật trạng thái đơn hàng"},
             // --- USER module ---
             new Object[]{"USER_VIEW_ALL",             "USER",     "/api/v1/admin/users",                          "GET",    "Xem danh sách tài khoản người dùng"},
             new Object[]{"USER_LOCK",                 "USER",     "/api/v1/admin/users/{id}/lock",                "POST",   "Khóa tài khoản người dùng"},
@@ -296,6 +297,7 @@ public class DataInitializer implements ApplicationRunner {
             "UNIT_VIEW_ALL", "UNIT_CREATE", "UNIT_UPDATE", "UNIT_LOCK", "UNIT_UNLOCK", "UNIT_DELETE",
             "COLOR_VIEW_ALL", "COLOR_CREATE", "COLOR_UPDATE", "COLOR_LOCK", "COLOR_UNLOCK", "COLOR_DELETE",
             "USER_VIEW_ALL", "USER_LOCK", "USER_UNLOCK", "USER_DELETE", "MANAGER_CREATE",
+            "ORDER_VIEW_ALL", "ORDER_CALCULATE", "ORDER_CONFIRM", "ORDER_CANCEL_ANY", "ORDER_STATUS_UPDATE",
             "ORDER_CREATE", "ORDER_VIEW_OWN", "ORDER_CANCEL_OWN",
             "ME_PROFILE_VIEW", "ME_PROFILE_UPDATE", "ME_ADDRESS_VIEW", "ME_ADDRESS_CREATE", "ME_ADDRESS_UPDATE", "ME_ADDRESS_DELETE",
             "SYSTEM_LOG_VIEW", "SYSTEM_SETTING_UPDATE",
@@ -308,7 +310,7 @@ public class DataInitializer implements ApplicationRunner {
             "PRODUCT_IMAGE_MANAGE", "PRODUCT_IMAGE_DELETE",
             "PRODUCT_VARIANT_CREATE", "PRODUCT_VARIANT_UPDATE", "PRODUCT_VARIANT_LOCK", "PRODUCT_VARIANT_UNLOCK", "PRODUCT_VARIANT_DELETE",
             "PRODUCT_CATEGORY_VIEW", "PRODUCT_CATEGORY_CREATE", "PRODUCT_CATEGORY_UPDATE", "PRODUCT_CATEGORY_LOCK", "PRODUCT_CATEGORY_UNLOCK", "PRODUCT_CATEGORY_DELETE",
-            "ORDER_VIEW_ALL", "ORDER_CALCULATE", "ORDER_CANCEL_ANY", "ORDER_STATUS_UPDATE",
+            "ORDER_VIEW_ALL", "ORDER_CALCULATE", "ORDER_CONFIRM", "ORDER_CANCEL_ANY", "ORDER_STATUS_UPDATE",
             "ORDER_CREATE", "ORDER_VIEW_OWN", "ORDER_CANCEL_OWN",
             "ME_PROFILE_VIEW", "ME_PROFILE_UPDATE", "ME_ADDRESS_VIEW", "ME_ADDRESS_CREATE", "ME_ADDRESS_UPDATE", "ME_ADDRESS_DELETE"
     );

@@ -20,6 +20,7 @@ import com.hmp.sales.feature.order.entity.OrderStatus;
 import com.hmp.sales.feature.order.entity.OrderStatusHistory;
 import com.hmp.sales.feature.order.repository.OrderItemRepository;
 import com.hmp.sales.feature.order.repository.OrderRepository;
+import com.hmp.sales.feature.order.repository.OrderSpecification;
 import com.hmp.sales.feature.order.repository.OrderStatusHistoryRepository;
 import com.hmp.sales.feature.order.service.CustomerOrderService;
 import com.hmp.sales.feature.otp.service.PhoneOtpService;
@@ -67,6 +68,7 @@ public class CustomerOrderServiceImpl implements CustomerOrderService {
     private final OrderRepository orderRepository;
     private final OrderItemRepository orderItemRepository;
     private final OrderStatusHistoryRepository orderStatusHistoryRepository;
+    private final OrderSpecification orderSpecification;
     private final UserRepository userRepository;
     private final ProductRepository productRepository;
     private final ProductVariantRepository productVariantRepository;
@@ -99,6 +101,7 @@ public class CustomerOrderServiceImpl implements CustomerOrderService {
             OrderRepository orderRepository,
             OrderItemRepository orderItemRepository,
             OrderStatusHistoryRepository orderStatusHistoryRepository,
+            OrderSpecification orderSpecification,
             UserRepository userRepository,
             ProductRepository productRepository,
             ProductVariantRepository productVariantRepository,
@@ -112,6 +115,7 @@ public class CustomerOrderServiceImpl implements CustomerOrderService {
         this.orderRepository = orderRepository;
         this.orderItemRepository = orderItemRepository;
         this.orderStatusHistoryRepository = orderStatusHistoryRepository;
+        this.orderSpecification = orderSpecification;
         this.userRepository = userRepository;
         this.productRepository = productRepository;
         this.productVariantRepository = productVariantRepository;
@@ -179,7 +183,7 @@ public class CustomerOrderServiceImpl implements CustomerOrderService {
         if (filter != null) {
             DateUtils.validateDateRange(filter.dateFrom(), filter.dateTo());
         }
-        Specification<Order> spec = buildOrderSpecification(customerId, filter);
+        Specification<Order> spec = orderSpecification.forCustomer(customerId, filter);
         Page<Order> orderPage = orderRepository.findAll(spec, pageable);
         return PageResponse.from(orderPage.map(OrderSummaryResponse::fromEntity));
     }
@@ -376,31 +380,6 @@ public class CustomerOrderServiceImpl implements CustomerOrderService {
         if (Instant.now().isAfter(deadline) && order.getStatus() == OrderStatus.CONFIRMED) {
             throw new BusinessRuleException("Đã quá thời hạn " + cancellationWindow + " phút cho phép hủy đơn hàng. Vui lòng liên hệ bộ phận hỗ trợ.");
         }
-    }
-
-    private Specification<Order> buildOrderSpecification(Long customerId, OrderFilterRequest filter) {
-        return (root, query, cb) -> {
-            List<Predicate> predicates = new ArrayList<>();
-
-            predicates.add(cb.equal(root.get("customer").get("id"), customerId));
-            predicates.add(cb.isFalse(root.get("isDeleted")));
-
-            if (filter != null) {
-                if (filter.status() != null) {
-                    predicates.add(cb.equal(root.get("status"), filter.status()));
-                }
-                if (filter.dateFrom() != null) {
-                    Instant fromInstant = filter.dateFrom().atStartOfDay().toInstant(ZoneOffset.UTC);
-                    predicates.add(cb.greaterThanOrEqualTo(root.get("createdAt"), fromInstant));
-                }
-                if (filter.dateTo() != null) {
-                    Instant toInstant = filter.dateTo().atTime(LocalTime.MAX).toInstant(ZoneOffset.UTC);
-                    predicates.add(cb.lessThanOrEqualTo(root.get("createdAt"), toInstant));
-                }
-            }
-
-            return cb.and(predicates.toArray(new Predicate[0]));
-        };
     }
 }
 

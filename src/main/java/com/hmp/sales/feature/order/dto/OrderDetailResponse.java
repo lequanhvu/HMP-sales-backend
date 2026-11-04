@@ -12,7 +12,9 @@ import java.util.List;
  *
  * @param orderId            ID đơn hàng
  * @param status             trạng thái hiện tại
- * @param totalAmount        tổng số tiền thanh toán (null nếu chưa tính giá)
+ * @param subtotalAmount     tổng tiền hàng trước khi giảm giá đơn (null nếu chưa tính giá)
+ * @param discountAmount     số tiền giảm giá toàn bộ đơn hàng (null nếu chưa tính giá hoặc 0)
+ * @param totalAmount        tổng số tiền thanh toán thực tế (null nếu chưa tính giá)
  * @param receiverName       họ tên người nhận hàng
  * @param receiverPhone      số điện thoại người nhận hàng
  * @param shippingAddress    địa chỉ giao hàng chi tiết
@@ -27,6 +29,8 @@ import java.util.List;
 public record OrderDetailResponse(
         Long orderId,
         OrderStatus status,
+        Long subtotalAmount,
+        Long discountAmount,
         Long totalAmount,
         String receiverName,
         String receiverPhone,
@@ -56,6 +60,8 @@ public record OrderDetailResponse(
         return new OrderDetailResponse(
                 order.getId(),
                 order.getStatus(),
+                order.getSubtotalAmount(),
+                order.getDiscountAmount(),
                 order.getTotalAmount(),
                 order.getReceiverName(),
                 order.getReceiverPhone(),

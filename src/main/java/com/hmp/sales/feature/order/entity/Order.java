@@ -67,7 +67,21 @@ public class Order {
     private OrderStatus status = OrderStatus.PENDING;
 
     /**
-     * Tổng số tiền thanh toán của đơn hàng (VND, số nguyên).
+     * Tổng tiền hàng trước khi giảm giá đơn hàng (VND, số nguyên: tổng totalPrice của các OrderItem).
+     * Để {@code null} khi mới tạo, được cập nhật sau khi Quản lý tính giá.
+     */
+    @Column(name = "subtotal_amount")
+    private Long subtotalAmount;
+
+    /**
+     * Số tiền giảm giá cho toàn bộ đơn hàng (VND, số nguyên: mặc định 0).
+     */
+    @Column(name = "discount_amount", nullable = false)
+    @Builder.Default
+    private Long discountAmount = 0L;
+
+    /**
+     * Tổng số tiền thanh toán thực tế của đơn hàng (VND, số nguyên: subtotalAmount - discountAmount).
      * Để {@code null} khi mới tạo, được cập nhật sau khi Quản lý tính giá.
      */
     @Column(name = "total_amount")
@@ -185,6 +199,9 @@ public class Order {
         }
         if (this.status == null) {
             this.status = OrderStatus.PENDING;
+        }
+        if (this.discountAmount == null) {
+            this.discountAmount = 0L;
         }
     }
 
