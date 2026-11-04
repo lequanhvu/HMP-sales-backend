@@ -14,6 +14,8 @@ import com.hmp.sales.feature.order.dto.UpdateOrderStatusRequest;
 import com.hmp.sales.feature.order.entity.OrderStatus;
 import com.hmp.sales.feature.order.service.ManagerOrderService;
 import jakarta.validation.Valid;
+
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -81,7 +83,7 @@ public class ManagerOrderController {
     ) {
         int resolvedPage = PaginationUtils.resolvePage(page, appProperties);
         int resolvedSize = PaginationUtils.resolveSize(size, appProperties);
-        Pageable pageable = org.springframework.data.domain.PageRequest.of(resolvedPage, resolvedSize, Sort.by(Sort.Direction.DESC, "createdAt"));
+        Pageable pageable = PageRequest.of(resolvedPage, resolvedSize, Sort.by(Sort.Direction.DESC, "createdAt"));
         ManagerOrderFilterRequest filter = new ManagerOrderFilterRequest(dateFrom, dateTo, customerName, customerPhone, customerEmail, status);
 
         PageResponse<ManagerOrderSummaryResponse> result = managerOrderService.getAllOrders(filter, pageable);

@@ -54,15 +54,31 @@ public record OrderDetailResponse(
     public static OrderDetailResponse fromEntity(Order order,
                                                  List<OrderItemResponse> items,
                                                  List<OrderStatusHistoryResponse> history) {
+        return fromEntity(order, items, history, false);
+    }
+
+    /**
+     * Chuyển đổi từ entity {@link Order} cùng danh sách items và lịch sử sang DTO {@link OrderDetailResponse} kèm tùy chọn ẩn giá.
+     *
+     * @param order     entity đơn hàng
+     * @param items     danh sách DTO dòng sản phẩm
+     * @param history   danh sách DTO lịch sử chuyển trạng thái
+     * @param hidePrice cờ ẩn thông tin giá tiền
+     * @return đối tượng DTO chi tiết
+     */
+    public static OrderDetailResponse fromEntity(Order order,
+                                                 List<OrderItemResponse> items,
+                                                 List<OrderStatusHistoryResponse> history,
+                                                 boolean hidePrice) {
         if (order == null) {
             return null;
         }
         return new OrderDetailResponse(
                 order.getId(),
                 order.getStatus(),
-                order.getSubtotalAmount(),
-                order.getDiscountAmount(),
-                order.getTotalAmount(),
+                hidePrice ? null : order.getSubtotalAmount(),
+                hidePrice ? null : order.getDiscountAmount(),
+                hidePrice ? null : order.getTotalAmount(),
                 order.getReceiverName(),
                 order.getReceiverPhone(),
                 order.getShippingAddress(),

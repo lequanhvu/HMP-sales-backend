@@ -32,7 +32,11 @@
     - Triển khai [`ManagerOrderService`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/order/service/ManagerOrderService.java) và [`ManagerOrderServiceImpl`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/order/service/impl/ManagerOrderServiceImpl.java).
     - Cung cấp 6 RESTful endpoints tại [`ManagerOrderController`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/order/controller/ManagerOrderController.java) (`/api/v1/manager/orders/**`).
     - Cấu hình phân quyền động trong `DataInitializer`: `ORDER_VIEW_ALL`, `ORDER_CALCULATE`, `ORDER_CONFIRM`, `ORDER_CANCEL_ANY`, `ORDER_STATUS_UPDATE` cho `ROLE_MANAGER` và `ROLE_ADMIN`.
-  - Toàn bộ **321/321 tests pass 100%** (bổ sung 25 test cases mới: 16 service unit tests và 9 controller MockMvc tests).
+  - **Bổ sung Kiểm tra Toàn vẹn Tham số Tính giá & Tự động Tính giá theo Quyền hạn (`PRODUCT_PRICE_VIEW`)**:
+    - Kiểm tra số lượng và danh sách `orderItemId` trong `CalculateOrderRequest.items`: nếu truyền `items`, bắt buộc số lượng item và ID phải khớp chính xác 100% với các dòng sản phẩm của đơn hàng, kiểm tra chống trùng lặp ID (tránh tính thiếu hoặc tính nhầm sang đơn hàng khác).
+    - Tự động tính giá niêm yết khi tạo đơn (`createOrder`): Nếu khách hàng có quyền `PRODUCT_PRICE_VIEW`, hệ thống tự động tính giá niêm yết ngay khi đặt hàng, Quản lý không cần gọi API tính giá thủ công.
+    - Kiểm soát hiển thị giá chặt chẽ (`getOwnOrderDetail`, `getOwnOrders`): Nếu khách hàng KHÔNG có quyền xem giá và đơn hàng đang ở trạng thái `PENDING`, hệ thống tự động mask/ẩn toàn bộ thông tin giá tiền (`null`), chỉ hiển thị giá khi đơn chuyển sang `CONFIRMED` trở đi. Nếu khách hàng có quyền xem giá, luôn xem được giá ở mọi trạng thái.
+  - Toàn bộ **327/327 tests pass 100%** (bổ sung thêm 6 unit test cases mới kiểm thử toàn vẹn tham số tính giá và kiểm soát hiển thị giá tiền).
 - ✅ **Bổ sung Tiện ích Xác thực Khoảng Thời gian (`DateUtils`)**:
   - Tạo lớp tiện ích [`DateUtils`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/common/util/DateUtils.java) trong package `com.hmp.sales.common.util` (tuân thủ quy chuẩn đặt tên `*Utils`).
   - Cung cấp các phương thức `isValidDateRange(fromDate, toDate)` và `validateDateRange(fromDate, toDate)` hỗ trợ đa dạng kiểu dữ liệu: `LocalDate`, `LocalDateTime`, `Instant`.
@@ -375,7 +379,7 @@ _Nothing._
   - [x] Customer cancellation validation against dynamic cancellation window from DB
   - [x] Optional cancellation reason for all roles
   - [x] Immutable history logging in `OrderStatusHistory` for every valid transition
-- [x] Order unit and integration tests (321/321 tests pass)
+- [x] Order unit and integration tests (327/327 tests pass)
 
 ### Phase 5 — Platform, Audit & Notifications
 - [ ] Notification entity & repository

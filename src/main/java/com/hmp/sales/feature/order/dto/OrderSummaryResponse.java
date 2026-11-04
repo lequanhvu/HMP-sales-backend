@@ -33,13 +33,24 @@ public record OrderSummaryResponse(
      * @return đối tượng DTO tóm tắt
      */
     public static OrderSummaryResponse fromEntity(Order order) {
+        return fromEntity(order, false);
+    }
+
+    /**
+     * Chuyển đổi từ entity {@link Order} sang DTO {@link OrderSummaryResponse} kèm tùy chọn ẩn giá.
+     *
+     * @param order     entity đơn hàng
+     * @param hidePrice cờ ẩn thông tin giá tiền
+     * @return đối tượng DTO tóm tắt
+     */
+    public static OrderSummaryResponse fromEntity(Order order, boolean hidePrice) {
         if (order == null) {
             return null;
         }
         return new OrderSummaryResponse(
                 order.getId(),
                 order.getStatus(),
-                order.getTotalAmount(),
+                hidePrice ? null : order.getTotalAmount(),
                 order.getReceiverName(),
                 order.getCreatedAt(),
                 order.getConfirmedAt()

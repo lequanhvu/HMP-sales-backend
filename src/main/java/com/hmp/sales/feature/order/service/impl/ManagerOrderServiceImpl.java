@@ -129,7 +129,27 @@ public class ManagerOrderServiceImpl implements ManagerOrderService {
 
         // Tạo map ghi đè đơn giá và giảm giá theo orderItemId (nếu request truyền vào)
         Map<Long, OrderItemPriceRequest> priceOverrides = Collections.emptyMap();
-        if (request != null && request.items() != null) {
+        if (request != null && request.items() != null && !request.items().isEmpty()) {
+            if (request.items().size() != items.size()) {
+                throw new BusinessRuleException(
+                        "Số lượng dòng sản phẩm trong yêu cầu tính giá (" + request.items().size()
+                                + ") không khớp với số lượng dòng sản phẩm trong đơn hàng (" + items.size() + ").");
+            }
+
+            java.util.Set<Long> existingItemIds = items.stream().map(OrderItem::getId).collect(Collectors.toSet());
+            java.util.Set<Long> requestItemIds = new java.util.HashSet<>();
+
+            for (OrderItemPriceRequest reqItem : request.items()) {
+                if (!existingItemIds.contains(reqItem.orderItemId())) {
+                    throw new BusinessRuleException(
+                            "Dòng sản phẩm ID: " + reqItem.orderItemId() + " không thuộc đơn hàng ID: " + orderId);
+                }
+                if (!requestItemIds.add(reqItem.orderItemId())) {
+                    throw new BusinessRuleException(
+                            "Dòng sản phẩm ID: " + reqItem.orderItemId() + " bị lặp lại trong yêu cầu tính giá.");
+                }
+            }
+
             priceOverrides = request.items().stream()
                     .collect(Collectors.toMap(OrderItemPriceRequest::orderItemId, Function.identity(), (first, second) -> second));
         }

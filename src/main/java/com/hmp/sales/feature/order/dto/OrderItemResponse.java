@@ -44,6 +44,17 @@ public record OrderItemResponse(
      * @return đối tượng DTO tương ứng
      */
     public static OrderItemResponse fromEntity(OrderItem item) {
+        return fromEntity(item, false);
+    }
+
+    /**
+     * Chuyển đổi từ entity {@link OrderItem} sang DTO {@link OrderItemResponse} kèm tùy chọn ẩn giá.
+     *
+     * @param item      entity dòng sản phẩm
+     * @param hidePrice cờ ẩn thông tin giá tiền
+     * @return đối tượng DTO tương ứng
+     */
+    public static OrderItemResponse fromEntity(OrderItem item, boolean hidePrice) {
         if (item == null) {
             return null;
         }
@@ -57,9 +68,9 @@ public record OrderItemResponse(
                 item.getUnitNameSnapshot(),
                 item.getQuantity(),
                 item.getSize(),
-                item.getUnitPrice(),
-                item.getDiscountAmount(),
-                item.getTotalPrice()
+                hidePrice ? null : item.getUnitPrice(),
+                hidePrice ? null : item.getDiscountAmount(),
+                hidePrice ? null : item.getTotalPrice()
         );
     }
 }

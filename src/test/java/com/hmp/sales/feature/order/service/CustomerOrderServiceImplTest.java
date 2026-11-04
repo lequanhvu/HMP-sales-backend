@@ -23,6 +23,7 @@ import com.hmp.sales.feature.otp.service.PhoneOtpService;
 import com.hmp.sales.feature.product.entity.Color;
 import com.hmp.sales.feature.product.entity.ColorStatus;
 import com.hmp.sales.feature.product.entity.Product;
+import com.hmp.sales.feature.product.entity.ProductPrice;
 import com.hmp.sales.feature.product.entity.ProductStatus;
 import com.hmp.sales.feature.product.entity.ProductVariant;
 import com.hmp.sales.feature.product.entity.Unit;
@@ -114,6 +115,9 @@ class CustomerOrderServiceImplTest {
 
     @Mock
     private CustomerAddressRepository customerAddressRepository;
+
+    @Mock
+    private com.hmp.sales.security.PermissionEvaluationService permissionEvaluationService;
 
     @InjectMocks
     private CustomerOrderServiceImpl customerOrderService;
@@ -676,6 +680,127 @@ class CustomerOrderServiceImplTest {
         assertThatThrownBy(() -> customerOrderService.cancelOwnOrder(1L, 10L, null))
                 .isInstanceOf(BusinessRuleException.class)
                 .hasMessageContaining("Đã quá thời hạn 30 phút cho phép hủy đơn hàng");
+    }
+
+    @Test
+    @DisplayName("Đặt hàng thành công và tự động tính giá theo niêm yết khi khách hàng CÓ quyền xem giá (PRODUCT_PRICE_VIEW)")
+    void createOrder_autoCalculatesPrice_whenCustomerCanViewPrice() {
+        CustomerAddress savedAddress = CustomerAddress.builder()
+                .id(5L)
+                .customer(sampleCustomer)
+                .addressLine("456 Đường XYZ")
+                .isDefault(true)
+                .build();
+
+        CreateOrderRequest request = new CreateOrderRequest(
+                "Người Nhận",
+                "0912345678",
+                5L,
+                null,
+                List.of(new OrderItemRequest(100L, 1001L, 1L, 2L, new BigDecimal("10"), new BigDecimal("5")))
+        );
+
+        when(userRepository.findById(1L)).thenReturn(Optional.of(sampleCustomer));
+        when(phoneOtpService.isVerified("0912345678")).thenReturn(true);
+        when(customerAddressRepository.findByIdAndCustomerIdAndIsDeletedFalse(5L, 1L)).thenReturn(Optional.of(savedAddress));
+        when(productRepository.findById(100L)).thenReturn(Optional.of(sampleProduct));
+        when(productVariantRepository.findById(1001L)).thenReturn(Optional.of(sampleVariant));
+        when(colorRepository.findByIdAndIsDeletedFalse(1L)).thenReturn(Optional.of(sampleColor));
+        when(unitRepository.findByIdAndIsDeletedFalse(2L)).thenReturn(Optional.of(sampleUnit));
+        when(productColorRepository.existsByVariantIdAndColorId(1001L, 1L)).thenReturn(true);
+        when(productPriceRepository.existsByVariantIdAndUnitId(1001L, 2L)).thenReturn(true);
+
+        // Khách hàng CÓ quyền xem giá
+        when(permissionEvaluationService.canViewProductPrice()).thenReturn(true);
+        ProductPrice pp = ProductPrice.builder().price(100_000).build();
+        when(productPriceRepository.findByVariantIdAndUnitId(1001L, 2L)).thenReturn(Optional.of(pp));
+
+        when(orderRepository.save(any(Order.class))).thenAnswer(invocation -> {
+            Order o = invocation.getArgument(0);
+            o.setId(10L);
+            return o;
+        });
+
+        when(orderItemRepository.saveAll(any())).thenAnswer(invocation -> {
+            List<OrderItem> items = invocation.getArgument(0);
+            items.get(0).setId(1L);
+            return items;
+        });
+
+        when(orderStatusHistoryRepository.save(any(OrderStatusHistory.class))).thenAnswer(invocation -> {
+            OrderStatusHistory h = invocation.getArgument(0);
+            h.setId(100L);
+            return h;
+        });
+
+        OrderDetailResponse response = customerOrderService.createOrder(1L, request);
+
+        assertThat(response).isNotNull();
+        // 100,000 * 5m * 10 tấm = 5,000,000 đ
+        assertThat(response.totalAmount()).isEqualTo(5_000_000L);
+        assertThat(response.subtotalAmount()).isEqualTo(5_000_000L);
+        assertThat(response.items().get(0).unitPrice()).isEqualTo(100_000);
+        assertThat(response.items().get(0).totalPrice()).isEqualTo(5_000_000L);
+    }
+
+    @Test
+    @DisplayName("Xem chi tiết đơn hàng: Ẩn giá khi đơn PENDING và khách hàng KHÔNG CÓ quyền xem giá")
+    void getOwnOrderDetail_masksPrice_whenPendingAndCannotViewPrice() {
+        sampleOrder.setStatus(OrderStatus.PENDING);
+        sampleOrder.setSubtotalAmount(5_000_000L);
+        sampleOrder.setTotalAmount(5_000_000L);
+
+        OrderItem itemWithPrice = OrderItem.builder()
+                .id(1L)
+                .order(sampleOrder)
+                .product(sampleProduct)
+                .unitPrice(100_000)
+                .totalPrice(5_000_000L)
+                .productNameSnapshot("Tôn sóng")
+                .quantity(BigDecimal.TEN)
+                .build();
+
+        when(orderRepository.findByIdAndCustomerIdAndIsDeletedFalse(10L, 1L)).thenReturn(Optional.of(sampleOrder));
+        when(orderItemRepository.findByOrderIdAndIsDeletedFalse(10L)).thenReturn(List.of(itemWithPrice));
+        when(orderStatusHistoryRepository.findByOrderIdOrderByCreatedAtAsc(10L)).thenReturn(List.of());
+        when(permissionEvaluationService.canViewProductPrice()).thenReturn(false);
+
+        OrderDetailResponse response = customerOrderService.getOwnOrderDetail(1L, 10L);
+
+        assertThat(response.totalAmount()).isNull();
+        assertThat(response.subtotalAmount()).isNull();
+        assertThat(response.items().get(0).unitPrice()).isNull();
+        assertThat(response.items().get(0).totalPrice()).isNull();
+    }
+
+    @Test
+    @DisplayName("Xem chi tiết đơn hàng: Hiển thị giá khi đơn đã CONFIRMED cho dù khách hàng KHÔNG CÓ quyền xem giá")
+    void getOwnOrderDetail_showsPrice_whenConfirmedEvenIfCannotViewPrice() {
+        sampleOrder.setStatus(OrderStatus.CONFIRMED);
+        sampleOrder.setSubtotalAmount(5_000_000L);
+        sampleOrder.setTotalAmount(5_000_000L);
+
+        OrderItem itemWithPrice = OrderItem.builder()
+                .id(1L)
+                .order(sampleOrder)
+                .product(sampleProduct)
+                .unitPrice(100_000)
+                .totalPrice(5_000_000L)
+                .productNameSnapshot("Tôn sóng")
+                .quantity(BigDecimal.TEN)
+                .build();
+
+        when(orderRepository.findByIdAndCustomerIdAndIsDeletedFalse(10L, 1L)).thenReturn(Optional.of(sampleOrder));
+        when(orderItemRepository.findByOrderIdAndIsDeletedFalse(10L)).thenReturn(List.of(itemWithPrice));
+        when(orderStatusHistoryRepository.findByOrderIdOrderByCreatedAtAsc(10L)).thenReturn(List.of());
+        when(permissionEvaluationService.canViewProductPrice()).thenReturn(false);
+
+        OrderDetailResponse response = customerOrderService.getOwnOrderDetail(1L, 10L);
+
+        // Đơn đã CONFIRMED -> khách thấy giá
+        assertThat(response.totalAmount()).isEqualTo(5_000_000L);
+        assertThat(response.items().get(0).unitPrice()).isEqualTo(100_000);
+        assertThat(response.items().get(0).totalPrice()).isEqualTo(5_000_000L);
     }
 }
 

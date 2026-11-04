@@ -27,6 +27,7 @@ import com.hmp.sales.feature.otp.service.PhoneOtpService;
 import com.hmp.sales.feature.product.entity.Color;
 import com.hmp.sales.feature.product.entity.ColorStatus;
 import com.hmp.sales.feature.product.entity.Product;
+import com.hmp.sales.feature.product.entity.ProductPrice;
 import com.hmp.sales.feature.product.entity.ProductStatus;
 import com.hmp.sales.feature.product.entity.ProductVariant;
 import com.hmp.sales.feature.product.entity.Unit;
@@ -51,6 +52,8 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.Instant;
 import java.time.LocalTime;
 import java.time.ZoneOffset;
@@ -68,7 +71,6 @@ public class CustomerOrderServiceImpl implements CustomerOrderService {
     private final OrderRepository orderRepository;
     private final OrderItemRepository orderItemRepository;
     private final OrderStatusHistoryRepository orderStatusHistoryRepository;
-    private final OrderSpecification orderSpecification;
     private final UserRepository userRepository;
     private final ProductRepository productRepository;
     private final ProductVariantRepository productVariantRepository;
@@ -79,6 +81,7 @@ public class CustomerOrderServiceImpl implements CustomerOrderService {
     private final PhoneOtpService phoneOtpService;
     private final SystemSettingService systemSettingService;
     private final CustomerAddressRepository customerAddressRepository;
+    private final com.hmp.sales.security.PermissionEvaluationService permissionEvaluationService;
 
     /**
      * Khởi tạo service với các repositories và services phụ thuộc.
@@ -96,12 +99,12 @@ public class CustomerOrderServiceImpl implements CustomerOrderService {
      * @param phoneOtpService              service xác thực mã OTP số điện thoại
      * @param systemSettingService         service cấu hình hệ thống động
      * @param customerAddressRepository    repository quản lý sổ địa chỉ khách hàng
+     * @param permissionEvaluationService  service đánh giá quyền hạn động của người dùng
      */
     public CustomerOrderServiceImpl(
             OrderRepository orderRepository,
             OrderItemRepository orderItemRepository,
             OrderStatusHistoryRepository orderStatusHistoryRepository,
-            OrderSpecification orderSpecification,
             UserRepository userRepository,
             ProductRepository productRepository,
             ProductVariantRepository productVariantRepository,
@@ -111,11 +114,11 @@ public class CustomerOrderServiceImpl implements CustomerOrderService {
             ProductPriceRepository productPriceRepository,
             PhoneOtpService phoneOtpService,
             SystemSettingService systemSettingService,
-            CustomerAddressRepository customerAddressRepository) {
+            CustomerAddressRepository customerAddressRepository,
+            com.hmp.sales.security.PermissionEvaluationService permissionEvaluationService) {
         this.orderRepository = orderRepository;
         this.orderItemRepository = orderItemRepository;
         this.orderStatusHistoryRepository = orderStatusHistoryRepository;
-        this.orderSpecification = orderSpecification;
         this.userRepository = userRepository;
         this.productRepository = productRepository;
         this.productVariantRepository = productVariantRepository;
@@ -126,6 +129,7 @@ public class CustomerOrderServiceImpl implements CustomerOrderService {
         this.phoneOtpService = phoneOtpService;
         this.systemSettingService = systemSettingService;
         this.customerAddressRepository = customerAddressRepository;
+        this.permissionEvaluationService = permissionEvaluationService;
     }
 
     /**
@@ -148,11 +152,26 @@ public class CustomerOrderServiceImpl implements CustomerOrderService {
                 .receiverPhone(request.receiverPhone().trim())
                 .shippingAddress(shippingAddress)
                 .note(request.note() != null ? request.note().trim() : null)
+                .discountAmount(0L)
                 .build();
 
         Order savedOrder = orderRepository.save(order);
 
-        List<OrderItem> savedItems = buildAndSaveOrderItems(savedOrder, request.items());
+        boolean canViewPrice = permissionEvaluationService.canViewProductPrice();
+        List<OrderItem> savedItems = buildAndSaveOrderItems(savedOrder, request.items(), canViewPrice);
+
+        if (canViewPrice) {
+            long subtotal = savedItems.stream()
+                    .mapToLong(i -> i.getTotalPrice() != null ? i.getTotalPrice() : 0L)
+                    .sum();
+            savedOrder.setSubtotalAmount(subtotal);
+            savedOrder.setDiscountAmount(0L);
+            savedOrder.setTotalAmount(subtotal);
+            savedOrder.setCalculatedAt(Instant.now());
+            savedOrder = orderRepository.save(savedOrder);
+            log.info("[Order] Khách hàng ID={} có quyền xem giá: Hệ thống tự động tính giá đơn hàng ID={}, Tổng tiền={}",
+                    customerId, savedOrder.getId(), subtotal);
+        }
 
         OrderStatusHistory history = OrderStatusHistory.builder()
                 .order(savedOrder)
@@ -166,12 +185,13 @@ public class CustomerOrderServiceImpl implements CustomerOrderService {
 
         log.info("[Order] Khách hàng ID={} tạo thành công đơn hàng mới ID={}", customerId, savedOrder.getId());
 
+        boolean hidePrice = shouldHidePrice(savedOrder);
         List<OrderItemResponse> itemResponses = savedItems.stream()
-                .map(OrderItemResponse::fromEntity)
+                .map(i -> OrderItemResponse.fromEntity(i, hidePrice))
                 .toList();
         List<OrderStatusHistoryResponse> historyResponses = List.of(OrderStatusHistoryResponse.fromEntity(savedHistory));
 
-        return OrderDetailResponse.fromEntity(savedOrder, itemResponses, historyResponses);
+        return OrderDetailResponse.fromEntity(savedOrder, itemResponses, historyResponses, hidePrice);
     }
 
     /**
@@ -183,9 +203,9 @@ public class CustomerOrderServiceImpl implements CustomerOrderService {
         if (filter != null) {
             DateUtils.validateDateRange(filter.dateFrom(), filter.dateTo());
         }
-        Specification<Order> spec = orderSpecification.forCustomer(customerId, filter);
+        Specification<Order> spec = OrderSpecification.forCustomer(customerId, filter);
         Page<Order> orderPage = orderRepository.findAll(spec, pageable);
-        return PageResponse.from(orderPage.map(OrderSummaryResponse::fromEntity));
+        return PageResponse.from(orderPage.map(o -> OrderSummaryResponse.fromEntity(o, shouldHidePrice(o))));
     }
 
     /**
@@ -200,14 +220,15 @@ public class CustomerOrderServiceImpl implements CustomerOrderService {
         List<OrderItem> items = orderItemRepository.findByOrderIdAndIsDeletedFalse(orderId);
         List<OrderStatusHistory> history = orderStatusHistoryRepository.findByOrderIdOrderByCreatedAtAsc(orderId);
 
+        boolean hidePrice = shouldHidePrice(order);
         List<OrderItemResponse> itemResponses = items.stream()
-                .map(OrderItemResponse::fromEntity)
+                .map(i -> OrderItemResponse.fromEntity(i, hidePrice))
                 .toList();
         List<OrderStatusHistoryResponse> historyResponses = history.stream()
                 .map(OrderStatusHistoryResponse::fromEntity)
                 .toList();
 
-        return OrderDetailResponse.fromEntity(order, itemResponses, historyResponses);
+        return OrderDetailResponse.fromEntity(order, itemResponses, historyResponses, hidePrice);
     }
 
     /**
@@ -250,10 +271,19 @@ public class CustomerOrderServiceImpl implements CustomerOrderService {
         List<OrderItem> items = orderItemRepository.findByOrderIdAndIsDeletedFalse(orderId);
         List<OrderStatusHistory> histories = orderStatusHistoryRepository.findByOrderIdOrderByCreatedAtAsc(orderId);
 
+        boolean hidePrice = shouldHidePrice(updatedOrder);
+        List<OrderItemResponse> itemResponses = items.stream()
+                .map(i -> OrderItemResponse.fromEntity(i, hidePrice))
+                .toList();
+        List<OrderStatusHistoryResponse> historyResponses = histories.stream()
+                .map(OrderStatusHistoryResponse::fromEntity)
+                .toList();
+
         return OrderDetailResponse.fromEntity(
                 updatedOrder,
-                items.stream().map(OrderItemResponse::fromEntity).toList(),
-                histories.stream().map(OrderStatusHistoryResponse::fromEntity).toList()
+                itemResponses,
+                historyResponses,
+                hidePrice
         );
     }
 
@@ -285,7 +315,7 @@ public class CustomerOrderServiceImpl implements CustomerOrderService {
         return savedAddress.getAddressLine().trim();
     }
 
-    private List<OrderItem> buildAndSaveOrderItems(Order order, List<OrderItemRequest> itemRequests) {
+    private List<OrderItem> buildAndSaveOrderItems(Order order, List<OrderItemRequest> itemRequests, boolean canViewPrice) {
         List<OrderItem> itemsToSave = new ArrayList<>();
 
         for (OrderItemRequest req : itemRequests) {
@@ -348,6 +378,21 @@ public class CustomerOrderServiceImpl implements CustomerOrderService {
                 }
             }
 
+            Integer unitPrice = null;
+            Long itemDiscount = 0L;
+            Long totalPrice = null;
+
+            if (canViewPrice && variant != null && unit != null) {
+                java.util.Optional<ProductPrice> ppOpt = productPriceRepository.findByVariantIdAndUnitId(variant.getId(), unit.getId());
+                if (ppOpt.isPresent()) {
+                    unitPrice = ppOpt.get().getPrice();
+                    BigDecimal sizeMultiplier = req.size() != null ? req.size() : BigDecimal.ONE;
+                    BigDecimal totalUnits = sizeMultiplier.multiply(req.quantity());
+                    BigDecimal grossAmount = BigDecimal.valueOf(unitPrice).multiply(totalUnits);
+                    totalPrice = grossAmount.setScale(0, java.math.RoundingMode.HALF_UP).longValue();
+                }
+            }
+
             OrderItem item = OrderItem.builder()
                     .order(order)
                     .product(product)
@@ -359,12 +404,23 @@ public class CustomerOrderServiceImpl implements CustomerOrderService {
                     .unitNameSnapshot(unit != null ? unit.getUnitName() : null)
                     .quantity(req.quantity())
                     .size(req.size())
+                    .unitPrice(unitPrice)
+                    .discountAmount(itemDiscount)
+                    .totalPrice(totalPrice)
                     .build();
 
             itemsToSave.add(item);
         }
 
         return orderItemRepository.saveAll(itemsToSave);
+    }
+
+    private boolean shouldHidePrice(Order order) {
+        boolean canViewPrice = permissionEvaluationService.canViewProductPrice();
+        if (canViewPrice) {
+            return false;
+        }
+        return order.getStatus() == OrderStatus.PENDING;
     }
 
     private void validateOrderCancellable(Order order) {

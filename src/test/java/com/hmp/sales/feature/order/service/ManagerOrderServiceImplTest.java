@@ -301,6 +301,71 @@ class ManagerOrderServiceImplTest {
     }
 
     @Test
+    @DisplayName("calculateOrderPrice - Số lượng item trong request không khớp với đơn hàng ném BusinessRuleException")
+    void calculateOrderPrice_itemCountMismatch_throwsException() {
+        when(orderRepository.findByIdAndIsDeletedFalse(100L)).thenReturn(Optional.of(order));
+        when(userRepository.findById(2L)).thenReturn(Optional.of(manager));
+        when(orderItemRepository.findByOrderIdAndIsDeletedFalse(100L)).thenReturn(List.of(item));
+
+        // Đơn hàng có 1 item, request truyền 2 items
+        CalculateOrderRequest request = new CalculateOrderRequest(
+                0L,
+                List.of(
+                        new OrderItemPriceRequest(1L, 90_000, 0L),
+                        new OrderItemPriceRequest(2L, 90_000, 0L)
+                ),
+                null
+        );
+
+        assertThatThrownBy(() -> managerOrderService.calculateOrderPrice(2L, 100L, request))
+                .isInstanceOf(BusinessRuleException.class)
+                .hasMessageContaining("Số lượng dòng sản phẩm trong yêu cầu tính giá (2) không khớp");
+    }
+
+    @Test
+    @DisplayName("calculateOrderPrice - Item trong request không thuộc đơn hàng ném BusinessRuleException")
+    void calculateOrderPrice_itemNotBelongToOrder_throwsException() {
+        when(orderRepository.findByIdAndIsDeletedFalse(100L)).thenReturn(Optional.of(order));
+        when(userRepository.findById(2L)).thenReturn(Optional.of(manager));
+        when(orderItemRepository.findByOrderIdAndIsDeletedFalse(100L)).thenReturn(List.of(item));
+
+        // Đơn hàng có item ID 1, request truyền item ID 999
+        CalculateOrderRequest request = new CalculateOrderRequest(
+                0L,
+                List.of(new OrderItemPriceRequest(999L, 90_000, 0L)),
+                null
+        );
+
+        assertThatThrownBy(() -> managerOrderService.calculateOrderPrice(2L, 100L, request))
+                .isInstanceOf(BusinessRuleException.class)
+                .hasMessageContaining("không thuộc đơn hàng ID: 100");
+    }
+
+    @Test
+    @DisplayName("calculateOrderPrice - Trùng lặp orderItemId trong request ném BusinessRuleException")
+    void calculateOrderPrice_duplicateItemId_throwsException() {
+        // Giả sử đơn hàng có 2 items: ID 1 và ID 2
+        OrderItem item2 = OrderItem.builder().id(2L).order(order).quantity(BigDecimal.ONE).build();
+        when(orderRepository.findByIdAndIsDeletedFalse(100L)).thenReturn(Optional.of(order));
+        when(userRepository.findById(2L)).thenReturn(Optional.of(manager));
+        when(orderItemRepository.findByOrderIdAndIsDeletedFalse(100L)).thenReturn(List.of(item, item2));
+
+        // Request truyền trùng ID 1 hai lần
+        CalculateOrderRequest request = new CalculateOrderRequest(
+                0L,
+                List.of(
+                        new OrderItemPriceRequest(1L, 90_000, 0L),
+                        new OrderItemPriceRequest(1L, 95_000, 0L)
+                ),
+                null
+        );
+
+        assertThatThrownBy(() -> managerOrderService.calculateOrderPrice(2L, 100L, request))
+                .isInstanceOf(BusinessRuleException.class)
+                .hasMessageContaining("bị lặp lại");
+    }
+
+    @Test
     @DisplayName("calculateOrderPrice - Đơn hàng đã COMPLETED không thể tính giá")
     void calculateOrderPrice_completedOrder_throwsException() {
         order.setStatus(OrderStatus.COMPLETED);
