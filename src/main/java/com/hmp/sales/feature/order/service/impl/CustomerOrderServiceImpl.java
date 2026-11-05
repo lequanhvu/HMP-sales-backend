@@ -45,7 +45,6 @@ import com.hmp.sales.feature.user.entity.CustomerAddress;
 import com.hmp.sales.feature.user.entity.User;
 import com.hmp.sales.feature.user.repository.CustomerAddressRepository;
 import com.hmp.sales.feature.user.repository.UserRepository;
-import jakarta.persistence.criteria.Predicate;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
@@ -55,10 +54,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.time.Instant;
-import java.time.LocalTime;
-import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
