@@ -25,3 +25,4 @@ Phân hệ `notification` đảm nhiệm việc tiếp nhận, quản lý và ph
 - `OrderStatusChangedEvent`: Record chứa dữ liệu sự kiện thay đổi trạng thái đơn hàng.
 - `ExternalNotificationProvider` / `NoOpExternalNotificationProvider`: Trừu tượng hóa cổng thông báo bên ngoài.
 - `NotificationController`: REST Controller tiếp nhận request từ client.
+
