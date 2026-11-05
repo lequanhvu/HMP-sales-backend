@@ -5,8 +5,10 @@ import com.hmp.sales.feature.order.entity.OrderStatus;
 import com.hmp.sales.feature.order.entity.OrderStatusHistory;
 import com.hmp.sales.feature.order.repository.OrderRepository;
 import com.hmp.sales.feature.order.repository.OrderStatusHistoryRepository;
+import com.hmp.sales.feature.notification.event.OrderStatusChangedEvent;
 import com.hmp.sales.feature.setting.service.SystemSettingService;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,6 +32,7 @@ public class OrderAutoTransitionScheduler {
     private final OrderRepository orderRepository;
     private final OrderStatusHistoryRepository orderStatusHistoryRepository;
     private final SystemSettingService systemSettingService;
+    private final ApplicationEventPublisher eventPublisher;
 
     /**
      * Khởi tạo scheduler với các repositories và services liên quan.
@@ -37,10 +40,12 @@ public class OrderAutoTransitionScheduler {
     public OrderAutoTransitionScheduler(
             OrderRepository orderRepository,
             OrderStatusHistoryRepository orderStatusHistoryRepository,
-            SystemSettingService systemSettingService) {
+            SystemSettingService systemSettingService,
+            ApplicationEventPublisher eventPublisher) {
         this.orderRepository = orderRepository;
         this.orderStatusHistoryRepository = orderStatusHistoryRepository;
         this.systemSettingService = systemSettingService;
+        this.eventPublisher = eventPublisher;
     }
 
     /**
@@ -76,6 +81,14 @@ public class OrderAutoTransitionScheduler {
                     .createdAt(Instant.now())
                     .build();
             orderStatusHistoryRepository.save(history);
+
+            eventPublisher.publishEvent(new OrderStatusChangedEvent(
+                    order.getId(),
+                    order.getCustomer().getId(),
+                    OrderStatus.CONFIRMED,
+                    OrderStatus.PROCESSING,
+                    null
+            ));
 
             log.info("[OrderAutoTransition] Đơn hàng ID={} đã tự động chuyển sang PROCESSING.", order.getId());
         }

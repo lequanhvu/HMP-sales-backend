@@ -23,6 +23,7 @@ import com.hmp.sales.feature.order.repository.OrderRepository;
 import com.hmp.sales.feature.order.repository.OrderSpecification;
 import com.hmp.sales.feature.order.repository.OrderStatusHistoryRepository;
 import com.hmp.sales.feature.order.service.CustomerOrderService;
+import com.hmp.sales.feature.notification.event.OrderStatusChangedEvent;
 import com.hmp.sales.feature.otp.service.PhoneOtpService;
 import com.hmp.sales.feature.product.entity.Color;
 import com.hmp.sales.feature.product.entity.ColorStatus;
@@ -46,6 +47,7 @@ import com.hmp.sales.feature.user.repository.CustomerAddressRepository;
 import com.hmp.sales.feature.user.repository.UserRepository;
 import jakarta.persistence.criteria.Predicate;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -83,6 +85,7 @@ public class CustomerOrderServiceImpl implements CustomerOrderService {
     private final SystemSettingService systemSettingService;
     private final CustomerAddressRepository customerAddressRepository;
     private final com.hmp.sales.security.PermissionEvaluationService permissionEvaluationService;
+    private final ApplicationEventPublisher eventPublisher;
 
     /**
      * Khởi tạo service với các repositories và services phụ thuộc.
@@ -101,6 +104,7 @@ public class CustomerOrderServiceImpl implements CustomerOrderService {
      * @param systemSettingService         service cấu hình hệ thống động
      * @param customerAddressRepository    repository quản lý sổ địa chỉ khách hàng
      * @param permissionEvaluationService  service đánh giá quyền hạn động của người dùng
+     * @param eventPublisher               bộ điều phối phát sinh sự kiện ứng dụng
      */
     public CustomerOrderServiceImpl(
             OrderRepository orderRepository,
@@ -116,7 +120,8 @@ public class CustomerOrderServiceImpl implements CustomerOrderService {
             PhoneOtpService phoneOtpService,
             SystemSettingService systemSettingService,
             CustomerAddressRepository customerAddressRepository,
-            com.hmp.sales.security.PermissionEvaluationService permissionEvaluationService) {
+            com.hmp.sales.security.PermissionEvaluationService permissionEvaluationService,
+            ApplicationEventPublisher eventPublisher) {
         this.orderRepository = orderRepository;
         this.orderItemRepository = orderItemRepository;
         this.orderStatusHistoryRepository = orderStatusHistoryRepository;
@@ -131,6 +136,7 @@ public class CustomerOrderServiceImpl implements CustomerOrderService {
         this.systemSettingService = systemSettingService;
         this.customerAddressRepository = customerAddressRepository;
         this.permissionEvaluationService = permissionEvaluationService;
+        this.eventPublisher = eventPublisher;
     }
 
     /**
@@ -266,6 +272,14 @@ public class CustomerOrderServiceImpl implements CustomerOrderService {
                 .createdAt(Instant.now())
                 .build();
         orderStatusHistoryRepository.save(history);
+
+        eventPublisher.publishEvent(new OrderStatusChangedEvent(
+                updatedOrder.getId(),
+                customerId,
+                previousStatus,
+                OrderStatus.CANCELLED,
+                customerId
+        ));
 
         log.info("[Order] Khách hàng ID={} đã hủy đơn hàng ID={}", customerId, orderId);
 

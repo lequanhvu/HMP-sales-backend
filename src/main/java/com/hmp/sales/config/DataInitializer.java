@@ -233,7 +233,11 @@ public class DataInitializer implements ApplicationRunner {
             new Object[]{"SYSTEM_SETTING_UPDATE",     "SYSTEM",   "/api/v1/admin/settings/{key}",                 "PUT",    "Cập nhật cấu hình hệ thống"},
             // --- ROLE module ---
             new Object[]{"ROLE_PERMISSION_VIEW",      "ROLE",     "/api/v1/admin/roles/{id}/permissions",         "GET",    "Xem danh sách quyền hạn của vai trò"},
-            new Object[]{"ROLE_PERMISSION_UPDATE",    "ROLE",     "/api/v1/admin/roles/{id}/permissions",         "PUT",    "Thay đổi danh sách quyền hạn của vai trò"}
+            new Object[]{"ROLE_PERMISSION_UPDATE",    "ROLE",     "/api/v1/admin/roles/{id}/permissions",         "PUT",    "Thay đổi danh sách quyền hạn của vai trò"},
+            // --- NOTIFICATION module ---
+            new Object[]{"NOTIFICATION_VIEW_OWN",     "NOTIFICATION", "/api/v1/notifications/**",                 "GET",    "Xem danh sách thông báo và số lượng chưa đọc"},
+            new Object[]{"NOTIFICATION_MARK_READ",    "NOTIFICATION", "/api/v1/notifications/**/read",            "POST",   "Đánh dấu thông báo đã đọc"},
+            new Object[]{"NOTIFICATION_MARK_ALL_READ", "NOTIFICATION", "/api/v1/notifications/read-all",          "POST",   "Đánh dấu toàn bộ thông báo đã đọc"}
     );
 
     private void seedPermissions() {
@@ -300,6 +304,7 @@ public class DataInitializer implements ApplicationRunner {
             "ORDER_VIEW_ALL", "ORDER_CALCULATE", "ORDER_CONFIRM", "ORDER_CANCEL_ANY", "ORDER_STATUS_UPDATE",
             "ORDER_CREATE", "ORDER_VIEW_OWN", "ORDER_CANCEL_OWN",
             "ME_PROFILE_VIEW", "ME_PROFILE_UPDATE", "ME_ADDRESS_VIEW", "ME_ADDRESS_CREATE", "ME_ADDRESS_UPDATE", "ME_ADDRESS_DELETE",
+            "NOTIFICATION_VIEW_OWN", "NOTIFICATION_MARK_READ", "NOTIFICATION_MARK_ALL_READ",
             "SYSTEM_LOG_VIEW", "SYSTEM_SETTING_UPDATE",
             "ROLE_PERMISSION_VIEW", "ROLE_PERMISSION_UPDATE"
     );
@@ -312,7 +317,8 @@ public class DataInitializer implements ApplicationRunner {
             "PRODUCT_CATEGORY_VIEW", "PRODUCT_CATEGORY_CREATE", "PRODUCT_CATEGORY_UPDATE", "PRODUCT_CATEGORY_LOCK", "PRODUCT_CATEGORY_UNLOCK", "PRODUCT_CATEGORY_DELETE",
             "ORDER_VIEW_ALL", "ORDER_CALCULATE", "ORDER_CONFIRM", "ORDER_CANCEL_ANY", "ORDER_STATUS_UPDATE",
             "ORDER_CREATE", "ORDER_VIEW_OWN", "ORDER_CANCEL_OWN",
-            "ME_PROFILE_VIEW", "ME_PROFILE_UPDATE", "ME_ADDRESS_VIEW", "ME_ADDRESS_CREATE", "ME_ADDRESS_UPDATE", "ME_ADDRESS_DELETE"
+            "ME_PROFILE_VIEW", "ME_PROFILE_UPDATE", "ME_ADDRESS_VIEW", "ME_ADDRESS_CREATE", "ME_ADDRESS_UPDATE", "ME_ADDRESS_DELETE",
+            "NOTIFICATION_VIEW_OWN", "NOTIFICATION_MARK_READ", "NOTIFICATION_MARK_ALL_READ"
     );
 
     private static final Set<String> CUSTOMER_PERMISSIONS = Set.of(
@@ -320,7 +326,8 @@ public class DataInitializer implements ApplicationRunner {
             "ORDER_CREATE", "ORDER_VIEW_OWN", "ORDER_CANCEL_OWN", "ORDER_CONFIRM_OWN",
             "ORDER_OTP_REQUEST", "ORDER_OTP_VERIFY",
             "ME_OTP_REQUEST", "ME_OTP_VERIFY",
-            "ME_PROFILE_VIEW", "ME_PROFILE_UPDATE", "ME_ADDRESS_VIEW", "ME_ADDRESS_CREATE", "ME_ADDRESS_UPDATE", "ME_ADDRESS_DELETE"
+            "ME_PROFILE_VIEW", "ME_PROFILE_UPDATE", "ME_ADDRESS_VIEW", "ME_ADDRESS_CREATE", "ME_ADDRESS_UPDATE", "ME_ADDRESS_DELETE",
+            "NOTIFICATION_VIEW_OWN", "NOTIFICATION_MARK_READ", "NOTIFICATION_MARK_ALL_READ"
     );
 
     private void seedRolePermissions() {

@@ -3530,15 +3530,13 @@ GET /api/v1/admin/system-logs/{logId}
 GET /api/v1/notifications
 ```
 
-Required business channels: website, Zalo, email. External provider details are `TBD`.
+Lấy danh sách thông báo phân trang của người dùng hiện tại (sắp xếp theo thời gian mới nhất lên đầu).
 
-### Request example
+### Query parameters
 
-```json
-{
-  "page": 0,
-  "size": 20
-}
+```text
+page # int, optional (0-indexed, mặc định từ app.pagination.default-page)
+size # int, optional (mặc định từ app.pagination.default-page-size)
 ```
 
 ### Success response — 200
@@ -3547,18 +3545,22 @@ Required business channels: website, Zalo, email. External provider details are 
 {
   "statusCode": 200,
   "data": {
-    "content": [
+    "result": [
       {
         "notificationId": 5001,
-        "title": "Đơn hàng đã được tính tiền",
-        "message": "Đơn hàng #10025 đã có tổng tiền.",
+        "type": "ORDER_CONFIRMED",
+        "title": "Đơn hàng đã được xác nhận",
+        "message": "Đơn hàng #10025 đã được Quản lý xác nhận giá. Vào đây để xem chi tiết và hủy trong vòng 30 phút nếu không đồng ý.",
+        "relatedEntityType": "ORDER",
+        "relatedEntityId": 10025,
         "isRead": false,
-        "createdAt": "2026-10-01T09:50:00"
+        "createdAt": "2026-10-01T09:50:00",
+        "readAt": null
       }
     ],
     "meta": {
       "page": 0,
-      "size": 10,
+      "size": 20,
       "totalElements": 1,
       "totalPages": 1
     }
@@ -3579,7 +3581,43 @@ Required business channels: website, Zalo, email. External provider details are 
 }
 ```
 
-## 17.2 Mark notification as read
+---
+
+## 17.2 Get unread notification count
+
+```http
+GET /api/v1/notifications/unread-count
+```
+
+Lấy tổng số lượng thông báo chưa đọc của người dùng hiện tại phục vụ hiển thị badge số đỏ trên giao diện người dùng.
+
+### Success response — 200
+
+```json
+{
+  "statusCode": 200,
+  "data": {
+    "unreadCount": 3
+  },
+  "message": "Thành công",
+  "timestamp": "2026-10-01T10:00:00"
+}
+```
+
+### Failure response — 401
+
+```json
+{
+  "statusCode": 401,
+  "data": null,
+  "message": "Authentication is required.",
+  "timestamp": "2026-10-01T10:00:00"
+}
+```
+
+---
+
+## 17.3 Mark notification as read
 
 ```http
 POST /api/v1/notifications/{notificationId}/read
@@ -3598,7 +3636,14 @@ POST /api/v1/notifications/{notificationId}/read
   "statusCode": 200,
   "data": {
     "notificationId": 5001,
-    "isRead": true
+    "type": "ORDER_CONFIRMED",
+    "title": "Đơn hàng đã được xác nhận",
+    "message": "Đơn hàng #10025 đã được Quản lý xác nhận giá. Vào đây để xem chi tiết và hủy trong vòng 30 phút nếu không đồng ý.",
+    "relatedEntityType": "ORDER",
+    "relatedEntityId": 10025,
+    "isRead": true,
+    "createdAt": "2026-10-01T09:50:00",
+    "readAt": "2026-10-01T10:00:00"
   },
   "message": "Thành công",
   "timestamp": "2026-10-01T10:00:00"
@@ -3611,12 +3656,14 @@ POST /api/v1/notifications/{notificationId}/read
 {
   "statusCode": 404,
   "data": null,
-  "message": "Notification not found.",
+  "message": "Không tìm thấy Thông báo với mã: 5001",
   "timestamp": "2026-10-01T10:00:00"
 }
 ```
 
-## 17.3 Mark all notifications as read
+---
+
+## 17.4 Mark all notifications as read
 
 ```http
 POST /api/v1/notifications/read-all

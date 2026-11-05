@@ -1,6 +1,6 @@
 # Project Status
 
-> Last updated: 2026-11-04 | By: @antigravity | Session: #14
+> Last updated: 2026-11-05 | By: @antigravity | Session: #15
 >
 > AI: update this file at the end of every session when asked.
 > Follow this exact format. Preserve full milestone checklists and project specifications.
@@ -8,6 +8,34 @@
 ---
 
 ## Completed
+- ✅ **Phase 5 (Tasks 1–3) — Hệ thống Thông báo (Notification System) completed**:
+  - **Mô hình Dữ liệu & Thực thể JPA (`com.hmp.sales.feature.notification.entity`)**:
+    - Thực thể [`Notification`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/notification/entity/Notification.java) (bảng `notifications` trong PostgreSQL): Quản lý người nhận (`user_id`), loại thông báo [`NotificationType`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/notification/entity/NotificationType.java) (`ORDER_CONFIRMED`, `ORDER_PROCESSING`, `ORDER_SHIPPING`, `ORDER_COMPLETED`, `ORDER_CANCELLED`), tiêu đề `title`, nội dung `message`, liên kết thực thể (`related_entity_type = "ORDER"`, `related_entity_id = orderId`), trạng thái đọc `is_read`, thời điểm đọc `read_at`, thời gian tạo `created_at`, và cờ xóa mềm `is_deleted`.
+    - [`NotificationRepository`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/notification/repository/NotificationRepository.java): Truy vấn phân trang `findByUser_IdAndIsDeletedFalseOrderByCreatedAtDesc`, tra cứu theo `notificationId` & `userId`, đếm thông báo chưa đọc `countByUser_IdAndIsReadFalseAndIsDeletedFalse`, và cập nhật hàng loạt `@Modifying markAllAsRead`.
+  - **Kiến trúc Sự kiện Nội bộ (Event-Driven) & Tách biệt Trách nhiệm**:
+    - Định nghĩa Spring Application Event [`OrderStatusChangedEvent`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/notification/event/OrderStatusChangedEvent.java) (orderId, customerId, fromStatus, toStatus, changedBy).
+    - Tích hợp phát sinh sự kiện `eventPublisher.publishEvent` tại các điểm chuyển trạng thái đơn hàng:
+      - `confirmOrder()`, `updateOrderStatus()`, `cancelOrder()` trong [`ManagerOrderServiceImpl`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/order/service/impl/ManagerOrderServiceImpl.java).
+      - `cancelOwnOrder()` trong [`CustomerOrderServiceImpl`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/order/service/impl/CustomerOrderServiceImpl.java).
+      - Tác vụ tự động hết hạn hủy trong [`OrderAutoTransitionScheduler`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/order/scheduler/OrderAutoTransitionScheduler.java).
+    - Xây dựng [`NotificationServiceImpl.onOrderStatusChanged`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/notification/service/impl/NotificationServiceImpl.java) lắng nghe sự kiện với `@TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)` và `@Transactional(propagation = Propagation.REQUIRES_NEW)`. Đảm bảo đơn hàng commit thành công mới lưu thông báo; lỗi tạo thông báo không ảnh hưởng hay làm rollback đơn hàng.
+  - **Tầng Trừu tượng Thông báo Ngoại vi (External Provider Abstraction)**:
+    - Interface [`ExternalNotificationProvider`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/notification/external/ExternalNotificationProvider.java) và lớp triển khai mặc định [`NoOpExternalNotificationProvider`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/notification/external/NoOpExternalNotificationProvider.java) cho V1 (ghi log, sẵn sàng cắm Zalo ZNS / Email / SMS ở V2).
+  - **REST Controller & Endpoint Quản lý Thông báo**:
+    - [`NotificationController`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/notification/controller/NotificationController.java) cung cấp 4 API RESTful:
+      1. `GET /api/v1/notifications`: Danh sách thông báo phân trang chuẩn `PageResponse<NotificationResponse>`.
+      2. `GET /api/v1/notifications/unread-count`: Lấy số lượng thông báo chưa đọc cho badge số đỏ (`UnreadCountResponse`).
+      3. `POST /api/v1/notifications/{notificationId}/read`: Đánh dấu 1 thông báo cụ thể là đã đọc.
+      4. `POST /api/v1/notifications/read-all`: Đánh dấu toàn bộ thông báo là đã đọc (`MarkAllReadResponse`).
+    - Trích xuất `userId` an toàn từ JWT Authentication qua `SecurityUtils.extractUserId()`.
+  - **Phân quyền Động trong `DataInitializer` & Đồng bộ RAM Cache**:
+    - Khởi tạo các quyền: `NOTIFICATION_VIEW_OWN`, `NOTIFICATION_MARK_READ`, `NOTIFICATION_MARK_ALL_READ`.
+    - Gán quyền cho các vai trò `CUSTOMER`, `MANAGER`, và `ADMIN`.
+  - **Đồng bộ Tài liệu & Unit Tests**:
+    - Tạo `CONTEXT.md` cho feature `notification`.
+    - Đồng bộ `api-spec.md` Section 17.
+    - Viết 17 test cases mới: `NotificationServiceImplTest` (12 tests) và `NotificationControllerTest` (5 tests).
+    - Toàn bộ **344/344 tests pass 100%**.
 - ✅ **Phase 4 (Step 3) — Xử lý Đơn hàng Quản lý, Tính giá & Chiết khấu Linh hoạt, Tách biệt Confirm & Hủy đơn SHIPPING completed**:
   - **Mở rộng Mô hình Thực thể & Schema Database (`orders`, `order_items`)**:
     - [`OrderItem`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/order/entity/OrderItem.java): Bổ sung cột `discount_amount` (`BIGINT NOT NULL DEFAULT 0`) lưu trữ số tiền giảm giá cho từng dòng sản phẩm.
@@ -280,11 +308,8 @@ _Nothing._
 - ⚠️ **Scope Protection**: Do NOT implement V1 excluded modules (payment gateways, promotions, reviews, inventory, quotation, warranty, laser cutting, blogs).
 
 ## Next Tasks
-1. **[P1]** Implement Phase 5: Notification entity & repository in PostgreSQL.
-2. **[P1]** Implement Phase 5: Notification service (dispatch in-app notifications on order status changes, e.g. when order is CONFIRMED, PROCESSING, SHIPPING, COMPLETED, CANCELLED).
-3. **[P1]** Implement Phase 5: Customer notification APIs (`GET /api/v1/me/notifications`, mark as read).
-4. **[P2]** Implement Phase 5: SystemSetting entity, repository, and Admin configuration APIs (`GET /api/v1/admin/settings`, `PATCH /api/v1/admin/settings`).
-5. **[P2]** Implement Phase 5: SystemLog entity, repository, and business audit logging service (`GET /api/v1/admin/logs`).
+1. **[P2]** Implement Phase 5: SystemSetting entity, repository, and Admin configuration APIs (`GET /api/v1/admin/settings`, `PATCH /api/v1/admin/settings`).
+2. **[P2]** Implement Phase 5: SystemLog entity, repository, and business audit logging service (`GET /api/v1/admin/logs`).
 
 ## Milestones
 
@@ -382,10 +407,10 @@ _Nothing._
 - [x] Order unit and integration tests (327/327 tests pass)
 
 ### Phase 5 — Platform, Audit & Notifications
-- [ ] Notification entity & repository
-- [ ] Notification service (dispatch in-app notifications on order status changes)
-- [ ] Customer notification APIs (`GET /api/v1/me/notifications`, mark as read)
-- [ ] External notification abstraction (email / Zalo ZNS provider stubs)
+- [x] Notification entity & repository
+- [x] Notification service (dispatch in-app notifications on order status changes)
+- [x] Customer notification APIs (`GET /api/v1/notifications`, `GET /api/v1/notifications/unread-count`, mark as read)
+- [x] External notification abstraction (email / Zalo ZNS provider stubs)
 - [ ] SystemSetting entity, repository, and Admin configuration APIs
 - [ ] SystemLog entity, repository, and business audit logging service
 - [ ] Admin system audit log query APIs (`GET /api/v1/admin/logs`)

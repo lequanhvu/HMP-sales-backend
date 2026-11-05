@@ -23,11 +23,13 @@ import com.hmp.sales.feature.order.repository.OrderRepository;
 import com.hmp.sales.feature.order.repository.OrderSpecification;
 import com.hmp.sales.feature.order.repository.OrderStatusHistoryRepository;
 import com.hmp.sales.feature.order.service.ManagerOrderService;
+import com.hmp.sales.feature.notification.event.OrderStatusChangedEvent;
 import com.hmp.sales.feature.product.entity.ProductPrice;
 import com.hmp.sales.feature.product.repository.ProductPriceRepository;
 import com.hmp.sales.feature.user.entity.User;
 import com.hmp.sales.feature.user.repository.UserRepository;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -57,6 +59,7 @@ public class ManagerOrderServiceImpl implements ManagerOrderService {
     private final OrderStatusHistoryRepository orderStatusHistoryRepository;
     private final UserRepository userRepository;
     private final ProductPriceRepository productPriceRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
     /**
      * Khởi tạo ManagerOrderServiceImpl với các phụ thuộc cần thiết.
@@ -66,18 +69,21 @@ public class ManagerOrderServiceImpl implements ManagerOrderService {
      * @param orderStatusHistoryRepository repository quản lý thực thể OrderStatusHistory
      * @param userRepository               repository quản lý thực thể User
      * @param productPriceRepository       repository tra cứu bảng giá sản phẩm
+     * @param eventPublisher               bộ điều phối phát sinh sự kiện ứng dụng
      */
     public ManagerOrderServiceImpl(
             OrderRepository orderRepository,
             OrderItemRepository orderItemRepository,
             OrderStatusHistoryRepository orderStatusHistoryRepository,
             UserRepository userRepository,
-            ProductPriceRepository productPriceRepository) {
+            ProductPriceRepository productPriceRepository,
+            ApplicationEventPublisher eventPublisher) {
         this.orderRepository = orderRepository;
         this.orderItemRepository = orderItemRepository;
         this.orderStatusHistoryRepository = orderStatusHistoryRepository;
         this.userRepository = userRepository;
         this.productPriceRepository = productPriceRepository;
+        this.eventPublisher = eventPublisher;
     }
 
     /**
@@ -253,6 +259,14 @@ public class ManagerOrderServiceImpl implements ManagerOrderService {
                 .build();
         orderStatusHistoryRepository.save(history);
 
+        eventPublisher.publishEvent(new OrderStatusChangedEvent(
+                savedOrder.getId(),
+                savedOrder.getCustomer().getId(),
+                fromStatus,
+                OrderStatus.CONFIRMED,
+                managerId
+        ));
+
         log.info("[Order] Quản lý ID={} đã xác nhận đơn hàng ID={}", managerId, orderId);
 
         return buildOrderDetailResponse(savedOrder);
@@ -297,6 +311,14 @@ public class ManagerOrderServiceImpl implements ManagerOrderService {
                 .createdAt(Instant.now())
                 .build();
         orderStatusHistoryRepository.save(history);
+
+        eventPublisher.publishEvent(new OrderStatusChangedEvent(
+                savedOrder.getId(),
+                savedOrder.getCustomer().getId(),
+                fromStatus,
+                toStatus,
+                managerId
+        ));
 
         log.info("[Order] Quản lý ID={} cập nhật trạng thái đơn hàng ID={} từ {} sang {}", managerId, orderId, fromStatus, toStatus);
 
@@ -344,6 +366,14 @@ public class ManagerOrderServiceImpl implements ManagerOrderService {
                 .createdAt(Instant.now())
                 .build();
         orderStatusHistoryRepository.save(history);
+
+        eventPublisher.publishEvent(new OrderStatusChangedEvent(
+                savedOrder.getId(),
+                savedOrder.getCustomer().getId(),
+                fromStatus,
+                OrderStatus.CANCELLED,
+                managerId
+        ));
 
         log.info("[Order] Quản lý ID={} đã hủy đơn hàng ID={}", managerId, orderId);
 

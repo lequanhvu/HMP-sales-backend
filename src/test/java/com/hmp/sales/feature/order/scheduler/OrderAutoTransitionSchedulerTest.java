@@ -6,12 +6,14 @@ import com.hmp.sales.feature.order.entity.OrderStatusHistory;
 import com.hmp.sales.feature.order.repository.OrderRepository;
 import com.hmp.sales.feature.order.repository.OrderStatusHistoryRepository;
 import com.hmp.sales.feature.setting.service.SystemSettingService;
+import com.hmp.sales.feature.user.entity.User;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -39,6 +41,9 @@ class OrderAutoTransitionSchedulerTest {
     @Mock
     private SystemSettingService systemSettingService;
 
+    @Mock
+    private ApplicationEventPublisher eventPublisher;
+
     @InjectMocks
     private OrderAutoTransitionScheduler scheduler;
 
@@ -47,8 +52,11 @@ class OrderAutoTransitionSchedulerTest {
     void autoTransitionConfirmedOrders_expiredOrders_transitionedToProcessing() {
         when(systemSettingService.getCancellationWindowMinutes()).thenReturn(30);
 
+        User customer = User.builder().id(1L).fullName("Khách hàng").build();
+
         Order order = Order.builder()
                 .id(100L)
+                .customer(customer)
                 .status(OrderStatus.CONFIRMED)
                 .confirmedAt(Instant.now().minus(35, ChronoUnit.MINUTES))
                 .isDeleted(false)
