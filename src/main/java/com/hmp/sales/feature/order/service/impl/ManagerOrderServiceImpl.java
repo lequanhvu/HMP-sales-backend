@@ -38,8 +38,10 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Instant;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -130,14 +132,8 @@ public class ManagerOrderServiceImpl implements ManagerOrderService {
         // Tạo map ghi đè đơn giá và giảm giá theo orderItemId (nếu request truyền vào)
         Map<Long, OrderItemPriceRequest> priceOverrides = Collections.emptyMap();
         if (request != null && request.items() != null && !request.items().isEmpty()) {
-            if (request.items().size() != items.size()) {
-                throw new BusinessRuleException(
-                        "Số lượng dòng sản phẩm trong yêu cầu tính giá (" + request.items().size()
-                                + ") không khớp với số lượng dòng sản phẩm trong đơn hàng (" + items.size() + ").");
-            }
-
-            java.util.Set<Long> existingItemIds = items.stream().map(OrderItem::getId).collect(Collectors.toSet());
-            java.util.Set<Long> requestItemIds = new java.util.HashSet<>();
+            Set<Long> existingItemIds = items.stream().map(OrderItem::getId).collect(Collectors.toSet());
+            Set<Long> requestItemIds = new HashSet<>();
 
             for (OrderItemPriceRequest reqItem : request.items()) {
                 if (!existingItemIds.contains(reqItem.orderItemId())) {
@@ -282,7 +278,7 @@ public class ManagerOrderServiceImpl implements ManagerOrderService {
         order.setStatus(toStatus);
         if (toStatus == OrderStatus.COMPLETED) {
             order.setCompletedAt(Instant.now());
-        } else if (toStatus == OrderStatus.CONFIRMED && order.getConfirmedAt() == null) {
+        } else if (toStatus == OrderStatus.CONFIRMED) {
             order.setConfirmedAt(Instant.now());
         }
 

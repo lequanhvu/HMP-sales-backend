@@ -60,6 +60,7 @@ import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Lớp triển khai các nghiệp vụ xử lý đơn hàng cho Khách hàng (CustomerOrderService).
@@ -383,7 +384,7 @@ public class CustomerOrderServiceImpl implements CustomerOrderService {
             Long totalPrice = null;
 
             if (canViewPrice && variant != null && unit != null) {
-                java.util.Optional<ProductPrice> ppOpt = productPriceRepository.findByVariantIdAndUnitId(variant.getId(), unit.getId());
+                Optional<ProductPrice> ppOpt = productPriceRepository.findByVariantIdAndUnitId(variant.getId(), unit.getId());
                 if (ppOpt.isPresent()) {
                     unitPrice = ppOpt.get().getPrice();
                     BigDecimal sizeMultiplier = req.size() != null ? req.size() : BigDecimal.ONE;

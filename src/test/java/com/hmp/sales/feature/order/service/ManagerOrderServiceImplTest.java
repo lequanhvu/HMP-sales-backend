@@ -301,25 +301,50 @@ class ManagerOrderServiceImplTest {
     }
 
     @Test
-    @DisplayName("calculateOrderPrice - Số lượng item trong request không khớp với đơn hàng ném BusinessRuleException")
-    void calculateOrderPrice_itemCountMismatch_throwsException() {
+    @DisplayName("calculateOrderPrice - Cho phép Quản lý chỉ ghi đè một phần dòng sản phẩm (partial override), dòng còn lại tự động tra cứu giá niêm yết DB")
+    void calculateOrderPrice_partialItemsOverride_success() {
+        OrderItem item2 = OrderItem.builder()
+                .id(2L)
+                .order(order)
+                .product(product)
+                .variant(variant)
+                .unit(unit)
+                .productNameSnapshot("Phụ kiện xối")
+                .quantity(BigDecimal.valueOf(2))
+                .size(null)
+                .isDeleted(false)
+                .build();
+
         when(orderRepository.findByIdAndIsDeletedFalse(100L)).thenReturn(Optional.of(order));
         when(userRepository.findById(2L)).thenReturn(Optional.of(manager));
-        when(orderItemRepository.findByOrderIdAndIsDeletedFalse(100L)).thenReturn(List.of(item));
+        when(orderItemRepository.findByOrderIdAndIsDeletedFalse(100L)).thenReturn(List.of(item, item2));
 
-        // Đơn hàng có 1 item, request truyền 2 items
+        ProductPrice pp = ProductPrice.builder().price(100_000).build();
+        when(productPriceRepository.findByVariantIdAndUnitId(20L, 30L)).thenReturn(Optional.of(pp));
+        when(orderRepository.save(any(Order.class))).thenAnswer(i -> i.getArgument(0));
+
+        // Đơn hàng có 2 items (item1 và item2), Quản lý chỉ gửi ghi đè giá cho item1
         CalculateOrderRequest request = new CalculateOrderRequest(
                 0L,
-                List.of(
-                        new OrderItemPriceRequest(1L, 90_000, 0L),
-                        new OrderItemPriceRequest(2L, 90_000, 0L)
-                ),
-                null
+                List.of(new OrderItemPriceRequest(1L, 90_000, 50_000L)),
+                "Chỉ giảm giá tôn cho item 1"
         );
 
-        assertThatThrownBy(() -> managerOrderService.calculateOrderPrice(2L, 100L, request))
-                .isInstanceOf(BusinessRuleException.class)
-                .hasMessageContaining("Số lượng dòng sản phẩm trong yêu cầu tính giá (2) không khớp");
+        managerOrderService.calculateOrderPrice(2L, 100L, request);
+
+        // Item 1: 90,000 * 5m * 10 = 4,500,000. Giảm 50,000 -> TotalPrice = 4,450,000
+        assertThat(item.getUnitPrice()).isEqualTo(90_000);
+        assertThat(item.getDiscountAmount()).isEqualTo(50_000L);
+        assertThat(item.getTotalPrice()).isEqualTo(4_450_000L);
+
+        // Item 2: tự tra cứu DB giá 100,000. Size null -> 1. Quantity 2 -> Gross = 200,000. Giảm 0 -> TotalPrice = 200,000
+        assertThat(item2.getUnitPrice()).isEqualTo(100_000);
+        assertThat(item2.getDiscountAmount()).isEqualTo(0L);
+        assertThat(item2.getTotalPrice()).isEqualTo(200_000L);
+
+        // Tổng đơn = 4,450,000 + 200,000 = 4,650,000
+        assertThat(order.getSubtotalAmount()).isEqualTo(4_650_000L);
+        assertThat(order.getTotalAmount()).isEqualTo(4_650_000L);
     }
 
     @Test
