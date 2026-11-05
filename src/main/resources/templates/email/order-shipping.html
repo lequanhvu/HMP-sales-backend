@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Đơn hàng đang được giao</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f4f6f8; margin: 0; padding: 20px; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+        .header { background: #0288d1; color: #ffffff; padding: 24px; text-align: center; }
+        .header h1 { margin: 0; font-size: 22px; font-weight: 600; }
+        .content { padding: 30px 24px; line-height: 1.6; }
+        .greeting { font-size: 16px; font-weight: 600; margin-bottom: 16px; }
+        .status-badge { display: inline-block; background-color: #e1f5fe; color: #0277bd; padding: 6px 14px; border-radius: 16px; font-weight: 600; margin: 12px 0 20px 0; font-size: 14px; }
+        .message-box { background: #fafafa; border-left: 4px solid #0288d1; padding: 14px 18px; margin: 20px 0; border-radius: 0 4px 4px 0; font-size: 15px; }
+        .note { font-size: 13px; color: #666; margin-top: 20px; line-height: 1.5; }
+        .footer { background: #f8f9fa; padding: 20px; text-align: center; font-size: 12px; color: #888; border-top: 1px solid #eee; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <h1>HMP - TÔN LỢP MÁI & PHỤ KIỆN</h1>
+    </div>
+    <div class="content">
+        <div class="greeting">Kính chào <span th:text="${customerName}">Quý khách</span>,</div>
+        <div class="status-badge">ĐANG VẬN CHUYỂN GIAO HÀNG</div>
+        <div class="message-box" th:text="${message}">
+            Đơn hàng đang trên đường giao đến Quý khách.
+        </div>
+        <p class="note">
+            Tài xế/bộ phận giao vận sẽ liên hệ với Quý khách trước khi đến địa điểm giao hàng. Vui lòng chuẩn bị nhận hàng và kiểm tra quy cách sản phẩm.
+        </p>
+    </div>
+    <div class="footer">
+        <p>Email này được gửi tự động từ hệ thống Quản lý Bán hàng HMP. Vui lòng không trả lời trực tiếp email này.</p>
+        <p>&copy; 2026 HMP Sales Website. All rights reserved.</p>
+    </div>
+</div>
+</body>
+</html>
+

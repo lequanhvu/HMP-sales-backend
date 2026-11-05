@@ -24,5 +24,7 @@ Phân hệ `notification` đảm nhiệm việc tiếp nhận, quản lý và ph
 - `NotificationService` / `NotificationServiceImpl`: Interface và Service xử lý nghiệp vụ.
 - `OrderStatusChangedEvent`: Record chứa dữ liệu sự kiện thay đổi trạng thái đơn hàng.
 - `ExternalNotificationProvider` / `NoOpExternalNotificationProvider`: Trừu tượng hóa cổng thông báo bên ngoài.
+- `ZaloNotificationProvider`: Triển khai gửi ZNS qua Zalo OpenAPI (`RestClient`), kích hoạt bởi `@ConditionalOnProperty(name = "app.notification.zalo.enabled", havingValue = "true")`.
+- `SendGridEmailNotificationProvider`: Triển khai gửi email qua SendGrid API với template Thymeleaf HTML và nội dung plain text fallback, kích hoạt bởi `@ConditionalOnProperty(name = "app.notification.email.enabled", havingValue = "true")`.
 - `NotificationController`: REST Controller tiếp nhận request từ client.
 

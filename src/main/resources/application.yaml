@@ -77,3 +77,25 @@ app:
     max-primary-images: ${APP_PRODUCT_MAX_PRIMARY_IMAGES:1}
     # Số lượng ảnh phụ tối đa cho một sản phẩm (mặc định 10)
     max-secondary-images: ${APP_PRODUCT_MAX_SECONDARY_IMAGES:10}
+
+  # Cấu hình gửi thông báo ngoại vi (Zalo ZNS, Email SendGrid)
+  notification:
+    zalo:
+      # Bật/tắt gửi thông báo Zalo ZNS (mặc định tắt cho tới khi cấu hình thông tin OA hợp lệ)
+      enabled: ${ZALO_NOTIFICATION_ENABLED:false}
+      app-id: ${ZALO_APP_ID:}
+      secret-key: ${ZALO_SECRET_KEY:}
+      access-token: ${ZALO_ACCESS_TOKEN:}
+      # Mapping NotificationType -> template_id được Zalo duyệt
+      templates:
+        ORDER_CONFIRMED: ${ZALO_TEMPLATE_ORDER_CONFIRMED:}
+        ORDER_PROCESSING: ${ZALO_TEMPLATE_ORDER_PROCESSING:}
+        ORDER_SHIPPING: ${ZALO_TEMPLATE_ORDER_SHIPPING:}
+        ORDER_COMPLETED: ${ZALO_TEMPLATE_ORDER_COMPLETED:}
+        ORDER_CANCELLED: ${ZALO_TEMPLATE_ORDER_CANCELLED:}
+    email:
+      # Bật/tắt gửi thông báo Email qua SendGrid
+      enabled: ${EMAIL_NOTIFICATION_ENABLED:false}
+      from-address: ${EMAIL_FROM_ADDRESS:no-reply@hmp.vn}
+      from-name: ${EMAIL_FROM_NAME:HMP Sales}
+      sendgrid-api-key: ${SENDGRID_API_KEY:}

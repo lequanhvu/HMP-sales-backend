@@ -1,6 +1,6 @@
 # Project Status
 
-> Last updated: 2026-11-05 | By: @antigravity | Session: #15
+> Last updated: 2026-11-05 | By: @antigravity | Session: #16
 >
 > AI: update this file at the end of every session when asked.
 > Follow this exact format. Preserve full milestone checklists and project specifications.
@@ -8,6 +8,23 @@
 ---
 
 ## Completed
+- ✅ **Phase 5 (Task 4) — Nhà cung cấp thông báo ngoại vi Zalo ZNS & SendGrid Email (External Notification Providers) completed**:
+  - **Tích hợp Thư viện & Cấu hình**:
+    - Bổ sung `com.sendgrid:sendgrid-java:4.10.3` và `spring-boot-starter-thymeleaf` vào `pom.xml`.
+    - Mở rộng [`AppProperties`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/config/AppProperties.java) và `application.yaml` với nhánh cấu hình `app.notification.zalo` và `app.notification.email` (bảo mật toàn bộ API keys/tokens qua biến môi trường, mặc định `enabled: false`).
+  - **Triển khai [`ZaloNotificationProvider`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/notification/external/ZaloNotificationProvider.java)**:
+    - Sử dụng `RestClient` (chuẩn Spring Boot 4.x) để gọi Zalo OpenAPI ZNS `POST /message/template`.
+    - Chuẩn hóa đầu số quốc tế Việt Nam (`84...`), mapping linh hoạt theo từng loại thông báo [`NotificationType`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/notification/entity/NotificationType.java).
+    - Che dấu số điện thoại khi ghi log; kích hoạt linh hoạt qua `@ConditionalOnProperty(name = "app.notification.zalo.enabled", havingValue = "true")`.
+  - **Triển khai [`SendGridEmailNotificationProvider`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/notification/external/SendGridEmailNotificationProvider.java)**:
+    - Tích hợp SendGrid Java SDK gửi email transactional có độ tin cậy cao.
+    - Hỗ trợ đồng thời 2 định dạng: HTML trực quan hiện đại và plain text dự phòng.
+    - Thiết kế 5 mẫu HTML email responsive chuyên nghiệp tại `src/main/resources/templates/email/`: `order-confirmed.html`, `order-processing.html`, `order-shipping.html`, `order-completed.html`, `order-cancelled.html`.
+    - Che dấu email khi ghi log; kích hoạt qua `@ConditionalOnProperty(name = "app.notification.email.enabled", havingValue = "true")`.
+  - **Kiểm thử Đơn vị Toàn diện (Unit Tests)**:
+    - [`ZaloNotificationProviderTest`](file:///d:/HMP/sales-backend/src/test/java/com/hmp/sales/feature/notification/external/ZaloNotificationProviderTest.java) (6 tests): Kiểm thử kịch bản gửi thành công, người dùng không tồn tại, người dùng thiếu SĐT, chưa cấu hình template, Zalo API trả mã lỗi, và lỗi mạng/HTTP.
+    - [`SendGridEmailNotificationProviderTest`](file:///d:/HMP/sales-backend/src/test/java/com/hmp/sales/feature/notification/external/SendGridEmailNotificationProviderTest.java) (5 tests): Kiểm thử kịch bản gửi thành công (202), người dùng không tồn tại, người dùng thiếu email, SendGrid trả mã lỗi HTTP (401), và lỗi I/O.
+    - Toàn bộ **355/355 tests pass 100%**.
 - ✅ **Phase 5 (Tasks 1–3) — Hệ thống Thông báo (Notification System) completed**:
   - **Mô hình Dữ liệu & Thực thể JPA (`com.hmp.sales.feature.notification.entity`)**:
     - Thực thể [`Notification`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/notification/entity/Notification.java) (bảng `notifications` trong PostgreSQL): Quản lý người nhận (`user_id`), loại thông báo [`NotificationType`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/notification/entity/NotificationType.java) (`ORDER_CONFIRMED`, `ORDER_PROCESSING`, `ORDER_SHIPPING`, `ORDER_COMPLETED`, `ORDER_CANCELLED`), tiêu đề `title`, nội dung `message`, liên kết thực thể (`related_entity_type = "ORDER"`, `related_entity_id = orderId`), trạng thái đọc `is_read`, thời điểm đọc `read_at`, thời gian tạo `created_at`, và cờ xóa mềm `is_deleted`.
@@ -410,7 +427,7 @@ _Nothing._
 - [x] Notification entity & repository
 - [x] Notification service (dispatch in-app notifications on order status changes)
 - [x] Customer notification APIs (`GET /api/v1/notifications`, `GET /api/v1/notifications/unread-count`, mark as read)
-- [x] External notification abstraction (email / Zalo ZNS provider stubs)
+- [x] External notification integration (Zalo ZNS with RestClient, SendGrid Email with Thymeleaf HTML templates, and NoOp stub)
 - [ ] SystemSetting entity, repository, and Admin configuration APIs
 - [ ] SystemLog entity, repository, and business audit logging service
 - [ ] Admin system audit log query APIs (`GET /api/v1/admin/logs`)
