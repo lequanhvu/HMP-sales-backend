@@ -148,6 +148,8 @@ public class CustomerOrderServiceImpl implements CustomerOrderService {
 
         String shippingAddress = resolveShippingAddress(customer.getId(), request.addressId());
 
+        OrderStatus previousStatus = null;
+
         Order order = Order.builder()
                 .customer(customer)
                 .status(OrderStatus.PENDING)
@@ -178,13 +180,21 @@ public class CustomerOrderServiceImpl implements CustomerOrderService {
 
         OrderStatusHistory history = OrderStatusHistory.builder()
                 .order(savedOrder)
-                .fromStatus(null)
+                .fromStatus(previousStatus)
                 .toStatus(OrderStatus.PENDING)
                 .changedBy(customer)
                 .reason("Khách hàng tạo đơn hàng mới")
                 .createdAt(Instant.now())
                 .build();
         OrderStatusHistory savedHistory = orderStatusHistoryRepository.save(history);
+        
+        eventPublisher.publishEvent(new OrderStatusChangedEvent(
+                savedOrder.getId(),
+                customerId,
+                previousStatus,
+                OrderStatus.PENDING,
+                customerId
+        ));
 
         log.info("[Order] Khách hàng ID={} tạo thành công đơn hàng mới ID={}", customerId, savedOrder.getId());
 

@@ -87,6 +87,29 @@ class SendGridEmailNotificationProviderTest {
     }
 
     @Test
+    @DisplayName("send: Thành công với loại ORDER_CREATED sử dụng template email/order-created")
+    void send_orderCreated_success() throws IOException {
+        User user = User.builder()
+                .id(1L)
+                .email("customer@example.com")
+                .fullName("Nguyễn Văn A")
+                .build();
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        when(templateEngine.process(eq("email/order-created"), any(Context.class)))
+                .thenReturn("<html><body>Đặt hàng thành công</body></html>");
+
+        Response response = new Response();
+        response.setStatusCode(202);
+        response.setBody("Accepted");
+        when(sendGrid.api(any(Request.class))).thenReturn(response);
+
+        assertThatCode(() -> provider.send(1L, "Đặt hàng thành công", "Chi tiết đơn hàng", NotificationType.ORDER_CREATED))
+                .doesNotThrowAnyException();
+
+        verify(sendGrid).api(any(Request.class));
+    }
+
+    @Test
     @DisplayName("send: Bỏ qua khi không tìm thấy người dùng")
     void send_userNotFound_skips() throws IOException {
         when(userRepository.findById(99L)).thenReturn(Optional.empty());

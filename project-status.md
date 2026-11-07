@@ -1,6 +1,6 @@
 # Project Status
 
-> Last updated: 2026-11-05 | By: @antigravity | Session: #16
+> Last updated: 2026-11-06 | By: @antigravity | Session: #17
 >
 > AI: update this file at the end of every session when asked.
 > Follow this exact format. Preserve full milestone checklists and project specifications.
@@ -8,6 +8,12 @@
 ---
 
 ## Completed
+- ✅ **Bổ sung Thông báo Đặt hàng Thành công (`ORDER_CREATED`) completed**:
+  - Mở rộng enum [`NotificationType`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/notification/entity/NotificationType.java) với loại `ORDER_CREATED`.
+  - Cập nhật [`NotificationServiceImpl`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/notification/service/impl/NotificationServiceImpl.java): khi nhận `OrderStatusChangedEvent` với trạng thái `toStatus = OrderStatus.PENDING` (lúc khách hàng tạo đơn thành công), hệ thống tự động sinh thông báo in-app và gửi thông báo ngoại vi với tiêu đề *"Đặt hàng thành công"* và nội dung *"Đơn hàng #<orderId> đã được tạo thành công và đang chờ Quản lý xác nhận giá."*.
+  - Bổ sung mẫu HTML email [`order-created.html`](file:///d:/HMP/sales-backend/src/main/resources/templates/email/order-created.html) trong `src/main/resources/templates/email/` và cấu hình template tương ứng trong [`SendGridEmailNotificationProvider`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/notification/external/SendGridEmailNotificationProvider.java) cùng `application.yaml`.
+  - Thêm unit tests cho `NotificationServiceImplTest` và `SendGridEmailNotificationProviderTest`.
+  - Toàn bộ **357/357 tests pass 100%**.
 - ✅ **Phase 5 (Task 4) — Nhà cung cấp thông báo ngoại vi Zalo ZNS & SendGrid Email (External Notification Providers) completed**:
   - **Tích hợp Thư viện & Cấu hình**:
     - Bổ sung `com.sendgrid:sendgrid-java:4.10.3` và `spring-boot-starter-thymeleaf` vào `pom.xml`.

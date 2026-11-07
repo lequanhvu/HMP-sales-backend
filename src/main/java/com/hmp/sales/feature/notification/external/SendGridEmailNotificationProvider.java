@@ -13,6 +13,8 @@ import com.sendgrid.helpers.mail.objects.Content;
 import com.sendgrid.helpers.mail.objects.Email;
 import com.sendgrid.helpers.mail.objects.Personalization;
 import lombok.extern.slf4j.Slf4j;
+
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 import org.thymeleaf.TemplateEngine;
@@ -40,6 +42,7 @@ public class SendGridEmailNotificationProvider implements ExternalNotificationPr
      * @param appProperties  cấu hình ứng dụng chứa API key và địa chỉ người gửi SendGrid
      * @param templateEngine engine render HTML email từ file template Thymeleaf
      */
+    @Autowired 
     public SendGridEmailNotificationProvider(
             UserRepository userRepository,
             AppProperties appProperties,
@@ -160,6 +163,7 @@ public class SendGridEmailNotificationProvider implements ExternalNotificationPr
      */
     private String resolveTemplateName(NotificationType type) {
         return switch (type) {
+            case ORDER_CREATED -> "email/order-created";
             case ORDER_CONFIRMED -> "email/order-confirmed";
             case ORDER_PROCESSING -> "email/order-processing";
             case ORDER_SHIPPING -> "email/order-shipping";

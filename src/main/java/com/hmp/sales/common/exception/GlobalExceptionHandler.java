@@ -2,7 +2,6 @@ package com.hmp.sales.common.exception;
 
 import com.hmp.sales.common.response.ApiErrorResponse;
 import com.hmp.sales.common.response.ValidationErrorResponse;
-import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

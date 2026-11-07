@@ -29,5 +29,10 @@ build/
 !**/src/main/**/build/
 !**/src/test/**/build/
 
+# Local environment properties
+src/main/resources/application-local.yaml
+application-local.yaml
+.env
+
 ### VS Code ###
 .vscode/

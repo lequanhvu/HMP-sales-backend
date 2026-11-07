@@ -180,7 +180,7 @@ class NotificationServiceImplTest {
 
         Notification saved = captor.getValue();
         assertThat(saved.getType()).isEqualTo(NotificationType.ORDER_PROCESSING);
-        assertThat(saved.getTitle()).isEqualTo("Đơn hàng đang được gia công");
+        assertThat(saved.getTitle()).isEqualTo("Đơn hàng đang được chuẩn bị");
     }
 
     @Test
@@ -232,9 +232,28 @@ class NotificationServiceImplTest {
     }
 
     @Test
-    @DisplayName("Xử lý sự kiện với trạng thái không cần gửi thông báo (PENDING) sẽ bỏ qua")
-    void onOrderStatusChanged_pendingStatus_ignored() {
+    @DisplayName("Xử lý sự kiện tạo đơn mới (PENDING) tạo thông báo ORDER_CREATED thành công")
+    void onOrderStatusChanged_pending_createsOrderCreatedNotification() {
         OrderStatusChangedEvent event = new OrderStatusChangedEvent(105L, 1L, null, OrderStatus.PENDING, 1L);
+        when(userRepository.findById(1L)).thenReturn(Optional.of(sampleUser));
+
+        notificationService.onOrderStatusChanged(event);
+
+        ArgumentCaptor<Notification> captor = ArgumentCaptor.forClass(Notification.class);
+        verify(notificationRepository).save(captor.capture());
+
+        Notification saved = captor.getValue();
+        assertThat(saved.getType()).isEqualTo(NotificationType.ORDER_CREATED);
+        assertThat(saved.getTitle()).isEqualTo("Đặt hàng thành công");
+        assertThat(saved.getMessage()).contains("#105");
+
+        verify(externalNotificationProvider).send(eq(1L), eq(saved.getTitle()), eq(saved.getMessage()), eq(NotificationType.ORDER_CREATED));
+    }
+
+    @Test
+    @DisplayName("Xử lý sự kiện với trạng thái null sẽ bỏ qua")
+    void onOrderStatusChanged_nullStatus_ignored() {
+        OrderStatusChangedEvent event = new OrderStatusChangedEvent(107L, 1L, null, null, 1L);
 
         notificationService.onOrderStatusChanged(event);
 

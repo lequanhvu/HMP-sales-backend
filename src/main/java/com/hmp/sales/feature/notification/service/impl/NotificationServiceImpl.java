@@ -142,6 +142,7 @@ public class NotificationServiceImpl implements NotificationService {
      */
     private NotificationType resolveNotificationType(OrderStatus status) {
         return switch (status) {
+            case PENDING -> NotificationType.ORDER_CREATED;
             case CONFIRMED -> NotificationType.ORDER_CONFIRMED;
             case PROCESSING -> NotificationType.ORDER_PROCESSING;
             case SHIPPING -> NotificationType.ORDER_SHIPPING;
@@ -156,8 +157,9 @@ public class NotificationServiceImpl implements NotificationService {
      */
     private String resolveTitle(NotificationType type) {
         return switch (type) {
+            case ORDER_CREATED -> "Đặt hàng thành công";
             case ORDER_CONFIRMED -> "Đơn hàng đã được xác nhận";
-            case ORDER_PROCESSING -> "Đơn hàng đang được gia công";
+            case ORDER_PROCESSING -> "Đơn hàng đang được chuẩn bị";
             case ORDER_SHIPPING -> "Đơn hàng đang được giao";
             case ORDER_COMPLETED -> "Đơn hàng đã hoàn thành";
             case ORDER_CANCELLED -> "Đơn hàng đã bị hủy";
@@ -169,11 +171,14 @@ public class NotificationServiceImpl implements NotificationService {
      */
     private String resolveMessage(NotificationType type, Long orderId) {
         return switch (type) {
+            case ORDER_CREATED -> String.format(
+                    "Đơn hàng #%d đã được tạo thành công và đang chờ Quản lý xác nhận giá.",
+                    orderId);
             case ORDER_CONFIRMED -> String.format(
                     "Đơn hàng #%d đã được Quản lý xác nhận giá. Vào đây để xem chi tiết và hủy trong vòng 30 phút nếu không đồng ý.",
                     orderId);
             case ORDER_PROCESSING -> String.format(
-                    "Đơn hàng #%d đang được gia công sản xuất. Chúng tôi sẽ thông báo khi hàng sẵn sàng giao.",
+                    "Đơn hàng #%d đang được chuẩn bị. Chúng tôi sẽ thông báo khi hàng sẵn sàng giao.",
                     orderId);
             case ORDER_SHIPPING -> String.format(
                     "Đơn hàng #%d đang trên đường giao đến bạn.",

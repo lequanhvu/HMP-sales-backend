@@ -5,12 +5,17 @@ package com.hmp.sales.feature.notification.entity;
  */
 public enum NotificationType {
     /**
+     * Đơn hàng đã được tạo thành công bởi khách hàng (đang chờ Quản lý xác nhận).
+     */
+    ORDER_CREATED,
+
+    /**
      * Đơn hàng đã được xác nhận (Quản lý duyệt đơn và chốt giá).
      */
     ORDER_CONFIRMED,
 
     /**
-     * Đơn hàng bắt đầu được chuyển sang quy trình gia công / sản xuất.
+     * Đơn hàng bắt đầu được chuyển sang quy trình chuẩn bị hàng.
      */
     ORDER_PROCESSING,
 

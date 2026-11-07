@@ -445,7 +445,7 @@ For in-website notification history.
 |---|---|---:|---|
 | NotificationID | BIGINT IDENTITY | No | PK |
 | UserID | BIGINT | No | Recipient |
-| Type | VARCHAR(50) | No | e.g. `ORDER_STATUS`, `ORDER_CALCULATED` |
+| Type | VARCHAR(50) | No | `ORDER_CREATED`, `ORDER_CONFIRMED`, `ORDER_PROCESSING`, `ORDER_SHIPPING`, `ORDER_COMPLETED`, `ORDER_CANCELLED` |
 | Title | NVARCHAR(250) | No | |
 | Message | NVARCHAR(MAX) | No | |
 | RelatedEntityType | VARCHAR(50) | Yes | e.g. `ORDER` |

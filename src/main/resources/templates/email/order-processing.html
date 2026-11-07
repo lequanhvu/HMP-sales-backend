@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Đơn hàng đang gia công</title>
+    <title>Đơn hàng đang được chuẩn bị</title>
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f4f6f8; margin: 0; padding: 20px; color: #333; }
         .container { max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
-        .header { background: #f57c00; color: #ffffff; padding: 24px; text-align: center; }
+        .header { background: #047ab9; color: #ffffff; padding: 24px; text-align: center; }
         .header h1 { margin: 0; font-size: 22px; font-weight: 600; }
         .content { padding: 30px 24px; line-height: 1.6; }
         .greeting { font-size: 16px; font-weight: 600; margin-bottom: 16px; }
@@ -24,9 +24,9 @@
     </div>
     <div class="content">
         <div class="greeting">Kính chào <span th:text="${customerName}">Quý khách</span>,</div>
-        <div class="status-badge">ĐANG GIA CÔNG SẢN XUẤT</div>
+        <div class="status-badge">ĐANG ĐƯỢC CHUẨN BỊ</div>
         <div class="message-box" th:text="${message}">
-            Đơn hàng của Quý khách đang được đưa vào dây chuyền cán tôn / gia công.
+            Đơn hàng của Quý khách đang được bộ phận kho và xưởng chuẩn bị.
         </div>
         <p class="note">
             Chúng tôi sẽ thông báo cho Quý khách ngay khi sản phẩm hoàn tất và sẵn sàng vận chuyển.

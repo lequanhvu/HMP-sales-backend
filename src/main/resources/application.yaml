@@ -6,8 +6,8 @@ spring:
   application:
     name: sales-backend
   profiles:
-    # Profile mặc định được kích hoạt khi khởi chạy (ưu tiên biến môi trường SPRING_PROFILES_ACTIVE nếu có)
-    active: ${SPRING_PROFILES_ACTIVE:dev}
+    # Profile mặc định được kích hoạt khi khởi chạy (bao gồm dev và local)
+    active: ${SPRING_PROFILES_ACTIVE:dev,local}
 
 # ------------------------------------------------------------------------------
 # Cấu hình Web Server (Tomcat)
@@ -88,6 +88,7 @@ app:
       access-token: ${ZALO_ACCESS_TOKEN:}
       # Mapping NotificationType -> template_id được Zalo duyệt
       templates:
+        ORDER_CREATED: ${ZALO_TEMPLATE_ORDER_CREATED:}
         ORDER_CONFIRMED: ${ZALO_TEMPLATE_ORDER_CONFIRMED:}
         ORDER_PROCESSING: ${ZALO_TEMPLATE_ORDER_PROCESSING:}
         ORDER_SHIPPING: ${ZALO_TEMPLATE_ORDER_SHIPPING:}
