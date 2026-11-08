@@ -87,6 +87,22 @@ class JwtTokenServiceImplTest {
     }
 
     @Test
+    @DisplayName("generateAccessToken với JTI chỉ định - Sinh JWT mang đúng JTI và lưu vào Redis")
+    void generateAccessToken_withSpecificJti_success() {
+        UUID specificJti = UUID.randomUUID();
+        String token = jwtTokenService.generateAccessToken(testUser, specificJti);
+
+        assertThat(token).isNotBlank();
+        assertThat(jwtTokenService.extractJti(token)).isEqualTo(specificJti);
+        verify(valueOps).set(
+                eq(JwtTokenServiceImpl.REDIS_ACCESS_KEY_PREFIX + specificJti),
+                eq(token),
+                eq(60L),
+                eq(TimeUnit.MINUTES)
+        );
+    }
+
+    @Test
     @DisplayName("generateAccessToken - JWT không chứa claim permissions (phân quyền động)")
     void generateAccessToken_noPermissionsClaim_inJwtPayload() throws Exception {
         String token = jwtTokenService.generateAccessToken(testUser);

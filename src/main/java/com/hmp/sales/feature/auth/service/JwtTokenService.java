@@ -20,11 +20,22 @@ public interface JwtTokenService {
 
     /**
      * Cấp phát JWT Access Token cho người dùng và đăng ký {@code auth:access:{jti}} vào Redis.
+     * Sinh ngẫu nhiên một JTI mới.
      *
      * @param user thực thể người dùng chứa thông tin cần nhúng vào token
      * @return chuỗi JWT đã ký bằng HMAC-SHA256
      */
     String generateAccessToken(User user);
+
+    /**
+     * Cấp phát JWT Access Token với JTI chỉ định cho người dùng và đăng ký {@code auth:access:{jti}} vào Redis.
+     * Dùng khi cần đồng bộ JTI với bản ghi Refresh Token trong PostgreSQL.
+     *
+     * @param user thực thể người dùng chứa thông tin cần nhúng vào token
+     * @param jti  định danh UUID của token (JTI)
+     * @return chuỗi JWT đã ký bằng HMAC-SHA256
+     */
+    String generateAccessToken(User user, UUID jti);
 
     /**
      * Sinh UUID ngẫu nhiên để dùng làm JTI (JWT ID) cho token mới.

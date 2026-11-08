@@ -4,6 +4,7 @@ import com.hmp.sales.common.exception.UnauthorizedOperationException;
 import com.hmp.sales.config.AppProperties;
 import com.hmp.sales.feature.auth.entity.RefreshToken;
 import com.hmp.sales.feature.auth.repository.RefreshTokenRepository;
+import com.hmp.sales.feature.auth.service.JwtTokenService;
 import com.hmp.sales.feature.auth.service.RefreshTokenService;
 import com.hmp.sales.feature.auth.util.HashUtils;
 import com.hmp.sales.feature.user.entity.User;
@@ -31,18 +32,22 @@ public class RefreshTokenServiceImpl implements RefreshTokenService {
 
     private final RefreshTokenRepository refreshTokenRepository;
     private final AppProperties appProperties;
+    private final JwtTokenService jwtTokenService;
 
     /**
      * Khởi tạo service với các phụ thuộc cần thiết.
      *
      * @param refreshTokenRepository repository lưu trữ refresh token trong PostgreSQL
      * @param appProperties          cấu hình ứng dụng (refreshExpirationDays)
+     * @param jwtTokenService        dịch vụ JWT để thu hồi access token trên Redis khi refresh
      */
     public RefreshTokenServiceImpl(
             RefreshTokenRepository refreshTokenRepository,
-            AppProperties appProperties) {
+            AppProperties appProperties,
+            JwtTokenService jwtTokenService) {
         this.refreshTokenRepository = refreshTokenRepository;
         this.appProperties = appProperties;
+        this.jwtTokenService = jwtTokenService;
     }
 
     /**
@@ -102,13 +107,21 @@ public class RefreshTokenServiceImpl implements RefreshTokenService {
         if (Boolean.TRUE.equals(existing.getIsRevoked())) {
             log.warn("Phát hiện Replay Attack! TokenFamilyId={} bị thu hồi toàn bộ.", existing.getTokenFamilyId());
             refreshTokenRepository.revokeAllByTokenFamilyId(existing.getTokenFamilyId());
+            if (existing.getAccessTokenJti() != null) {
+                jwtTokenService.revokeAccessToken(existing.getAccessTokenJti());
+            }
             throw new UnauthorizedOperationException(
                     "Phát hiện tấn công tái sử dụng token. Toàn bộ phiên đăng nhập đã bị thu hồi.");
         }
 
-        // Revoke token hiện tại
+        // Revoke token hiện tại trong PostgreSQL
         existing.setIsRevoked(true);
         refreshTokenRepository.save(existing);
+
+        // Thu hồi Access Token cũ tương ứng trên Redis
+        if (existing.getAccessTokenJti() != null) {
+            jwtTokenService.revokeAccessToken(existing.getAccessTokenJti());
+        }
 
         // Tạo token mới trong cùng family
         String newRawToken = UUID.randomUUID().toString();

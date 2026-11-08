@@ -72,7 +72,14 @@ public class JwtTokenServiceImpl implements JwtTokenService {
      */
     @Override
     public String generateAccessToken(User user) {
-        UUID jti = generateJti();
+        return generateAccessToken(user, generateJti());
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public String generateAccessToken(User user, UUID jti) {
         Instant now = Instant.now();
         long expirationMinutes = appProperties.jwt().expirationMinutes();
         Instant expiresAt = now.plus(expirationMinutes, ChronoUnit.MINUTES);
@@ -100,6 +107,7 @@ public class JwtTokenServiceImpl implements JwtTokenService {
             // Đăng ký vào Redis với TTL bằng thời hạn token
             String redisKey = REDIS_ACCESS_KEY_PREFIX + jti;
             stringRedisTemplate.opsForValue().set(redisKey, token, expirationMinutes, TimeUnit.MINUTES);
+            log.info("Đã lưu active access token vào Redis: key={}, TTL={} phút", redisKey, expirationMinutes);
 
             return token;
         } catch (Exception e) {

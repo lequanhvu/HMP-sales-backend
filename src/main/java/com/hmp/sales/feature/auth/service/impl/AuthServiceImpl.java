@@ -130,8 +130,8 @@ public class AuthServiceImpl implements AuthService {
         // Lấy user từ entity đã lưu
         User user = pair.savedToken().getUser();
 
-        // Cấp Access Token mới (sẽ tạo jti riêng bên trong generateAccessToken)
-        String accessToken = jwtTokenService.generateAccessToken(user);
+        // Cấp Access Token mới với đúng newAccessJti đã lưu trong PostgreSQL và đăng ký Redis
+        String accessToken = jwtTokenService.generateAccessToken(user, newAccessJti);
 
         int maxAge = (int) (appProperties.jwt().refreshExpirationDays() * 86400L);
         CookieUtils.setRefreshTokenCookie(httpResponse, pair.rawToken(), maxAge);

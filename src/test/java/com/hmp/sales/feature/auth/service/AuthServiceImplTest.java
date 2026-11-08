@@ -197,4 +197,35 @@ class AuthServiceImplTest {
         verify(userRepository).save(pendingManager);
         verify(roleRepository, never()).findByRoleCodeAndIsDeletedFalse(any());
     }
+
+    @Test
+    @DisplayName("refreshToken - Thành công: xoay vòng refresh token và sinh access token với đúng JTI mới")
+    void refreshToken_success() {
+        jakarta.servlet.http.HttpServletRequest httpRequest = mock(jakarta.servlet.http.HttpServletRequest.class);
+        jakarta.servlet.http.Cookie cookie = new jakarta.servlet.http.Cookie("refresh_token", "raw-refresh-token");
+        when(httpRequest.getCookies()).thenReturn(new jakarta.servlet.http.Cookie[]{cookie});
+
+        UUID newJti = UUID.randomUUID();
+        when(jwtTokenService.generateJti()).thenReturn(newJti);
+
+        User user = User.builder().fullName("Customer").email("c@example.com").role(customerRole).build();
+        user.setId(99L);
+
+        RefreshToken savedRt = RefreshToken.builder()
+                .user(user)
+                .tokenFamilyId(UUID.randomUUID())
+                .tokenHash("hash-new")
+                .accessTokenJti(newJti)
+                .expiresAt(Instant.now().plusSeconds(86400))
+                .build();
+
+        when(refreshTokenService.rotateRefreshToken("raw-refresh-token", newJti))
+                .thenReturn(new RefreshTokenPair("new-raw-rt", savedRt));
+        when(jwtTokenService.generateAccessToken(user, newJti)).thenReturn("new-access-token-jwt");
+
+        AuthResponse response = authService.refreshToken(httpRequest, httpResponse);
+
+        assertThat(response.accessToken()).isEqualTo("new-access-token-jwt");
+        verify(jwtTokenService).generateAccessToken(user, newJti);
+    }
 }

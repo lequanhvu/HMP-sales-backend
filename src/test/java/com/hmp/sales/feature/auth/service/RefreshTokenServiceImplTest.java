@@ -35,6 +35,9 @@ class RefreshTokenServiceImplTest {
     @Mock
     private RefreshTokenRepository refreshTokenRepository;
 
+    @Mock
+    private JwtTokenService jwtTokenService;
+
     private RefreshTokenServiceImpl refreshTokenService;
     private AppProperties appProperties;
     private User testUser;
@@ -48,7 +51,7 @@ class RefreshTokenServiceImplTest {
                 30L
         );
         appProperties = new AppProperties(jwtProps, null, null, null, null, null);
-        refreshTokenService = new RefreshTokenServiceImpl(refreshTokenRepository, appProperties);
+        refreshTokenService = new RefreshTokenServiceImpl(refreshTokenRepository, appProperties, jwtTokenService);
 
         Role role = new Role();
         role.setRoleCode(RoleCode.CUSTOMER);
@@ -110,6 +113,7 @@ class RefreshTokenServiceImplTest {
         assertThat(result.savedToken().getTokenFamilyId()).isEqualTo(familyId);
         assertThat(result.rawToken()).isNotEqualTo(rawToken);
         assertThat(result.savedToken().getAccessTokenJti()).isEqualTo(newAccessJti);
+        verify(jwtTokenService).revokeAccessToken(existing.getAccessTokenJti());
     }
 
     @Test
