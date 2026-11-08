@@ -18,7 +18,8 @@ import java.util.List;
  * @param receiverName       họ tên người nhận hàng
  * @param receiverPhone      số điện thoại người nhận hàng
  * @param shippingAddress    địa chỉ giao hàng chi tiết
- * @param note               ghi chú đơn hàng
+ * @param note               ghi chú đơn hàng của khách hàng
+ * @param noteForDiscount    ghi chú của Quản lý khi tính giá và áp dụng chiết khấu
  * @param cancellationReason lý do hủy đơn (nếu có)
  * @param createdAt          thời điểm đặt hàng
  * @param confirmedAt        thời điểm Quản lý chốt giá
@@ -36,12 +37,55 @@ public record OrderDetailResponse(
         String receiverPhone,
         String shippingAddress,
         String note,
+        String noteForDiscount,
         String cancellationReason,
         Instant createdAt,
         Instant confirmedAt,
         List<OrderItemResponse> items,
         List<OrderStatusHistoryResponse> statusHistory
 ) {
+
+    /**
+     * Constructor tương thích ngược không có noteForDiscount (mặc định null).
+     */
+    public OrderDetailResponse(
+            Long orderId,
+            OrderStatus status,
+            Long subtotalAmount,
+            Long discountAmount,
+            Long totalAmount,
+            String receiverName,
+            String receiverPhone,
+            String shippingAddress,
+            String note,
+            String cancellationReason,
+            Instant createdAt,
+            Instant confirmedAt,
+            List<OrderItemResponse> items,
+            List<OrderStatusHistoryResponse> statusHistory
+    ) {
+        this(
+                orderId,
+                status,
+                subtotalAmount,
+                discountAmount,
+                totalAmount,
+                receiverName,
+                receiverPhone,
+                shippingAddress,
+                note,
+                null,
+                cancellationReason,
+                createdAt,
+                confirmedAt,
+                items,
+                historyOrEmpty(statusHistory)
+        );
+    }
+
+    private static List<OrderStatusHistoryResponse> historyOrEmpty(List<OrderStatusHistoryResponse> statusHistory) {
+        return statusHistory;
+    }
 
     /**
      * Chuyển đổi từ entity {@link Order} cùng danh sách items và lịch sử sang DTO {@link OrderDetailResponse}.
@@ -83,6 +127,7 @@ public record OrderDetailResponse(
                 order.getReceiverPhone(),
                 order.getShippingAddress(),
                 order.getNote(),
+                order.getNoteForDiscount(),
                 order.getCancellationReason(),
                 order.getCreatedAt(),
                 order.getConfirmedAt(),

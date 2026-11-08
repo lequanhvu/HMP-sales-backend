@@ -214,6 +214,8 @@ class ManagerOrderServiceImplTest {
         assertThat(order.getSubtotalAmount()).isEqualTo(5_000_000L);
         assertThat(order.getDiscountAmount()).isEqualTo(0L);
         assertThat(order.getTotalAmount()).isEqualTo(5_000_000L);
+        assertThat(order.getNoteForDiscount()).isEqualTo("Không chiết khấu");
+        assertThat(response.noteForDiscount()).isEqualTo("Không chiết khấu");
         assertThat(order.getCalculatedBy()).isEqualTo(manager);
         assertThat(order.getCalculatedAt()).isNotNull();
         // LƯU Ý: Trạng thái KHÔNG đổi, vẫn là PENDING

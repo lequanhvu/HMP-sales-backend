@@ -112,6 +112,12 @@ public class Order {
     private String note;
 
     /**
+     * Ghi chú của Quản lý khi tính giá và áp dụng chiết khấu đơn hàng.
+     */
+    @Column(name = "note_for_discount", length = 1000)
+    private String noteForDiscount;
+
+    /**
      * Lý do hủy đơn hàng (tùy chọn cho mọi vai trò).
      */
     @Column(name = "cancellation_reason", length = 500)

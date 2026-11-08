@@ -378,6 +378,7 @@ Avoid the SQL keyword `Order` as an unquoted physical table name if the project 
 | ReceiverPhone | VARCHAR(20) | No | Historical snapshot |
 | ShippingAddress | NVARCHAR(1000) | No | Historical snapshot |
 | Note | NVARCHAR(1000) | Yes | Customer note |
+| NoteForDiscount | NVARCHAR(1000) | Yes | Manager note when calculating/discounting |
 | CancellationReason | NVARCHAR(500) | Yes | Optional for every role |
 | CancelledBy | BIGINT | Yes | FK User |
 | CancelledAt | DATETIME2 | Yes | |

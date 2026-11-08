@@ -214,6 +214,9 @@ public class ManagerOrderServiceImpl implements ManagerOrderService {
         order.setTotalAmount(totalAmount);
         order.setCalculatedBy(manager);
         order.setCalculatedAt(Instant.now());
+        if (request != null && request.note() != null) {
+            order.setNoteForDiscount(request.note().trim());
+        }
 
         // LƯU Ý: Thao tác tính giá KHÔNG tự động chuyển trạng thái đơn (giữ nguyên trạng thái hiện tại)
         Order savedOrder = orderRepository.save(order);
