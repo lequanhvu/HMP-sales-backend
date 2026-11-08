@@ -55,5 +55,19 @@ public interface CustomerOrderService {
      * @return {@link OrderDetailResponse} chi tiết đơn hàng sau khi cập nhật trạng thái CANCELLED
      */
     OrderDetailResponse cancelOwnOrder(Long customerId, Long orderId, CancelOrderRequest request);
+
+    /**
+     * Khách hàng thực hiện hoàn tác hủy đơn hàng trong thời hạn cho phép (undoCancelWindowMinutes).
+     * <p>
+     * Đơn hàng chỉ có thể hoàn tác nếu đang ở trạng thái CANCELLED, do chính khách hàng hủy,
+     * và còn trong thời hạn hoàn tác (mặc định 60 phút). Đơn hàng sẽ được khôi phục về trạng thái
+     * ngay trước khi bị hủy (PENDING hoặc CONFIRMED) với mốc confirmedAt ban đầu được giữ nguyên.
+     * </p>
+     *
+     * @param customerId ID khách hàng thực hiện hoàn tác
+     * @param orderId    ID đơn hàng cần hoàn tác hủy
+     * @return {@link OrderDetailResponse} chi tiết đơn hàng sau khi hoàn tác
+     */
+    OrderDetailResponse undoCancelOrder(Long customerId, Long orderId);
 }
 

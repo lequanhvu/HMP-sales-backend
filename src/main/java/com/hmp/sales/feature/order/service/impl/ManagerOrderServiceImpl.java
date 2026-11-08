@@ -384,6 +384,69 @@ public class ManagerOrderServiceImpl implements ManagerOrderService {
     }
 
     /**
+     * {@inheritDoc}
+     */
+    @Override
+    @Transactional
+    public OrderDetailResponse undoCancelOrder(Long managerId, Long orderId) {
+        Order order = orderRepository.findByIdAndIsDeletedFalse(orderId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy đơn hàng ID: " + orderId));
+
+        User manager = userRepository.findById(managerId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy thông tin quản lý ID: " + managerId));
+
+        if (order.getStatus() != OrderStatus.CANCELLED) {
+            throw new InvalidOrderStateException("Không thể hoàn tác đơn hàng không ở trạng thái CANCELLED. Trạng thái hiện tại: " + order.getStatus());
+        }
+
+        // Quy tắc: Nếu khách hàng chủ động hủy thì Quản lý không thể hoàn tác
+        if (order.getCancelledBy() != null && order.getCancelledBy().getId().equals(order.getCustomer().getId())) {
+            throw new BusinessRuleException("Đơn hàng này do khách hàng chủ động hủy, Quản lý không thể thực hiện hoàn tác.");
+        }
+
+        OrderStatusHistory latestCancelHistory = orderStatusHistoryRepository
+                .findTopByOrderIdAndToStatusAndIsDeletedFalseOrderByCreatedAtDesc(orderId, OrderStatus.CANCELLED)
+                .orElseThrow(() -> new BusinessRuleException("Không tìm thấy lịch sử hủy của đơn hàng, không thể xác định trạng thái hoàn tác."));
+
+        OrderStatus previousStatus = latestCancelHistory.getFromStatus();
+        if (previousStatus == null || previousStatus == OrderStatus.CANCELLED) {
+            throw new BusinessRuleException("Trạng thái trước khi hủy không hợp lệ để hoàn tác.");
+        }
+
+        order.setStatus(previousStatus);
+        order.setCancelledBy(null);
+        order.setCancelledAt(null);
+        order.setCancellationReason(null);
+        // Lưu ý: Giữ nguyên confirmedAt cũ, không thay đổi
+
+        Order savedOrder = orderRepository.save(order);
+
+        OrderStatusHistory history = OrderStatusHistory.builder()
+                .order(savedOrder)
+                .fromStatus(OrderStatus.CANCELLED)
+                .toStatus(previousStatus)
+                .changedBy(manager)
+                .reason("Quản lý hoàn tác hủy đơn hàng")
+                .createdAt(Instant.now())
+                .build();
+        orderStatusHistoryRepository.save(history);
+
+        // Khách hàng nhận được thông báo vì customerId là chủ đơn hàng
+        eventPublisher.publishEvent(new OrderStatusChangedEvent(
+                savedOrder.getId(),
+                savedOrder.getCustomer().getId(),
+                OrderStatus.CANCELLED,
+                previousStatus,
+                managerId
+        ));
+
+        log.info("[Order] Quản lý ID={} hoàn tác hủy thành công đơn hàng ID={}, khôi phục về trạng thái {}",
+                managerId, orderId, previousStatus);
+
+        return buildOrderDetailResponse(savedOrder);
+    }
+
+    /**
      * Kiểm tra tính hợp lệ của việc chuyển đổi trạng thái đơn hàng theo ma trận vòng đời.
      */
     private void validateStatusTransition(Order order, OrderStatus toStatus) {

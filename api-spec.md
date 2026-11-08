@@ -1408,6 +1408,83 @@ The request can also be:
 
 The server validates both the configured cancellation window and the current order status.
 
+## 8.6 Undo cancel order
+
+```http
+POST /api/v1/orders/{orderId}/undo-cancel
+```
+
+Khách hàng thực hiện hoàn tác hủy đơn hàng đã lỡ tay hủy.
+- **Ràng buộc:** Chỉ áp dụng cho đơn hàng đang ở trạng thái `CANCELLED`, do chính khách hàng chủ động hủy, và còn trong thời hạn hoàn tác (mặc định 60 phút cấu hình qua `ORDER_UNDO_CANCEL_WINDOW_MINUTES`).
+- **Trạng thái khôi phục:** Trở về trạng thái ngay trước khi bị hủy (`PENDING` hoặc `CONFIRMED`). Mốc thời gian `confirmedAt` cũ được giữ nguyên (không bị reset).
+- **Request Body:** Không có request body (không cần lý do).
+
+### Request example
+
+```http
+POST /api/v1/orders/10025/undo-cancel
+Authorization: Bearer <customer_jwt>
+```
+
+### Success response — 200
+
+```json
+{
+  "statusCode": 200,
+  "data": {
+    "orderId": 10025,
+    "status": "PENDING",
+    "subtotalAmount": null,
+    "discountAmount": 0,
+    "totalAmount": null,
+    "receiverName": "Nguyen Van A",
+    "receiverPhone": "0987654321",
+    "shippingAddress": "123 Example Street",
+    "note": "Giao giờ hành chính",
+    "cancellationReason": null,
+    "cancelledAt": null,
+    "confirmedAt": null,
+    "items": [],
+    "statusHistories": []
+  },
+  "message": "Hoàn tác hủy đơn hàng thành công",
+  "timestamp": "2026-10-01T10:00:00"
+}
+```
+
+### Failure response — 400
+
+```json
+{
+  "statusCode": 400,
+  "data": null,
+  "message": "Đã quá thời hạn 60 phút cho phép hoàn tác hủy đơn hàng.",
+  "timestamp": "2026-10-01T10:00:00"
+}
+```
+
+Hoặc khi đơn do Quản lý hủy:
+
+```json
+{
+  "statusCode": 400,
+  "data": null,
+  "message": "Đơn hàng này không phải do bạn hủy, không thể thực hiện hoàn tác.",
+  "timestamp": "2026-10-01T10:00:00"
+}
+```
+
+### Failure response — 409
+
+```json
+{
+  "statusCode": 409,
+  "data": null,
+  "message": "Không thể hoàn tác đơn hàng không ở trạng thái CANCELLED. Trạng thái hiện tại: PENDING",
+  "timestamp": "2026-10-01T10:00:00"
+}
+```
+
 ---
 
 # 9. Manager category APIs
@@ -2565,6 +2642,73 @@ Cập nhật trạng thái tiến trình đơn hàng tuần tự: `CONFIRMED -> 
 ```
 
 Every successful status transition must append an `OrderStatusHistory` record.
+
+## 11.7 Undo cancel order (Manager / Admin)
+
+```http
+POST /api/v1/manager/orders/{orderId}/undo-cancel
+```
+
+Quản lý / Admin thực hiện hoàn tác hủy đơn hàng đã lỡ tay hủy.
+- **Ràng buộc:** Chỉ áp dụng cho đơn hàng đang ở trạng thái `CANCELLED` và do Quản lý/Admin hủy. Quản lý **không thể** hoàn tác đơn hàng do khách hàng chủ động hủy (để tôn trọng quyết định của khách).
+- **Trạng thái khôi phục:** Trở về trạng thái ngay trước khi bị hủy (`PENDING`, `CONFIRMED`, `PROCESSING`, `SHIPPING`). Mốc thời gian `confirmedAt` cũ được giữ nguyên (không bị reset).
+- **Thời hạn:** Quản lý/Admin **không bị giới hạn** thời gian 60 phút.
+- **Request Body:** Không có request body (không cần lý do).
+- **Thông báo:** Khách hàng (chủ đơn) vẫn nhận được thông báo in-app và email (`ORDER_RESTORED`) khi đơn hàng được khôi phục.
+
+### Request example
+
+```http
+POST /api/v1/manager/orders/10025/undo-cancel
+Authorization: Bearer <manager_jwt>
+```
+
+### Success response — 200
+
+```json
+{
+  "statusCode": 200,
+  "data": {
+    "orderId": 10025,
+    "status": "PROCESSING",
+    "subtotalAmount": 5000000,
+    "discountAmount": 0,
+    "totalAmount": 5000000,
+    "receiverName": "Nguyen Van A",
+    "receiverPhone": "0987654321",
+    "shippingAddress": "123 Duong ABC",
+    "cancellationReason": null,
+    "cancelledAt": null,
+    "confirmedAt": "2026-10-01T09:30:00",
+    "items": [],
+    "statusHistories": []
+  },
+  "message": "Hoàn tác hủy đơn hàng thành công.",
+  "timestamp": "2026-10-01T10:00:00"
+}
+```
+
+### Failure response — 400
+
+```json
+{
+  "statusCode": 400,
+  "data": null,
+  "message": "Đơn hàng này do khách hàng chủ động hủy, Quản lý không thể thực hiện hoàn tác.",
+  "timestamp": "2026-10-01T10:00:00"
+}
+```
+
+### Failure response — 409
+
+```json
+{
+  "statusCode": 409,
+  "data": null,
+  "message": "Không thể hoàn tác đơn hàng không ở trạng thái CANCELLED. Trạng thái hiện tại: CONFIRMED",
+  "timestamp": "2026-10-01T10:00:00"
+}
+```
 
 ---
 

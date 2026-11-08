@@ -263,4 +263,36 @@ class CustomerOrderControllerTest {
                 .andExpect(jsonPath("$.statusCode").value(409))
                 .andExpect(jsonPath("$.message").value("Không thể hủy đơn hàng đang ở trạng thái 'PROCESSING'."));
     }
+
+    @Test
+    @DisplayName("POST /api/v1/orders/{orderId}/undo-cancel - Hoàn tác hủy đơn thành công trả về 200 OK")
+    void undoCancelOwnOrder_success_returns200() throws Exception {
+        OrderDetailResponse detailResp = new OrderDetailResponse(
+                10L, OrderStatus.PENDING, null, null, null, "Nguyễn Văn A", "0987654321",
+                "123 Đường ABC", null, null, null, null,
+                Collections.emptyList(), Collections.emptyList());
+
+        when(customerOrderService.undoCancelOrder(eq(1L), eq(10L)))
+                .thenReturn(detailResp);
+
+        mockMvc.perform(post("/api/v1/orders/10/undo-cancel")
+                        .principal(authentication))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.statusCode").value(200))
+                .andExpect(jsonPath("$.message").value("Hoàn tác hủy đơn hàng thành công"))
+                .andExpect(jsonPath("$.data.status").value("PENDING"));
+    }
+
+    @Test
+    @DisplayName("POST /api/v1/orders/{orderId}/undo-cancel - Đơn hàng không ở trạng thái CANCELLED trả về 409 Conflict")
+    void undoCancelOwnOrder_notCancelled_returns409() throws Exception {
+        when(customerOrderService.undoCancelOrder(eq(1L), eq(10L)))
+                .thenThrow(new InvalidOrderStateException("Không thể hoàn tác đơn hàng không ở trạng thái CANCELLED."));
+
+        mockMvc.perform(post("/api/v1/orders/10/undo-cancel")
+                        .principal(authentication))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.statusCode").value(409))
+                .andExpect(jsonPath("$.message").value("Không thể hoàn tác đơn hàng không ở trạng thái CANCELLED."));
+    }
 }

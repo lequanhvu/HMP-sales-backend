@@ -483,6 +483,31 @@ Cancel request
 
 `CancellationReason` is nullable for every role.
 
+### 14b. Flow: undo cancel order (Hoàn tác hủy đơn)
+
+Cho phép khôi phục đơn hàng vừa bị hủy lỡ tay về trạng thái trước đó.
+
+```text
+Undo cancel request
+   |
+   +--> check caller role/permission
+   +--> check current status == CANCELLED
+   +--> if Customer:
+   |      -> verify cancelledBy == Customer (không được hoàn tác đơn do Quản lý/Admin hủy)
+   |      -> check configured undo window (ORDER_UNDO_CANCEL_WINDOW_MINUTES, default 60m)
+   |      -> verify previous status in [PENDING, CONFIRMED]
+   +--> if Manager/Admin:
+   |      -> verify cancelledBy != Customer (không được hoàn tác đơn do Khách hàng tự hủy)
+   |      -> no time limit (không giới hạn 60 phút)
+   |      -> restore to previous status in [PENDING, CONFIRMED, PROCESSING, SHIPPING]
+   +--> fetch latest CANCELLED history record -> resolve previousStatus
+   +--> restore order status = previousStatus
+   +--> reset cancelledBy = null, cancelledAt = null, cancellationReason = null
+   +--> keep original confirmedAt intact (không reset)
+   +--> add OrderStatusHistory (CANCELLED -> previousStatus)
+   +--> publish OrderStatusChangedEvent -> trigger ORDER_RESTORED notification to Customer
+```
+
 ## 15. Flow: order status progression
 
 ```text

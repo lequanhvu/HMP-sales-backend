@@ -806,5 +806,174 @@ class CustomerOrderServiceImplTest {
         assertThat(response.items().get(0).unitPrice()).isEqualTo(100_000);
         assertThat(response.items().get(0).totalPrice()).isEqualTo(5_000_000L);
     }
+
+    @Test
+    @DisplayName("Hoàn tác hủy đơn thành công: Khôi phục về trạng thái PENDING")
+    void undoCancelOrder_success_restoresToPending() {
+        sampleOrder.setStatus(OrderStatus.CANCELLED);
+        sampleOrder.setCancelledBy(sampleCustomer);
+        sampleOrder.setCancelledAt(Instant.now().minus(10, ChronoUnit.MINUTES));
+        sampleOrder.setCancellationReason("Lỡ tay nhấn hủy");
+
+        OrderStatusHistory cancelHistory = OrderStatusHistory.builder()
+                .id(1L)
+                .order(sampleOrder)
+                .fromStatus(OrderStatus.PENDING)
+                .toStatus(OrderStatus.CANCELLED)
+                .changedBy(sampleCustomer)
+                .createdAt(Instant.now().minus(10, ChronoUnit.MINUTES))
+                .build();
+
+        when(orderRepository.findByIdAndCustomerIdAndIsDeletedFalse(10L, 1L)).thenReturn(Optional.of(sampleOrder));
+        when(userRepository.findById(1L)).thenReturn(Optional.of(sampleCustomer));
+        when(systemSettingService.getUndoCancelWindowMinutes()).thenReturn(60);
+        when(orderStatusHistoryRepository.findTopByOrderIdAndToStatusAndIsDeletedFalseOrderByCreatedAtDesc(10L, OrderStatus.CANCELLED))
+                .thenReturn(Optional.of(cancelHistory));
+        when(orderRepository.save(any(Order.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        OrderDetailResponse response = customerOrderService.undoCancelOrder(1L, 10L);
+
+        assertThat(response).isNotNull();
+        assertThat(sampleOrder.getStatus()).isEqualTo(OrderStatus.PENDING);
+        assertThat(sampleOrder.getCancelledBy()).isNull();
+        assertThat(sampleOrder.getCancelledAt()).isNull();
+        assertThat(sampleOrder.getCancellationReason()).isNull();
+
+        verify(orderStatusHistoryRepository).save(any(OrderStatusHistory.class));
+        verify(eventPublisher).publishEvent(any(com.hmp.sales.feature.notification.event.OrderStatusChangedEvent.class));
+    }
+
+    @Test
+    @DisplayName("Hoàn tác hủy đơn thành công: Khôi phục về CONFIRMED và giữ nguyên confirmedAt cũ")
+    void undoCancelOrder_success_restoresToConfirmed_preservesConfirmedAt() {
+        Instant originalConfirmedAt = Instant.now().minus(40, ChronoUnit.MINUTES);
+        sampleOrder.setStatus(OrderStatus.CANCELLED);
+        sampleOrder.setConfirmedAt(originalConfirmedAt);
+        sampleOrder.setCancelledBy(sampleCustomer);
+        sampleOrder.setCancelledAt(Instant.now().minus(5, ChronoUnit.MINUTES));
+
+        OrderStatusHistory cancelHistory = OrderStatusHistory.builder()
+                .id(2L)
+                .order(sampleOrder)
+                .fromStatus(OrderStatus.CONFIRMED)
+                .toStatus(OrderStatus.CANCELLED)
+                .changedBy(sampleCustomer)
+                .createdAt(Instant.now().minus(5, ChronoUnit.MINUTES))
+                .build();
+
+        when(orderRepository.findByIdAndCustomerIdAndIsDeletedFalse(10L, 1L)).thenReturn(Optional.of(sampleOrder));
+        when(userRepository.findById(1L)).thenReturn(Optional.of(sampleCustomer));
+        when(systemSettingService.getUndoCancelWindowMinutes()).thenReturn(60);
+        when(orderStatusHistoryRepository.findTopByOrderIdAndToStatusAndIsDeletedFalseOrderByCreatedAtDesc(10L, OrderStatus.CANCELLED))
+                .thenReturn(Optional.of(cancelHistory));
+        when(orderRepository.save(any(Order.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        OrderDetailResponse response = customerOrderService.undoCancelOrder(1L, 10L);
+
+        assertThat(response).isNotNull();
+        assertThat(sampleOrder.getStatus()).isEqualTo(OrderStatus.CONFIRMED);
+        assertThat(sampleOrder.getConfirmedAt()).isEqualTo(originalConfirmedAt);
+        assertThat(sampleOrder.getCancelledBy()).isNull();
+        assertThat(sampleOrder.getCancelledAt()).isNull();
+    }
+
+    @Test
+    @DisplayName("Hoàn tác hủy đơn thất bại: Đơn hàng không ở trạng thái CANCELLED")
+    void undoCancelOrder_fails_whenNotCancelled() {
+        sampleOrder.setStatus(OrderStatus.PENDING);
+
+        when(orderRepository.findByIdAndCustomerIdAndIsDeletedFalse(10L, 1L)).thenReturn(Optional.of(sampleOrder));
+        when(userRepository.findById(1L)).thenReturn(Optional.of(sampleCustomer));
+
+        assertThatThrownBy(() -> customerOrderService.undoCancelOrder(1L, 10L))
+                .isInstanceOf(InvalidOrderStateException.class)
+                .hasMessageContaining("CANCELLED");
+    }
+
+    @Test
+    @DisplayName("Hoàn tác hủy đơn thất bại: Không tìm thấy đơn hàng")
+    void undoCancelOrder_fails_whenOrderNotFound() {
+        when(orderRepository.findByIdAndCustomerIdAndIsDeletedFalse(99L, 1L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> customerOrderService.undoCancelOrder(1L, 99L))
+                .isInstanceOf(ResourceNotFoundException.class)
+                .hasMessageContaining("99");
+    }
+
+    @Test
+    @DisplayName("Hoàn tác hủy đơn thất bại: Đơn hàng do Quản lý hủy thì Khách hàng không thể hoàn tác")
+    void undoCancelOrder_fails_whenCancelledByManager() {
+        User managerUser = User.builder().id(999L).fullName("Quản lý").build();
+        sampleOrder.setStatus(OrderStatus.CANCELLED);
+        sampleOrder.setCancelledBy(managerUser);
+        sampleOrder.setCancelledAt(Instant.now().minus(5, ChronoUnit.MINUTES));
+
+        when(orderRepository.findByIdAndCustomerIdAndIsDeletedFalse(10L, 1L)).thenReturn(Optional.of(sampleOrder));
+        when(userRepository.findById(1L)).thenReturn(Optional.of(sampleCustomer));
+
+        assertThatThrownBy(() -> customerOrderService.undoCancelOrder(1L, 10L))
+                .isInstanceOf(BusinessRuleException.class)
+                .hasMessageContaining("không phải do bạn hủy");
+    }
+
+    @Test
+    @DisplayName("Hoàn tác hủy đơn thất bại: Quá thời hạn hoàn tác 60 phút")
+    void undoCancelOrder_fails_whenWindowExpired() {
+        sampleOrder.setStatus(OrderStatus.CANCELLED);
+        sampleOrder.setCancelledBy(sampleCustomer);
+        sampleOrder.setCancelledAt(Instant.now().minus(65, ChronoUnit.MINUTES));
+
+        when(orderRepository.findByIdAndCustomerIdAndIsDeletedFalse(10L, 1L)).thenReturn(Optional.of(sampleOrder));
+        when(userRepository.findById(1L)).thenReturn(Optional.of(sampleCustomer));
+        when(systemSettingService.getUndoCancelWindowMinutes()).thenReturn(60);
+
+        assertThatThrownBy(() -> customerOrderService.undoCancelOrder(1L, 10L))
+                .isInstanceOf(BusinessRuleException.class)
+                .hasMessageContaining("quá thời hạn 60 phút");
+    }
+
+    @Test
+    @DisplayName("Hoàn tác hủy đơn thất bại: Không tìm thấy lịch sử hủy của đơn hàng")
+    void undoCancelOrder_fails_whenNoCancelHistory() {
+        sampleOrder.setStatus(OrderStatus.CANCELLED);
+        sampleOrder.setCancelledBy(sampleCustomer);
+        sampleOrder.setCancelledAt(Instant.now().minus(10, ChronoUnit.MINUTES));
+
+        when(orderRepository.findByIdAndCustomerIdAndIsDeletedFalse(10L, 1L)).thenReturn(Optional.of(sampleOrder));
+        when(userRepository.findById(1L)).thenReturn(Optional.of(sampleCustomer));
+        when(systemSettingService.getUndoCancelWindowMinutes()).thenReturn(60);
+        when(orderStatusHistoryRepository.findTopByOrderIdAndToStatusAndIsDeletedFalseOrderByCreatedAtDesc(10L, OrderStatus.CANCELLED))
+                .thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> customerOrderService.undoCancelOrder(1L, 10L))
+                .isInstanceOf(BusinessRuleException.class)
+                .hasMessageContaining("Không tìm thấy lịch sử hủy");
+    }
+
+    @Test
+    @DisplayName("Hoàn tác hủy đơn thất bại: Trạng thái trước khi hủy không hợp lệ cho Khách hàng (ví dụ PROCESSING)")
+    void undoCancelOrder_fails_whenPreviousStatusInvalidForCustomer() {
+        sampleOrder.setStatus(OrderStatus.CANCELLED);
+        sampleOrder.setCancelledBy(sampleCustomer);
+        sampleOrder.setCancelledAt(Instant.now().minus(10, ChronoUnit.MINUTES));
+
+        OrderStatusHistory cancelHistory = OrderStatusHistory.builder()
+                .id(3L)
+                .order(sampleOrder)
+                .fromStatus(OrderStatus.PROCESSING)
+                .toStatus(OrderStatus.CANCELLED)
+                .changedBy(sampleCustomer)
+                .build();
+
+        when(orderRepository.findByIdAndCustomerIdAndIsDeletedFalse(10L, 1L)).thenReturn(Optional.of(sampleOrder));
+        when(userRepository.findById(1L)).thenReturn(Optional.of(sampleCustomer));
+        when(systemSettingService.getUndoCancelWindowMinutes()).thenReturn(60);
+        when(orderStatusHistoryRepository.findTopByOrderIdAndToStatusAndIsDeletedFalseOrderByCreatedAtDesc(10L, OrderStatus.CANCELLED))
+                .thenReturn(Optional.of(cancelHistory));
+
+        assertThatThrownBy(() -> customerOrderService.undoCancelOrder(1L, 10L))
+                .isInstanceOf(BusinessRuleException.class)
+                .hasMessageContaining("PENDING hoặc CONFIRMED");
+    }
 }
 

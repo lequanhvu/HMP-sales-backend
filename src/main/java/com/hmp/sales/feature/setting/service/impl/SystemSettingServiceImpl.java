@@ -58,6 +58,27 @@ public class SystemSettingServiceImpl implements SystemSettingService {
      */
     @Override
     @Transactional(readOnly = true)
+    public int getUndoCancelWindowMinutes() {
+        Optional<SystemSetting> settingOpt = systemSettingRepository
+                .findBySettingKeyAndIsDeletedFalse(KEY_UNDO_CANCEL_WINDOW_MINUTES);
+
+        if (settingOpt.isPresent()) {
+            try {
+                return Integer.parseInt(settingOpt.get().getSettingValue().trim());
+            } catch (NumberFormatException e) {
+                log.warn("[SystemSetting] Giá trị cấu hình '{}' không phải số nguyên: '{}'. Sử dụng giá trị fallback mặc định.",
+                        KEY_UNDO_CANCEL_WINDOW_MINUTES, settingOpt.get().getSettingValue());
+            }
+        }
+
+        return appProperties.order().undoCancelWindowMinutes();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    @Transactional(readOnly = true)
     public Optional<String> getSettingValue(String settingKey) {
         return systemSettingRepository.findBySettingKeyAndIsDeletedFalse(settingKey)
                 .map(SystemSetting::getSettingValue);

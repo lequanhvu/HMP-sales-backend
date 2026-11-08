@@ -50,6 +50,10 @@ app:
     # LƯU Ý: Trong quá trình vận hành, giá trị này được Admin quản trị động qua bảng SystemSetting
     # với key 'ORDER_CUSTOMER_CANCELLATION_WINDOW_MINUTES'.
     cancellation-window-minutes: 30
+    # Giá trị mặc định ban đầu cho thời gian khách được phép hoàn tác hủy đơn (tính bằng phút).
+    # LƯU Ý: Trong quá trình vận hành, giá trị này được Admin quản trị động qua bảng SystemSetting
+    # với key 'ORDER_UNDO_CANCEL_WINDOW_MINUTES'.
+    undo-cancel-window-minutes: 60
 
   # Cấu hình chia sẻ tài nguyên liên nguồn (CORS) cho Frontend
   cors:
@@ -94,6 +98,7 @@ app:
         ORDER_SHIPPING: ${ZALO_TEMPLATE_ORDER_SHIPPING:}
         ORDER_COMPLETED: ${ZALO_TEMPLATE_ORDER_COMPLETED:}
         ORDER_CANCELLED: ${ZALO_TEMPLATE_ORDER_CANCELLED:}
+        ORDER_RESTORED: ${ZALO_TEMPLATE_ORDER_RESTORED:}
     email:
       # Bật/tắt gửi thông báo Email qua SendGrid
       enabled: ${EMAIL_NOTIFICATION_ENABLED:false}

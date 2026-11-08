@@ -137,5 +137,21 @@ public class CustomerOrderController {
         OrderDetailResponse response = customerOrderService.cancelOwnOrder(customerId, orderId, request);
         return ResponseEntity.ok(ApiSuccessResponse.success("Hủy đơn hàng thành công", response));
     }
+
+    /**
+     * Khách hàng thực hiện hoàn tác hủy đơn hàng trong thời hạn cho phép (60 phút).
+     *
+     * @param orderId        ID đơn hàng cần hoàn tác hủy
+     * @param authentication thông tin định danh khách hàng
+     * @return chi tiết đơn hàng sau khi hoàn tác thành công
+     */
+    @PostMapping("/{orderId}/undo-cancel")
+    public ResponseEntity<ApiSuccessResponse<OrderDetailResponse>> undoCancelOwnOrder(
+            @PathVariable Long orderId,
+            Authentication authentication) {
+        Long customerId = SecurityUtils.extractUserId(authentication);
+        OrderDetailResponse response = customerOrderService.undoCancelOrder(customerId, orderId);
+        return ResponseEntity.ok(ApiSuccessResponse.success("Hoàn tác hủy đơn hàng thành công", response));
+    }
 }
 

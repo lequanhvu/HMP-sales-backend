@@ -99,7 +99,7 @@ public class NotificationServiceImpl implements NotificationService {
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void onOrderStatusChanged(OrderStatusChangedEvent event) {
         try {
-            NotificationType type = resolveNotificationType(event.toStatus());
+            NotificationType type = resolveNotificationType(event.fromStatus(), event.toStatus());
             if (type == null) {
                 log.debug("Bỏ qua sự kiện đổi trạng thái đơn hàng không nằm trong danh mục thông báo: {}", event);
                 return;
@@ -135,13 +135,17 @@ public class NotificationServiceImpl implements NotificationService {
     }
 
     /**
-     * Xác định loại thông báo {@link NotificationType} tương ứng với trạng thái mới của đơn hàng.
+     * Xác định loại thông báo {@link NotificationType} tương ứng với trạng thái chuyển đổi của đơn hàng.
      *
-     * @param status trạng thái mới của đơn hàng
+     * @param fromStatus trạng thái trước khi chuyển
+     * @param toStatus   trạng thái mới của đơn hàng
      * @return NotificationType tương ứng, hoặc null nếu không cấu hình thông báo
      */
-    private NotificationType resolveNotificationType(OrderStatus status) {
-        return switch (status) {
+    private NotificationType resolveNotificationType(OrderStatus fromStatus, OrderStatus toStatus) {
+        if (fromStatus == OrderStatus.CANCELLED) {
+            return NotificationType.ORDER_RESTORED;
+        }
+        return switch (toStatus) {
             case PENDING -> NotificationType.ORDER_CREATED;
             case CONFIRMED -> NotificationType.ORDER_CONFIRMED;
             case PROCESSING -> NotificationType.ORDER_PROCESSING;
@@ -163,6 +167,7 @@ public class NotificationServiceImpl implements NotificationService {
             case ORDER_SHIPPING -> "Đơn hàng đang được giao";
             case ORDER_COMPLETED -> "Đơn hàng đã hoàn thành";
             case ORDER_CANCELLED -> "Đơn hàng đã bị hủy";
+            case ORDER_RESTORED -> "Đơn hàng đã được khôi phục";
         };
     }
 
@@ -188,6 +193,9 @@ public class NotificationServiceImpl implements NotificationService {
                     orderId);
             case ORDER_CANCELLED -> String.format(
                     "Đơn hàng #%d đã bị hủy.",
+                    orderId);
+            case ORDER_RESTORED -> String.format(
+                    "Đơn hàng #%d đã được khôi phục thành công.",
                     orderId);
         };
     }

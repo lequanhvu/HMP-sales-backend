@@ -308,6 +308,96 @@ public class CustomerOrderServiceImpl implements CustomerOrderService {
         );
     }
 
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    @Transactional
+    public OrderDetailResponse undoCancelOrder(Long customerId, Long orderId) {
+        Order order = orderRepository.findByIdAndCustomerIdAndIsDeletedFalse(orderId, customerId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy đơn hàng ID: " + orderId));
+
+        User customer = userRepository.findById(customerId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy thông tin khách hàng ID: " + customerId));
+
+        if (order.getStatus() != OrderStatus.CANCELLED) {
+            throw new InvalidOrderStateException("Không thể hoàn tác đơn hàng không ở trạng thái CANCELLED. Trạng thái hiện tại: " + order.getStatus());
+        }
+
+        // Quy tắc: Nếu là quản lý, admin hủy thì khách hàng không thể hoàn tác
+        if (order.getCancelledBy() == null || !order.getCancelledBy().getId().equals(customerId)) {
+            throw new BusinessRuleException("Đơn hàng này không phải do bạn hủy, không thể thực hiện hoàn tác.");
+        }
+
+        // Kiểm tra cửa sổ hoàn tác 60 phút
+        int undoWindowMinutes = systemSettingService.getUndoCancelWindowMinutes();
+        Instant cancelledAt = order.getCancelledAt();
+        if (cancelledAt != null && Instant.now().isAfter(cancelledAt.plus(undoWindowMinutes, ChronoUnit.MINUTES))) {
+            throw new BusinessRuleException("Đã quá thời hạn " + undoWindowMinutes + " phút cho phép hoàn tác hủy đơn hàng.");
+        }
+
+        OrderStatusHistory latestCancelHistory = orderStatusHistoryRepository
+                .findTopByOrderIdAndToStatusAndIsDeletedFalseOrderByCreatedAtDesc(orderId, OrderStatus.CANCELLED)
+                .orElseThrow(() -> new BusinessRuleException("Không tìm thấy lịch sử hủy của đơn hàng, không thể xác định trạng thái hoàn tác."));
+
+        OrderStatus previousStatus = latestCancelHistory.getFromStatus();
+        if (previousStatus == null || previousStatus == OrderStatus.CANCELLED) {
+            throw new BusinessRuleException("Trạng thái trước khi hủy không hợp lệ để hoàn tác.");
+        }
+
+        // Phòng thủ cho phía khách hàng: chỉ có thể hoàn tác về PENDING hoặc CONFIRMED
+        if (previousStatus != OrderStatus.PENDING && previousStatus != OrderStatus.CONFIRMED) {
+            throw new BusinessRuleException("Khách hàng chỉ có thể hoàn tác đơn hàng về trạng thái PENDING hoặc CONFIRMED.");
+        }
+
+        order.setStatus(previousStatus);
+        order.setCancelledBy(null);
+        order.setCancelledAt(null);
+        order.setCancellationReason(null);
+        // Lưu ý: Giữ nguyên confirmedAt cũ, không thay đổi
+
+        Order savedOrder = orderRepository.save(order);
+
+        OrderStatusHistory history = OrderStatusHistory.builder()
+                .order(savedOrder)
+                .fromStatus(OrderStatus.CANCELLED)
+                .toStatus(previousStatus)
+                .changedBy(customer)
+                .reason("Khách hàng hoàn tác hủy đơn hàng")
+                .createdAt(Instant.now())
+                .build();
+        orderStatusHistoryRepository.save(history);
+
+        eventPublisher.publishEvent(new OrderStatusChangedEvent(
+                savedOrder.getId(),
+                customerId,
+                OrderStatus.CANCELLED,
+                previousStatus,
+                customerId
+        ));
+
+        log.info("[Order] Khách hàng ID={} hoàn tác hủy thành công đơn hàng ID={}, khôi phục về trạng thái {}",
+                customerId, orderId, previousStatus);
+
+        List<OrderItem> items = orderItemRepository.findByOrderIdAndIsDeletedFalse(orderId);
+        List<OrderStatusHistory> histories = orderStatusHistoryRepository.findByOrderIdOrderByCreatedAtAsc(orderId);
+
+        boolean hidePrice = shouldHidePrice(savedOrder);
+        List<OrderItemResponse> itemResponses = items.stream()
+                .map(i -> OrderItemResponse.fromEntity(i, hidePrice))
+                .toList();
+        List<OrderStatusHistoryResponse> historyResponses = histories.stream()
+                .map(OrderStatusHistoryResponse::fromEntity)
+                .toList();
+
+        return OrderDetailResponse.fromEntity(
+                savedOrder,
+                itemResponses,
+                historyResponses,
+                hidePrice
+        );
+    }
+
     private void validatePhoneOtp(User customer, String phone) {
         boolean isPhoneMatched = customer.getPhone() != null && customer.getPhone().equals(phone);
         boolean isOtpVerified = phoneOtpService.isVerified(phone);

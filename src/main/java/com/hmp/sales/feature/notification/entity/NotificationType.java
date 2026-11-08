@@ -32,6 +32,11 @@ public enum NotificationType {
     /**
      * Đơn hàng đã bị hủy.
      */
-    ORDER_CANCELLED
+    ORDER_CANCELLED,
+
+    /**
+     * Đơn hàng đã được khôi phục / hoàn tác hủy thành công.
+     */
+    ORDER_RESTORED
 }
 

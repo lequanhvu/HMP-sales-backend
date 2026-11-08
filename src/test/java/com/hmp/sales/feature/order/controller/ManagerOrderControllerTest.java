@@ -285,5 +285,38 @@ class ManagerOrderControllerTest {
                 .andExpect(jsonPath("$.data.status").value("CANCELLED"))
                 .andExpect(jsonPath("$.data.cancellationReason").value("Khách hàng từ chối nhận hàng lúc giao"));
     }
+
+    @Test
+    @DisplayName("POST /api/v1/manager/orders/{orderId}/undo-cancel - Quản lý hoàn tác hủy đơn thành công trả về 200")
+    void undoCancelOrder_success_returns200() throws Exception {
+        OrderDetailResponse detailResp = new OrderDetailResponse(
+                100L, OrderStatus.PROCESSING, 5_000_000L, 0L, 5_000_000L,
+                "Nguyễn Văn A", "0987654321", "123 Đường X", null, null,
+                null, Instant.now(), Collections.emptyList(), Collections.emptyList()
+        );
+
+        when(managerOrderService.undoCancelOrder(eq(2L), eq(100L)))
+                .thenReturn(detailResp);
+
+        mockMvc.perform(post("/api/v1/manager/orders/100/undo-cancel")
+                        .principal(authentication))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.statusCode").value(200))
+                .andExpect(jsonPath("$.message").value("Hoàn tác hủy đơn hàng thành công."))
+                .andExpect(jsonPath("$.data.status").value("PROCESSING"));
+    }
+
+    @Test
+    @DisplayName("POST /api/v1/manager/orders/{orderId}/undo-cancel - Đơn hàng do khách hủy trả về 400 Bad Request")
+    void undoCancelOrder_cancelledByCustomer_returns400() throws Exception {
+        when(managerOrderService.undoCancelOrder(eq(2L), eq(100L)))
+                .thenThrow(new com.hmp.sales.common.exception.BusinessRuleException("Đơn hàng này do khách hàng chủ động hủy, Quản lý không thể thực hiện hoàn tác."));
+
+        mockMvc.perform(post("/api/v1/manager/orders/100/undo-cancel")
+                        .principal(authentication))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.statusCode").value(400))
+                .andExpect(jsonPath("$.message").value("Đơn hàng này do khách hàng chủ động hủy, Quản lý không thể thực hiện hoàn tác."));
+    }
 }
 

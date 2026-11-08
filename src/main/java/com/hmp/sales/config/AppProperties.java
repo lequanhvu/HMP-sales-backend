@@ -57,8 +57,19 @@ public record AppProperties(
     ) {}
 
     public record OrderProperties(
-        int cancellationWindowMinutes
-    ) {}
+        int cancellationWindowMinutes,
+        int undoCancelWindowMinutes
+    ) {
+        public OrderProperties(int cancellationWindowMinutes) {
+            this(cancellationWindowMinutes, 60);
+        }
+
+        public OrderProperties {
+            if (undoCancelWindowMinutes <= 0) {
+                undoCancelWindowMinutes = 60;
+            }
+        }
+    }
 
     public record CorsProperties(
         List<String> allowedOrigins,

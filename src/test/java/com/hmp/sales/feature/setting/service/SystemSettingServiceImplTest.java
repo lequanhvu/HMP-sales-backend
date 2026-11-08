@@ -81,6 +81,50 @@ class SystemSettingServiceImplTest {
     }
 
     @Test
+    @DisplayName("Lấy undoCancelWindowMinutes từ DB thành công khi có cấu hình hợp lệ")
+    void getUndoCancelWindowMinutes_fromDb_returnsDbValue() {
+        SystemSetting setting = SystemSetting.builder()
+                .settingKey(SystemSettingService.KEY_UNDO_CANCEL_WINDOW_MINUTES)
+                .settingValue("90")
+                .build();
+
+        when(systemSettingRepository.findBySettingKeyAndIsDeletedFalse(SystemSettingService.KEY_UNDO_CANCEL_WINDOW_MINUTES))
+                .thenReturn(Optional.of(setting));
+
+        int minutes = systemSettingService.getUndoCancelWindowMinutes();
+        assertThat(minutes).isEqualTo(90);
+    }
+
+    @Test
+    @DisplayName("Fallback về AppProperties cho undoCancelWindowMinutes khi cấu hình trong DB không phải số nguyên")
+    void getUndoCancelWindowMinutes_invalidDbValue_fallbackToAppProperties() {
+        SystemSetting setting = SystemSetting.builder()
+                .settingKey(SystemSettingService.KEY_UNDO_CANCEL_WINDOW_MINUTES)
+                .settingValue("invalid_num")
+                .build();
+
+        when(systemSettingRepository.findBySettingKeyAndIsDeletedFalse(SystemSettingService.KEY_UNDO_CANCEL_WINDOW_MINUTES))
+                .thenReturn(Optional.of(setting));
+        when(appProperties.order()).thenReturn(orderProperties);
+        when(orderProperties.undoCancelWindowMinutes()).thenReturn(60);
+
+        int minutes = systemSettingService.getUndoCancelWindowMinutes();
+        assertThat(minutes).isEqualTo(60);
+    }
+
+    @Test
+    @DisplayName("Fallback về AppProperties cho undoCancelWindowMinutes khi không tìm thấy cấu hình trong DB")
+    void getUndoCancelWindowMinutes_noDbRecord_fallbackToAppProperties() {
+        when(systemSettingRepository.findBySettingKeyAndIsDeletedFalse(SystemSettingService.KEY_UNDO_CANCEL_WINDOW_MINUTES))
+                .thenReturn(Optional.empty());
+        when(appProperties.order()).thenReturn(orderProperties);
+        when(orderProperties.undoCancelWindowMinutes()).thenReturn(60);
+
+        int minutes = systemSettingService.getUndoCancelWindowMinutes();
+        assertThat(minutes).isEqualTo(60);
+    }
+
+    @Test
     @DisplayName("Lấy giá trị chuỗi cấu hình thành công")
     void getSettingValue_found_returnsValue() {
         SystemSetting setting = SystemSetting.builder()

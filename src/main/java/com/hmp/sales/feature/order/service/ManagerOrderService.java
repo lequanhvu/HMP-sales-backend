@@ -82,5 +82,19 @@ public interface ManagerOrderService {
      * @return {@link OrderDetailResponse} chi tiết đơn hàng sau khi hủy
      */
     OrderDetailResponse cancelOrder(Long managerId, Long orderId, CancelOrderRequest request);
+
+    /**
+     * Quản lý thực hiện hoàn tác hủy đơn hàng (áp dụng cho đơn do Quản lý/Admin hủy).
+     * <p>
+     * Đơn hàng chỉ có thể hoàn tác nếu đang ở trạng thái CANCELLED và do Quản lý/Admin hủy.
+     * Quản lý có thể hoàn tác ở bất kỳ trạng thái nào trước đó (PENDING, CONFIRMED, PROCESSING, SHIPPING)
+     * và không bị giới hạn thời gian 60 phút. Mốc confirmedAt ban đầu được giữ nguyên.
+     * </p>
+     *
+     * @param managerId ID Quản lý thực hiện hoàn tác
+     * @param orderId   ID đơn hàng cần hoàn tác hủy
+     * @return {@link OrderDetailResponse} chi tiết đơn hàng sau khi hoàn tác
+     */
+    OrderDetailResponse undoCancelOrder(Long managerId, Long orderId);
 }
 

@@ -532,4 +532,120 @@ class ManagerOrderServiceImplTest {
                 .isInstanceOf(InvalidOrderStateException.class)
                 .hasMessageContaining("COMPLETED");
     }
+
+    @Test
+    @DisplayName("undoCancelOrder - Quản lý hoàn tác đơn hàng về PROCESSING thành công ngay cả khi đã quá 60 phút")
+    void undoCancelOrder_restoresToProcessing_evenAfter60Minutes() {
+        order.setStatus(OrderStatus.CANCELLED);
+        order.setCancelledBy(manager);
+        order.setCancelledAt(Instant.now().minus(180, java.time.temporal.ChronoUnit.MINUTES)); // 3 tiếng trước
+        order.setCancellationReason("Hủy tạm thời do thiếu hàng");
+
+        OrderStatusHistory cancelHistory = OrderStatusHistory.builder()
+                .id(1L)
+                .order(order)
+                .fromStatus(OrderStatus.PROCESSING)
+                .toStatus(OrderStatus.CANCELLED)
+                .changedBy(manager)
+                .build();
+
+        when(orderRepository.findByIdAndIsDeletedFalse(100L)).thenReturn(Optional.of(order));
+        when(userRepository.findById(2L)).thenReturn(Optional.of(manager));
+        when(orderStatusHistoryRepository.findTopByOrderIdAndToStatusAndIsDeletedFalseOrderByCreatedAtDesc(100L, OrderStatus.CANCELLED))
+                .thenReturn(Optional.of(cancelHistory));
+        when(orderRepository.save(any(Order.class))).thenAnswer(i -> i.getArgument(0));
+
+        OrderDetailResponse response = managerOrderService.undoCancelOrder(2L, 100L);
+
+        assertThat(response).isNotNull();
+        assertThat(order.getStatus()).isEqualTo(OrderStatus.PROCESSING);
+        assertThat(order.getCancelledBy()).isNull();
+        assertThat(order.getCancelledAt()).isNull();
+        assertThat(order.getCancellationReason()).isNull();
+
+        verify(orderStatusHistoryRepository).save(any(OrderStatusHistory.class));
+        verify(eventPublisher).publishEvent(any(com.hmp.sales.feature.notification.event.OrderStatusChangedEvent.class));
+    }
+
+    @Test
+    @DisplayName("undoCancelOrder - Quản lý hoàn tác đơn hàng về SHIPPING thành công")
+    void undoCancelOrder_restoresToShipping_success() {
+        order.setStatus(OrderStatus.CANCELLED);
+        order.setCancelledBy(manager);
+        order.setCancelledAt(Instant.now().minus(10, java.time.temporal.ChronoUnit.MINUTES));
+
+        OrderStatusHistory cancelHistory = OrderStatusHistory.builder()
+                .id(2L)
+                .order(order)
+                .fromStatus(OrderStatus.SHIPPING)
+                .toStatus(OrderStatus.CANCELLED)
+                .changedBy(manager)
+                .build();
+
+        when(orderRepository.findByIdAndIsDeletedFalse(100L)).thenReturn(Optional.of(order));
+        when(userRepository.findById(2L)).thenReturn(Optional.of(manager));
+        when(orderStatusHistoryRepository.findTopByOrderIdAndToStatusAndIsDeletedFalseOrderByCreatedAtDesc(100L, OrderStatus.CANCELLED))
+                .thenReturn(Optional.of(cancelHistory));
+        when(orderRepository.save(any(Order.class))).thenAnswer(i -> i.getArgument(0));
+
+        OrderDetailResponse response = managerOrderService.undoCancelOrder(2L, 100L);
+
+        assertThat(response).isNotNull();
+        assertThat(order.getStatus()).isEqualTo(OrderStatus.SHIPPING);
+    }
+
+    @Test
+    @DisplayName("undoCancelOrder - Thất bại khi đơn hàng do Khách hàng chủ động hủy")
+    void undoCancelOrder_fails_whenCancelledByCustomer() {
+        order.setStatus(OrderStatus.CANCELLED);
+        order.setCancelledBy(customer); // customer hủy
+        order.setCancelledAt(Instant.now().minus(10, java.time.temporal.ChronoUnit.MINUTES));
+
+        when(orderRepository.findByIdAndIsDeletedFalse(100L)).thenReturn(Optional.of(order));
+        when(userRepository.findById(2L)).thenReturn(Optional.of(manager));
+
+        assertThatThrownBy(() -> managerOrderService.undoCancelOrder(2L, 100L))
+                .isInstanceOf(BusinessRuleException.class)
+                .hasMessageContaining("do khách hàng chủ động hủy, Quản lý không thể thực hiện hoàn tác");
+    }
+
+    @Test
+    @DisplayName("undoCancelOrder - Thất bại khi đơn hàng không ở trạng thái CANCELLED")
+    void undoCancelOrder_fails_whenNotCancelled() {
+        order.setStatus(OrderStatus.PROCESSING);
+
+        when(orderRepository.findByIdAndIsDeletedFalse(100L)).thenReturn(Optional.of(order));
+        when(userRepository.findById(2L)).thenReturn(Optional.of(manager));
+
+        assertThatThrownBy(() -> managerOrderService.undoCancelOrder(2L, 100L))
+                .isInstanceOf(InvalidOrderStateException.class)
+                .hasMessageContaining("CANCELLED");
+    }
+
+    @Test
+    @DisplayName("undoCancelOrder - Thất bại khi không tìm thấy đơn hàng")
+    void undoCancelOrder_fails_whenOrderNotFound() {
+        when(orderRepository.findByIdAndIsDeletedFalse(999L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> managerOrderService.undoCancelOrder(2L, 999L))
+                .isInstanceOf(ResourceNotFoundException.class)
+                .hasMessageContaining("999");
+    }
+
+    @Test
+    @DisplayName("undoCancelOrder - Thất bại khi không tìm thấy lịch sử hủy của đơn hàng")
+    void undoCancelOrder_fails_whenNoCancelHistory() {
+        order.setStatus(OrderStatus.CANCELLED);
+        order.setCancelledBy(manager);
+        order.setCancelledAt(Instant.now().minus(10, java.time.temporal.ChronoUnit.MINUTES));
+
+        when(orderRepository.findByIdAndIsDeletedFalse(100L)).thenReturn(Optional.of(order));
+        when(userRepository.findById(2L)).thenReturn(Optional.of(manager));
+        when(orderStatusHistoryRepository.findTopByOrderIdAndToStatusAndIsDeletedFalseOrderByCreatedAtDesc(100L, OrderStatus.CANCELLED))
+                .thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> managerOrderService.undoCancelOrder(2L, 100L))
+                .isInstanceOf(BusinessRuleException.class)
+                .hasMessageContaining("Không tìm thấy lịch sử hủy");
+    }
 }

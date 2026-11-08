@@ -251,6 +251,25 @@ class NotificationServiceImplTest {
     }
 
     @Test
+    @DisplayName("Xử lý sự kiện hoàn tác hủy đơn (từ CANCELLED) tạo thông báo ORDER_RESTORED thành công")
+    void onOrderStatusChanged_fromCancelled_createsOrderRestoredNotification() {
+        OrderStatusChangedEvent event = new OrderStatusChangedEvent(108L, 1L, OrderStatus.CANCELLED, OrderStatus.PENDING, 1L);
+        when(userRepository.findById(1L)).thenReturn(Optional.of(sampleUser));
+
+        notificationService.onOrderStatusChanged(event);
+
+        ArgumentCaptor<Notification> captor = ArgumentCaptor.forClass(Notification.class);
+        verify(notificationRepository).save(captor.capture());
+
+        Notification saved = captor.getValue();
+        assertThat(saved.getType()).isEqualTo(NotificationType.ORDER_RESTORED);
+        assertThat(saved.getTitle()).isEqualTo("Đơn hàng đã được khôi phục");
+        assertThat(saved.getMessage()).contains("#108").contains("khôi phục thành công");
+
+        verify(externalNotificationProvider).send(eq(1L), eq(saved.getTitle()), eq(saved.getMessage()), eq(NotificationType.ORDER_RESTORED));
+    }
+
+    @Test
     @DisplayName("Xử lý sự kiện với trạng thái null sẽ bỏ qua")
     void onOrderStatusChanged_nullStatus_ignored() {
         OrderStatusChangedEvent event = new OrderStatusChangedEvent(107L, 1L, null, null, 1L);

@@ -1,6 +1,6 @@
 # Project Status
 
-> Last updated: 2026-11-06 | By: @antigravity | Session: #17
+> Last updated: 2026-11-08 | By: @antigravity | Session: #18
 >
 > AI: update this file at the end of every session when asked.
 > Follow this exact format. Preserve full milestone checklists and project specifications.
@@ -8,6 +8,26 @@
 ---
 
 ## Completed
+- ✅ **Tính năng Hoàn tác Hủy Đơn hàng (`undo-cancel`) cho cả 3 vai trò (Customer, Manager, Admin) completed**:
+  - **Nghiệp vụ & Phân quyền Hoàn tác Tách biệt Chặt chẽ**:
+    - Áp dụng khi người dùng lỡ tay hủy đơn hàng, cho phép hoàn tác đưa đơn về đúng trạng thái trước khi hủy tra cứu từ bản ghi [`OrderStatusHistory`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/order/entity/OrderStatusHistory.java) gần nhất.
+    - Đơn do khách hàng tự hủy (`cancelledBy == customer`): chỉ khách hàng mới được phép hoàn tác (trong cửa sổ 60 phút). Quản lý/Admin bị từ chối nếu can thiệp vào đơn khách đã hủy.
+    - Đơn do Quản lý/Admin hủy (`cancelledBy != customer`): chỉ Quản lý/Admin mới được phép hoàn tác. Khách hàng không thể hoàn tác đơn do Quản lý/Admin hủy. Quản lý/Admin hoàn tác không bị giới hạn thời gian 60 phút và có thể khôi phục về mọi trạng thái trước đó (`PENDING`, `CONFIRMED`, `PROCESSING`, `SHIPPING`).
+    - Bảo toàn mốc thời gian: Khi hoàn tác về `CONFIRMED`, giữ nguyên mốc `confirmedAt` cũ (không reset). Nếu cửa sổ hủy của đơn đã hết, `OrderAutoTransitionScheduler` tự động quét và chuyển sang `PROCESSING`.
+    - Dọn dẹp dấu vết hủy: Xóa `cancelledBy`, `cancelledAt`, `cancellationReason` về `null`; lưu vết lịch sử `OrderStatusHistory` (`fromStatus = CANCELLED`, `toStatus = previousStatus`).
+  - **Cấu hình Động Cửa sổ Hoàn tác (`SystemSetting`) & `AppProperties`**:
+    - Khởi tạo key [`ORDER_UNDO_CANCEL_WINDOW_MINUTES = "60"`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/setting/service/SystemSettingService.java) trong PostgreSQL qua `DataInitializer`, fallback về `app.order.undo-cancel-window-minutes: 60` trong `application.yaml` qua [`AppProperties`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/config/AppProperties.java).
+  - **REST Endpoints Không Request Body**:
+    - Khách hàng: `POST /api/v1/orders/{orderId}/undo-cancel` ([`CustomerOrderController`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/order/controller/CustomerOrderController.java)).
+    - Quản lý/Admin: `POST /api/v1/manager/orders/{orderId}/undo-cancel` ([`ManagerOrderController`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/order/controller/ManagerOrderController.java)).
+    - Cấp quyền động `ORDER_UNDO_CANCEL_OWN` và `ORDER_UNDO_CANCEL_ANY` trong `DataInitializer`, nạp lại RAM cache.
+  - **Hệ thống Thông báo Khôi phục Đơn hàng (`ORDER_RESTORED`)**:
+    - Mở rộng enum [`NotificationType`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/notification/entity/NotificationType.java) với loại `ORDER_RESTORED`.
+    - Cập nhật [`NotificationServiceImpl`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/notification/service/impl/NotificationServiceImpl.java): khi nhận sự kiện chuyển đổi từ `fromStatus = CANCELLED`, tự động tạo thông báo in-app cho khách hàng chủ đơn với tiêu đề *"Đơn hàng đã được khôi phục"*.
+    - Thiết kế mẫu HTML email [`order-restored.html`](file:///d:/HMP/sales-backend/src/main/resources/templates/email/order-restored.html) và tích hợp vào [`SendGridEmailNotificationProvider`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/notification/external/SendGridEmailNotificationProvider.java) cùng `application.yaml`.
+  - **Kiểm thử Toàn diện**:
+    - Bổ sung 23 unit test cases mới: `SystemSettingServiceImplTest` (3 tests), `NotificationServiceImplTest` (1 test), `SendGridEmailNotificationProviderTest` (1 test), `CustomerOrderServiceImplTest` (8 tests), `ManagerOrderServiceImplTest` (6 tests), `CustomerOrderControllerTest` (2 tests), `ManagerOrderControllerTest` (2 tests).
+    - Toàn bộ **380/380 tests pass 100%**.
 - ✅ **Bổ sung Thông báo Đặt hàng Thành công (`ORDER_CREATED`) completed**:
   - Mở rộng enum [`NotificationType`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/notification/entity/NotificationType.java) với loại `ORDER_CREATED`.
   - Cập nhật [`NotificationServiceImpl`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/notification/service/impl/NotificationServiceImpl.java): khi nhận `OrderStatusChangedEvent` với trạng thái `toStatus = OrderStatus.PENDING` (lúc khách hàng tạo đơn thành công), hệ thống tự động sinh thông báo in-app và gửi thông báo ngoại vi với tiêu đề *"Đặt hàng thành công"* và nội dung *"Đơn hàng #<orderId> đã được tạo thành công và đang chờ Quản lý xác nhận giá."*.
@@ -426,8 +446,9 @@ _Nothing._
   - [x] Customer views calculated order details
   - [x] Customer cancellation validation against dynamic cancellation window from DB
   - [x] Optional cancellation reason for all roles
+  - [x] Order undo cancellation flow for Customer (within 60m window, self-cancelled only) and Manager/Admin (any prior state, manager-cancelled only) (`POST /api/v1/orders/{id}/undo-cancel`, `POST /api/v1/manager/orders/{id}/undo-cancel`)
   - [x] Immutable history logging in `OrderStatusHistory` for every valid transition
-- [x] Order unit and integration tests (327/327 tests pass)
+- [x] Order unit and integration tests (380/380 tests pass)
 
 ### Phase 5 — Platform, Audit & Notifications
 - [x] Notification entity & repository

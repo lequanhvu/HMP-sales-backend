@@ -89,12 +89,22 @@ Tại `com.hmp.sales.feature.order.repository`:
    - Quét các đơn `CONFIRMED` có `confirmedAt + cancellationWindowMinutes <= now()`.
    - Tự động cập nhật `status = PROCESSING` và ghi nhận bản ghi `OrderStatusHistory` với `changedBy = null` (Hệ thống).
 
+8. **Cơ chế Hoàn tác Hủy Đơn (Undo Cancellation)**:
+   - **Áp dụng cho cả 3 vai trò** khi người dùng lỡ tay hủy đơn hàng.
+   - **Tách biệt quyền theo người hủy**: Đơn do khách hàng tự hủy (`cancelledBy == customer`) thì chỉ khách hàng mới hoàn tác được. Đơn do Quản lý/Admin hủy (`cancelledBy != customer`) thì chỉ Quản lý/Admin mới hoàn tác được.
+   - **Cửa sổ thời gian**: Khách hàng chỉ được hoàn tác trong vòng 60 phút (cấu hình động qua `SystemSetting` key `ORDER_UNDO_CANCEL_WINDOW_MINUTES`, fallback 60). Quản lý/Admin hoàn tác **không giới hạn thời gian**.
+   - **Trạng thái khôi phục**: Trở về trạng thái ngay trước khi hủy từ bản ghi `OrderStatusHistory` gần nhất. Khách hàng khôi phục về `PENDING` hoặc `CONFIRMED`; Quản lý khôi phục về `PENDING`, `CONFIRMED`, `PROCESSING`, hoặc `SHIPPING`.
+   - **Bảo toàn mốc thời gian**: Giữ nguyên `confirmedAt` ban đầu (không reset). Nếu cửa sổ hủy của đơn `CONFIRMED` đã qua, Scheduler sẽ tự động chuyển sang `PROCESSING` ở chu kỳ quét tiếp theo.
+   - **Xóa vết hủy & Lưu lịch sử**: Đặt `cancelledBy = null`, `cancelledAt = null`, `cancellationReason = null`; lưu bản ghi lịch sử mới (`CANCELLED -> <trạng thái cũ>`).
+   - **Thông báo**: Luôn gửi thông báo in-app và email (`ORDER_RESTORED`) tới khách hàng là chủ sở hữu đơn.
+
 ## 6. REST API Endpoints
 ### Khách hàng (`/api/v1/orders`):
 - `POST /api/v1/orders`: Đặt đơn hàng mới (201 Created).
 - `GET /api/v1/orders`: Danh sách đơn hàng cá nhân (200 OK, phân trang chuẩn `PageResponse<OrderSummaryResponse>`).
 - `GET /api/v1/orders/{orderId}`: Xem chi tiết đơn hàng (200 OK, `OrderDetailResponse`).
 - `POST /api/v1/orders/{orderId}/cancel`: Hủy đơn hàng trong thời hạn cho phép (200 OK).
+- `POST /api/v1/orders/{orderId}/undo-cancel`: Hoàn tác hủy đơn hàng trong thời hạn 60 phút (200 OK, không cần body).
 
 ### Quản lý / Admin (`/api/v1/manager/orders`):
 - `GET /api/v1/manager/orders`: Tra cứu danh sách toàn bộ đơn hàng phân trang chuẩn `PageResponse<ManagerOrderSummaryResponse>` (bộ lọc ngày, trạng thái, tên khách không dấu, SĐT, email).
@@ -103,14 +113,17 @@ Tại `com.hmp.sales.feature.order.repository`:
 - `POST /api/v1/manager/orders/{orderId}/confirm`: Quản lý xác nhận chốt giá đơn hàng (chuyển sang `CONFIRMED`).
 - `PATCH /api/v1/manager/orders/{orderId}/status`: Cập nhật trạng thái tiến trình đơn hàng (`CONFIRMED -> PROCESSING -> SHIPPING -> COMPLETED`).
 - `POST /api/v1/manager/orders/{orderId}/cancel`: Quản lý chủ động hủy đơn hàng (áp dụng cho `PENDING`, `CONFIRMED`, `PROCESSING`, `SHIPPING`).
+- `POST /api/v1/manager/orders/{orderId}/undo-cancel`: Quản lý hoàn tác hủy đơn hàng do Quản lý/Admin hủy (200 OK, không cần body).
 
 ## 7. Security & Authorization
 - `ORDER_CREATE`: Cấp quyền `POST /api/v1/orders` cho `ROLE_CUSTOMER`, `ROLE_ADMIN`, `ROLE_MANAGER`.
 - `ORDER_VIEW_OWN`: Cấp quyền `GET /api/v1/orders/**` cho `ROLE_CUSTOMER`, `ROLE_ADMIN`, `ROLE_MANAGER`.
 - `ORDER_CANCEL_OWN`: Cấp quyền `POST /api/v1/orders/**/cancel` cho `ROLE_CUSTOMER`, `ROLE_ADMIN`, `ROLE_MANAGER`.
+- `ORDER_UNDO_CANCEL_OWN`: Cấp quyền `POST /api/v1/orders/**/undo-cancel` cho `ROLE_CUSTOMER`, `ROLE_ADMIN`, `ROLE_MANAGER`.
 - `ORDER_VIEW_ALL`: Cấp quyền `GET /api/v1/manager/orders/**` cho `ROLE_MANAGER`, `ROLE_ADMIN`.
 - `ORDER_CALCULATE`: Cấp quyền `POST /api/v1/manager/orders/**/calculate` cho `ROLE_MANAGER`, `ROLE_ADMIN`.
 - `ORDER_CONFIRM`: Cấp quyền `POST /api/v1/manager/orders/**/confirm` cho `ROLE_MANAGER`, `ROLE_ADMIN`.
 - `ORDER_STATUS_UPDATE`: Cấp quyền `PATCH /api/v1/manager/orders/**/status` cho `ROLE_MANAGER`, `ROLE_ADMIN`.
 - `ORDER_CANCEL_ANY`: Cấp quyền `POST /api/v1/manager/orders/**/cancel` cho `ROLE_MANAGER`, `ROLE_ADMIN`.
+- `ORDER_UNDO_CANCEL_ANY`: Cấp quyền `POST /api/v1/manager/orders/**/undo-cancel` cho `ROLE_MANAGER`, `ROLE_ADMIN`.
 - Tự động nạp vào bộ nhớ RAM của `PermissionAuthorizationManager` khi ứng dụng khởi động hoặc khi vai trò được cập nhật.

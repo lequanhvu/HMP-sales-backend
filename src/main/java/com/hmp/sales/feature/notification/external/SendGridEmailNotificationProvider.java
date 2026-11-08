@@ -169,6 +169,7 @@ public class SendGridEmailNotificationProvider implements ExternalNotificationPr
             case ORDER_SHIPPING -> "email/order-shipping";
             case ORDER_COMPLETED -> "email/order-completed";
             case ORDER_CANCELLED -> "email/order-cancelled";
+            case ORDER_RESTORED -> "email/order-restored";
         };
     }
 

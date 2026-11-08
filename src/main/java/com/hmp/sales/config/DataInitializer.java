@@ -215,6 +215,8 @@ public class DataInitializer implements ApplicationRunner {
             new Object[]{"ORDER_CALCULATE",           "ORDER",    "/api/v1/manager/orders/**/calculate",          "POST",   "Tính giá đơn hàng sản xuất"},
             new Object[]{"ORDER_CONFIRM",             "ORDER",    "/api/v1/manager/orders/**/confirm",            "POST",   "Quản lý xác nhận giá đơn hàng"},
             new Object[]{"ORDER_CANCEL_ANY",          "ORDER",    "/api/v1/manager/orders/**/cancel",             "POST",   "Hủy bất kỳ đơn hàng nào"},
+            new Object[]{"ORDER_UNDO_CANCEL_OWN",     "ORDER",    "/api/v1/orders/**/undo-cancel",                "POST",   "Khách hàng hoàn tác hủy đơn hàng của chính mình (trong thời hạn 60 phút)"},
+            new Object[]{"ORDER_UNDO_CANCEL_ANY",     "ORDER",    "/api/v1/manager/orders/**/undo-cancel",        "POST",   "Quản lý hoàn tác hủy đơn hàng do Quản lý/Admin hủy"},
             new Object[]{"ORDER_STATUS_UPDATE",       "ORDER",    "/api/v1/manager/orders/**/status",             "PATCH",  "Cập nhật trạng thái đơn hàng"},
             // --- USER module ---
             new Object[]{"USER_VIEW_ALL",             "USER",     "/api/v1/admin/users",                          "GET",    "Xem danh sách tài khoản người dùng"},
@@ -302,7 +304,7 @@ public class DataInitializer implements ApplicationRunner {
             "COLOR_VIEW_ALL", "COLOR_CREATE", "COLOR_UPDATE", "COLOR_LOCK", "COLOR_UNLOCK", "COLOR_DELETE",
             "USER_VIEW_ALL", "USER_LOCK", "USER_UNLOCK", "USER_DELETE", "MANAGER_CREATE",
             "ORDER_VIEW_ALL", "ORDER_CALCULATE", "ORDER_CONFIRM", "ORDER_CANCEL_ANY", "ORDER_STATUS_UPDATE",
-            "ORDER_CREATE", "ORDER_VIEW_OWN", "ORDER_CANCEL_OWN",
+            "ORDER_CREATE", "ORDER_VIEW_OWN", "ORDER_CANCEL_OWN", "ORDER_UNDO_CANCEL_OWN", "ORDER_UNDO_CANCEL_ANY",
             "ME_PROFILE_VIEW", "ME_PROFILE_UPDATE", "ME_ADDRESS_VIEW", "ME_ADDRESS_CREATE", "ME_ADDRESS_UPDATE", "ME_ADDRESS_DELETE",
             "NOTIFICATION_VIEW_OWN", "NOTIFICATION_MARK_READ", "NOTIFICATION_MARK_ALL_READ",
             "SYSTEM_LOG_VIEW", "SYSTEM_SETTING_UPDATE",
@@ -316,14 +318,14 @@ public class DataInitializer implements ApplicationRunner {
             "PRODUCT_VARIANT_CREATE", "PRODUCT_VARIANT_UPDATE", "PRODUCT_VARIANT_LOCK", "PRODUCT_VARIANT_UNLOCK", "PRODUCT_VARIANT_DELETE",
             "PRODUCT_CATEGORY_VIEW", "PRODUCT_CATEGORY_CREATE", "PRODUCT_CATEGORY_UPDATE", "PRODUCT_CATEGORY_LOCK", "PRODUCT_CATEGORY_UNLOCK", "PRODUCT_CATEGORY_DELETE",
             "ORDER_VIEW_ALL", "ORDER_CALCULATE", "ORDER_CONFIRM", "ORDER_CANCEL_ANY", "ORDER_STATUS_UPDATE",
-            "ORDER_CREATE", "ORDER_VIEW_OWN", "ORDER_CANCEL_OWN",
+            "ORDER_CREATE", "ORDER_VIEW_OWN", "ORDER_CANCEL_OWN", "ORDER_UNDO_CANCEL_OWN", "ORDER_UNDO_CANCEL_ANY",
             "ME_PROFILE_VIEW", "ME_PROFILE_UPDATE", "ME_ADDRESS_VIEW", "ME_ADDRESS_CREATE", "ME_ADDRESS_UPDATE", "ME_ADDRESS_DELETE",
             "NOTIFICATION_VIEW_OWN", "NOTIFICATION_MARK_READ", "NOTIFICATION_MARK_ALL_READ"
     );
 
     private static final Set<String> CUSTOMER_PERMISSIONS = Set.of(
             "PRODUCT_VIEW",
-            "ORDER_CREATE", "ORDER_VIEW_OWN", "ORDER_CANCEL_OWN", "ORDER_CONFIRM_OWN",
+            "ORDER_CREATE", "ORDER_VIEW_OWN", "ORDER_CANCEL_OWN", "ORDER_UNDO_CANCEL_OWN", "ORDER_CONFIRM_OWN",
             "ORDER_OTP_REQUEST", "ORDER_OTP_VERIFY",
             "ME_OTP_REQUEST", "ME_OTP_VERIFY",
             "ME_PROFILE_VIEW", "ME_PROFILE_UPDATE", "ME_ADDRESS_VIEW", "ME_ADDRESS_CREATE", "ME_ADDRESS_UPDATE", "ME_ADDRESS_DELETE",
@@ -647,7 +649,7 @@ public class DataInitializer implements ApplicationRunner {
                                 setting.getSettingKey(), setting.getSettingValue()),
                         () -> {
                             SystemSetting setting = SystemSetting.builder()
-                                    .settingKey("ORDER_CUSTOMER_CANCELLATION_WINDOW_MINUTES")
+                                     .settingKey("ORDER_CUSTOMER_CANCELLATION_WINDOW_MINUTES")
                                     .settingValue("30")
                                     .dataType("INT")
                                     .description("Thời gian tối đa (phút) khách hàng được phép hủy đơn hàng sau khi tạo đơn hoặc sau khi Quản lý chốt giá")
@@ -655,6 +657,23 @@ public class DataInitializer implements ApplicationRunner {
                                     .build();
                             systemSettingRepository.save(setting);
                             log.info("[DataInitializer] Khởi tạo SystemSetting mặc định '{}' = 30", setting.getSettingKey());
+                        }
+                );
+
+        systemSettingRepository.findBySettingKeyAndIsDeletedFalse("ORDER_UNDO_CANCEL_WINDOW_MINUTES")
+                .ifPresentOrElse(
+                        setting -> log.debug("[DataInitializer] SystemSetting '{}' đã tồn tại: {}",
+                                setting.getSettingKey(), setting.getSettingValue()),
+                        () -> {
+                            SystemSetting setting = SystemSetting.builder()
+                                    .settingKey("ORDER_UNDO_CANCEL_WINDOW_MINUTES")
+                                    .settingValue("60")
+                                    .dataType("INT")
+                                    .description("Thời gian tối đa (phút) khách hàng được phép hoàn tác đơn hàng vừa bị hủy")
+                                    .isDeleted(false)
+                                    .build();
+                            systemSettingRepository.save(setting);
+                            log.info("[DataInitializer] Khởi tạo SystemSetting mặc định '{}' = 60", setting.getSettingKey());
                         }
                 );
     }

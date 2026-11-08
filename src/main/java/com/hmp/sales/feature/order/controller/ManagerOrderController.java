@@ -186,4 +186,21 @@ public class ManagerOrderController {
         OrderDetailResponse result = managerOrderService.cancelOrder(managerId, orderId, request);
         return ResponseEntity.ok(ApiSuccessResponse.success("Hủy đơn hàng thành công.", result));
     }
+
+    /**
+     * Quản lý thực hiện hoàn tác hủy đơn hàng (áp dụng cho đơn do Quản lý/Admin hủy).
+     *
+     * @param orderId        ID đơn hàng cần hoàn tác hủy
+     * @param authentication thông tin xác thực của Quản lý
+     * @return chi tiết đơn hàng sau khi hoàn tác
+     */
+    @PostMapping("/{orderId}/undo-cancel")
+    public ResponseEntity<ApiSuccessResponse<OrderDetailResponse>> undoCancelOrder(
+            @PathVariable Long orderId,
+            Authentication authentication
+    ) {
+        Long managerId = SecurityUtils.extractUserId(authentication);
+        OrderDetailResponse result = managerOrderService.undoCancelOrder(managerId, orderId);
+        return ResponseEntity.ok(ApiSuccessResponse.success("Hoàn tác hủy đơn hàng thành công.", result));
+    }
 }

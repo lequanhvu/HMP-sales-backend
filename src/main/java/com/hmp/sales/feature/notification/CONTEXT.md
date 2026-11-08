@@ -19,7 +19,7 @@ Phân hệ `notification` đảm nhiệm việc tiếp nhận, quản lý và ph
 
 ## 4. Key Classes & Interfaces
 - `Notification`: Thực thể JPA ánh xạ bảng `notifications`.
-- `NotificationType`: Enum gồm `ORDER_CREATED`, `ORDER_CONFIRMED`, `ORDER_PROCESSING`, `ORDER_SHIPPING`, `ORDER_COMPLETED`, `ORDER_CANCELLED`.
+- `NotificationType`: Enum gồm `ORDER_CREATED`, `ORDER_CONFIRMED`, `ORDER_PROCESSING`, `ORDER_SHIPPING`, `ORDER_COMPLETED`, `ORDER_CANCELLED`, `ORDER_RESTORED`.
 - `NotificationRepository`: Spring Data JPA Repository, cung cấp các truy vấn theo `user.id`, đếm chưa đọc và `@Modifying` bulk update `markAllAsRead`.
 - `NotificationService` / `NotificationServiceImpl`: Interface và Service xử lý nghiệp vụ.
 - `OrderStatusChangedEvent`: Record chứa dữ liệu sự kiện thay đổi trạng thái đơn hàng.

@@ -13,6 +13,11 @@ public interface SystemSettingService {
     String KEY_CANCELLATION_WINDOW_MINUTES = "ORDER_CUSTOMER_CANCELLATION_WINDOW_MINUTES";
 
     /**
+     * Tên khóa cấu hình thời gian tối đa khách hàng được phép hoàn tác hủy đơn hàng (tính bằng phút).
+     */
+    String KEY_UNDO_CANCEL_WINDOW_MINUTES = "ORDER_UNDO_CANCEL_WINDOW_MINUTES";
+
+    /**
      * Lấy thời gian tối đa khách hàng được phép hủy đơn hàng (tính bằng phút).
      * <p>
      * Ưu tiên tra cứu từ cơ sở dữ liệu (PostgreSQL); nếu chưa có hoặc không hợp lệ,
@@ -22,6 +27,17 @@ public interface SystemSettingService {
      * @return số phút cho phép hủy đơn hàng
      */
     int getCancellationWindowMinutes();
+
+    /**
+     * Lấy thời gian tối đa khách hàng được phép hoàn tác hủy đơn hàng (tính bằng phút).
+     * <p>
+     * Ưu tiên tra cứu từ cơ sở dữ liệu (PostgreSQL); nếu chưa có hoặc không hợp lệ,
+     * tự động fallback về giá trị cấu hình mặc định trong file cấu hình ứng dụng.
+     * </p>
+     *
+     * @return số phút cho phép hoàn tác hủy đơn hàng
+     */
+    int getUndoCancelWindowMinutes();
 
     /**
      * Lấy giá trị chuỗi của một tham số cấu hình theo khóa.

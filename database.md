@@ -496,6 +496,7 @@ Initial settings can include:
 
 ```text
 ORDER_CUSTOMER_CANCELLATION_WINDOW_MINUTES
+ORDER_UNDO_CANCEL_WINDOW_MINUTES
 ```
 
 Additional settings should be added only when an explicit requirement exists.
