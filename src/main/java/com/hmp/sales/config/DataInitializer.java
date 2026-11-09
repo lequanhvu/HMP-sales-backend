@@ -206,7 +206,6 @@ public class DataInitializer implements ApplicationRunner {
             new Object[]{"ORDER_CREATE",              "ORDER",    "/api/v1/orders",                               "POST",   "Tạo đơn hàng mới"},
             new Object[]{"ORDER_VIEW_OWN",            "ORDER",    "/api/v1/orders/**",                            "GET",    "Xem danh sách và chi tiết đơn hàng của chính mình"},
             new Object[]{"ORDER_CANCEL_OWN",          "ORDER",    "/api/v1/orders/**/cancel",                     "POST",   "Hủy đơn hàng của chính mình (trong cửa sổ cho phép)"},
-            new Object[]{"ORDER_CONFIRM_OWN",         "ORDER",    "/api/v1/orders/**/confirm",                    "POST",   "Xác nhận đơn hàng đã được tính giá"},
             new Object[]{"ORDER_OTP_REQUEST",         "ORDER",    "/api/v1/orders/otp/request",                   "POST",   "Gửi mã OTP xác thực số điện thoại"},
             new Object[]{"ORDER_OTP_VERIFY",          "ORDER",    "/api/v1/orders/otp/verify",                    "POST",   "Xác minh mã OTP số điện thoại"},
             new Object[]{"ME_OTP_REQUEST",            "ORDER",    "/api/v1/me/otp/request",                       "POST",   "Gửi mã OTP xác minh số điện thoại cá nhân"},
@@ -326,7 +325,7 @@ public class DataInitializer implements ApplicationRunner {
 
     private static final Set<String> CUSTOMER_PERMISSIONS = Set.of(
             "PRODUCT_VIEW",
-            "ORDER_CREATE", "ORDER_VIEW_OWN", "ORDER_CANCEL_OWN", "ORDER_UNDO_CANCEL_OWN", "ORDER_CONFIRM_OWN",
+            "ORDER_CREATE", "ORDER_VIEW_OWN", "ORDER_CANCEL_OWN", "ORDER_UNDO_CANCEL_OWN",
             "ORDER_OTP_REQUEST", "ORDER_OTP_VERIFY",
             "ME_OTP_REQUEST", "ME_OTP_VERIFY",
             "ME_PROFILE_VIEW", "ME_PROFILE_UPDATE", "ME_ADDRESS_VIEW", "ME_ADDRESS_CREATE", "ME_ADDRESS_UPDATE", "ME_ADDRESS_DELETE",
