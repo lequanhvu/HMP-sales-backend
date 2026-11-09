@@ -132,6 +132,7 @@ class AdminRoleServiceTest {
                                 .thenReturn(List.of(priceViewPerm, orderCreatePerm));
 
                 // Giả sử trước đó đã có ORDER_CREATE
+                when(rolePermissionRepository.findPermissionsByRoleId(3)).thenReturn(List.of(orderCreatePerm));
                 RolePermission existingOrderCreate = new RolePermission(customerRole, orderCreatePerm);
                 existingOrderCreate.setIsDeleted(false);
                 when(rolePermissionRepository.findByIdRoleId(3))
@@ -147,7 +148,14 @@ class AdminRoleServiceTest {
 
                 verify(rolePermissionRepository).saveAll(anyList());
                 verify(permissionAuthorizationManager).loadCache();
-                verify(systemLogService).log(eq(999L), eq("ROLE_PERMISSIONS_UPDATED"), eq("ROLE"), eq(3L), any());
+                verify(systemLogService).logWithChange(
+                                eq(999L),
+                                eq("ROLE_PERMISSIONS_UPDATED"),
+                                eq("ROLE"),
+                                eq(3L),
+                                any(),
+                                eq("{\"permissions\":[\"ORDER_CREATE\"]}"),
+                                eq("{\"permissions\":[\"ORDER_CREATE\",\"PRODUCT_PRICE_VIEW\"]}"));
         }
 
         @Test

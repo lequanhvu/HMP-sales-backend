@@ -34,6 +34,26 @@ class AuditValueUtilsTest {
     }
 
     @Test
+    @DisplayName("toJson - Hỗ trợ serialize Collection/List thành JSON array")
+    void toJson_supportsIterableValues() {
+        Map<String, Object> map = new LinkedHashMap<>();
+        map.put("permissions", java.util.List.of("ORDER_CREATE", "PRODUCT_VIEW"));
+        map.put("role", "ADMIN");
+
+        String json = AuditValueUtils.toJson(map);
+        assertThat(json).isEqualTo("{\"permissions\":[\"ORDER_CREATE\",\"PRODUCT_VIEW\"],\"role\":\"ADMIN\"}");
+    }
+
+    @Test
+    @DisplayName("toJsonArray - Dựng chuỗi JSON array từ danh sách")
+    void toJsonArray_success() {
+        assertThat(AuditValueUtils.toJsonArray(null)).isEqualTo("[]");
+        assertThat(AuditValueUtils.toJsonArray(java.util.List.of())).isEqualTo("[]");
+        assertThat(AuditValueUtils.toJsonArray(java.util.List.of("A", "B", 123, true)))
+                .isEqualTo("[\"A\",\"B\",123,true]");
+    }
+
+    @Test
     @DisplayName("toJson - Trả về {} khi map rỗng hoặc null")
     void toJson_nullOrEmpty_returnsEmptyBraces() {
         assertThat(AuditValueUtils.toJson(null)).isEqualTo("{}");

@@ -2,6 +2,7 @@ package com.hmp.sales.feature.user.service.impl;
 
 import com.hmp.sales.common.exception.BusinessRuleException;
 import com.hmp.sales.common.exception.ResourceNotFoundException;
+import com.hmp.sales.common.util.AuditValueUtils;
 import com.hmp.sales.feature.systemlog.service.SystemLogService;
 import com.hmp.sales.feature.user.dto.RolePermissionsResponse;
 import com.hmp.sales.feature.user.dto.UpdateRolePermissionsRequest;
@@ -96,6 +97,13 @@ public class RoleServiceImpl implements RoleService {
             Long actorId) {
         Role role = findRoleOrThrow(roleId);
 
+        // Lấy danh sách quyền hạn hiện tại trước khi cập nhật (phục vụ audit log)
+        List<String> oldPermissions = rolePermissionRepository.findPermissionsByRoleId(roleId)
+                .stream()
+                .map(Permission::getPermissionName)
+                .sorted()
+                .toList();
+
         List<String> requestedNames = request.permissions() != null ? request.permissions() : List.of();
 
         // 1. Kiểm tra tính hợp lệ của tất cả quyền hạn được truyền lên
@@ -164,13 +172,20 @@ public class RoleServiceImpl implements RoleService {
         // 4. Forced Token Revocation: Tìm toàn bộ user thuộc vai trò này để vô hiệu hóa token
         revokeTokensForRole(role);
 
-        // 4. Ghi nhật ký kiểm toán hệ thống
-        systemLogService.log(
+        // 5. Ghi nhật ký kiểm toán hệ thống kèm danh sách quyền cũ và mới
+        List<String> newPermissions = requestedNames.stream()
+                .distinct()
+                .sorted()
+                .toList();
+
+        systemLogService.logWithChange(
                 actorId,
                 "ROLE_PERMISSIONS_UPDATED",
                 ENTITY_TYPE_ROLE,
                 Long.valueOf(roleId),
-                "Admin cập nhật quyền cho vai trò " + role.getRoleCode() + ": " + requestedNames);
+                "Admin cập nhật quyền cho vai trò " + role.getRoleCode() + ": " + requestedNames,
+                AuditValueUtils.toJson(Map.of("permissions", oldPermissions)),
+                AuditValueUtils.toJson(Map.of("permissions", newPermissions)));
 
         return new RolePermissionsResponse(role.getId(), role.getRoleName(), requestedNames);
     }

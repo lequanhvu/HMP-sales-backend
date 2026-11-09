@@ -1,5 +1,11 @@
 package com.hmp.sales.common.util;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
@@ -7,10 +13,18 @@ import java.util.Set;
 /**
  * Tiện ích chuẩn hóa dữ liệu trước khi ghi vào nhật ký hệ thống ({@code system_logs}).
  * <p>
- * Đảm bảo {@code oldValue}/{@code newValue} chỉ gồm chuỗi JSON ngắn, loại bỏ các khóa nhạy cảm
- * (mật khẩu, token, OTP, secret) và che thông tin liên hệ cá nhân.
+ * Sử dụng Jackson {@link ObjectMapper} để serialize dữ liệu thành JSON chuẩn RFC 8259,
+ * tự động loại bỏ các khóa nhạy cảm (mật khẩu, token, OTP, secret) và che thông tin liên hệ cá nhân.
  */
 public final class AuditValueUtils {
+
+    private static final Logger log = LoggerFactory.getLogger(AuditValueUtils.class);
+
+    /**
+     * Singleton ObjectMapper cấu hình tự động đăng ký modules (JavaTime, v.v.), thread-safe.
+     */
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper()
+            .findAndRegisterModules();
 
     /** Các từ khóa (không phân biệt hoa thường) khiến một trường bị loại khỏi nhật ký. */
     private static final Set<String> FORBIDDEN_KEY_FRAGMENTS =
@@ -21,35 +35,52 @@ public final class AuditValueUtils {
     }
 
     /**
-     * Dựng chuỗi JSON phẳng từ các cặp khóa-giá trị, giữ nguyên thứ tự chèn.
+     * Dựng chuỗi JSON từ các cặp khóa-giá trị, giữ nguyên thứ tự chèn.
      * Bỏ qua giá trị {@code null} và mọi khóa chứa từ khóa nhạy cảm.
      *
      * @param fields các trường cần ghi (khóa → giá trị)
-     * @return chuỗi JSON dạng {@code {"k":"v"}}; {@code "{}"} nếu không còn trường hợp lệ
+     * @return chuỗi JSON chuẩn dạng {@code {"k":"v"}}; {@code "{}"} nếu không còn trường hợp lệ
      */
     public static String toJson(Map<String, ?> fields) {
         if (fields == null || fields.isEmpty()) {
             return "{}";
         }
-        StringBuilder sb = new StringBuilder("{");
-        boolean first = true;
-        for (Map.Entry<String, ?> e : fields.entrySet()) {
-            if (e.getKey() == null || e.getValue() == null || isForbiddenKey(e.getKey())) {
-                continue;
-            }
-            if (!first) {
-                sb.append(',');
-            }
-            first = false;
-            sb.append('"').append(escape(e.getKey())).append("\":");
-            Object v = e.getValue();
-            if (v instanceof Number || v instanceof Boolean) {
-                sb.append(v);
-            } else {
-                sb.append('"').append(escape(String.valueOf(v))).append('"');
+
+        Map<String, Object> sanitized = new LinkedHashMap<>();
+        for (Map.Entry<String, ?> entry : fields.entrySet()) {
+            if (entry.getKey() != null && entry.getValue() != null && !isForbiddenKey(entry.getKey())) {
+                sanitized.put(entry.getKey(), entry.getValue());
             }
         }
-        return sb.append('}').toString();
+
+        if (sanitized.isEmpty()) {
+            return "{}";
+        }
+
+        try {
+            return OBJECT_MAPPER.writeValueAsString(sanitized);
+        } catch (JsonProcessingException e) {
+            log.warn("[AuditValueUtils] Lỗi khi serialize JSON: {}", e.getMessage());
+            return "{}";
+        }
+    }
+
+    /**
+     * Dựng chuỗi JSON mảng từ một danh sách các phần tử.
+     *
+     * @param items danh sách các phần tử
+     * @return chuỗi JSON mảng dạng {@code ["item1","item2"]}; {@code "[]"} nếu danh sách null hoặc rỗng
+     */
+    public static String toJsonArray(Iterable<?> items) {
+        if (items == null) {
+            return "[]";
+        }
+        try {
+            return OBJECT_MAPPER.writeValueAsString(items);
+        } catch (JsonProcessingException e) {
+            log.warn("[AuditValueUtils] Lỗi khi serialize JSON array: {}", e.getMessage());
+            return "[]";
+        }
     }
 
     /**
@@ -104,10 +135,4 @@ public final class AuditValueUtils {
         String lower = key.toLowerCase(Locale.ROOT);
         return FORBIDDEN_KEY_FRAGMENTS.stream().anyMatch(lower::contains);
     }
-
-    private static String escape(String s) {
-        return s.replace("\\", "\\\\").replace("\"", "\\\"")
-                .replace("\n", "\\n").replace("\r", "\\r").replace("\t", "\\t");
-    }
 }
-

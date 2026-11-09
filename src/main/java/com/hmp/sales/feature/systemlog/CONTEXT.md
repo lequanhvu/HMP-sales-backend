@@ -14,7 +14,7 @@ Dưới đây là toàn bộ danh mục mã hành động (`action`), loại th�
 | | `USER_UNLOCKED` | `USER` | `UserServiceImpl.unlockUser` | Mở khóa tài khoản người dùng bởi Admin |
 | | `USER_SOFT_DELETED` | `USER` | `UserServiceImpl.deleteUser` | Xóa mềm tài khoản người dùng bởi Admin |
 | | `MANAGER_CREATED` | `USER` | `UserServiceImpl.createManager` | Admin tạo tài khoản Quản lý (Manager) mới |
-| | `ROLE_PERMISSIONS_UPDATED` | `ROLE` | `RoleServiceImpl.updateRolePermissions` | Admin thay đổi danh mục quyền hạn gán cho vai trò |
+| | `ROLE_PERMISSIONS_UPDATED` | `ROLE` | `RoleServiceImpl.updateRolePermissions` | Admin thay đổi danh mục quyền hạn gán cho vai trò (`oldValue`/`newValue` danh sách permissions dạng mảng JSON) |
 | | `USER_PHONE_CHANGED` | `USER` | `UserProfileServiceImpl.updateProfile` | Khách hàng cập nhật SĐT mới sau khi xác thực OTP thành công (SĐT cũ và mới được che dạng `09*****123`) |
 | **Cấu hình hệ thống** (`setting`) | `SYSTEM_SETTING_UPDATED` | `SYSTEM_SETTING` | `SystemSettingServiceImpl.updateSetting` | Admin cập nhật giá trị tham số cấu hình động (`oldValue`/`newValue` giá trị cấu hình) |
 | **Danh mục** (`category`) | `CATEGORY_CREATED` | `CATEGORY` | `CategoryServiceImpl.createRootCategory`<br>`CategoryServiceImpl.createChildCategory` | Tạo mới danh mục gốc hoặc danh mục con |
