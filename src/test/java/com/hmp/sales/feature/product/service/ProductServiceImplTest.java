@@ -75,6 +75,9 @@ class ProductServiceImplTest {
     @Mock
     private PermissionEvaluationService permissionEvaluationService;
 
+    @Mock
+    private com.hmp.sales.feature.systemlog.service.SystemLogService systemLogService;
+
     @InjectMocks
     private ProductServiceImpl productService;
 

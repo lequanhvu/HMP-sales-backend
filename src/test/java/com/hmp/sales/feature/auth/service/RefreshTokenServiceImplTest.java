@@ -38,6 +38,9 @@ class RefreshTokenServiceImplTest {
     @Mock
     private JwtTokenService jwtTokenService;
 
+    @Mock
+    private com.hmp.sales.feature.systemlog.service.SystemLogService systemLogService;
+
     private RefreshTokenServiceImpl refreshTokenService;
     private AppProperties appProperties;
     private User testUser;
@@ -51,7 +54,7 @@ class RefreshTokenServiceImplTest {
                 30L
         );
         appProperties = new AppProperties(jwtProps, null, null, null, null, null);
-        refreshTokenService = new RefreshTokenServiceImpl(refreshTokenRepository, appProperties, jwtTokenService);
+        refreshTokenService = new RefreshTokenServiceImpl(refreshTokenRepository, appProperties, jwtTokenService, systemLogService);
 
         Role role = new Role();
         role.setRoleCode(RoleCode.CUSTOMER);

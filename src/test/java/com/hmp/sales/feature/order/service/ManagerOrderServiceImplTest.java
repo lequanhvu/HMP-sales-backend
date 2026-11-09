@@ -75,6 +75,9 @@ class ManagerOrderServiceImplTest {
     @Mock
     private ApplicationEventPublisher eventPublisher;
 
+    @Mock
+    private com.hmp.sales.feature.systemlog.service.SystemLogService systemLogService;
+
     @InjectMocks
     private ManagerOrderServiceImpl managerOrderService;
 

@@ -2,6 +2,7 @@ package com.hmp.sales.feature.auth.service.impl;
 
 import com.hmp.sales.common.exception.ResourceNotFoundException;
 import com.hmp.sales.common.exception.UnauthorizedOperationException;
+import com.hmp.sales.common.util.AuditValueUtils;
 import com.hmp.sales.config.AppProperties;
 import com.hmp.sales.feature.auth.dto.AuthResponse;
 import com.hmp.sales.feature.auth.service.AuthService;
@@ -11,6 +12,7 @@ import com.hmp.sales.feature.auth.service.JwtTokenService;
 import com.hmp.sales.feature.auth.service.RefreshTokenService;
 import com.hmp.sales.feature.auth.service.RefreshTokenService.RefreshTokenPair;
 import com.hmp.sales.feature.auth.util.CookieUtils;
+import com.hmp.sales.feature.systemlog.service.SystemLogService;
 import com.hmp.sales.feature.user.entity.AuthProvider;
 import com.hmp.sales.feature.user.entity.Role;
 import com.hmp.sales.feature.user.entity.RoleCode;
@@ -46,6 +48,7 @@ public class AuthServiceImpl implements AuthService {
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
     private final AppProperties appProperties;
+    private final SystemLogService systemLogService;
 
     /**
      * Khởi tạo service với các phụ thuộc cần thiết.
@@ -56,6 +59,7 @@ public class AuthServiceImpl implements AuthService {
      * @param userRepository      repository người dùng
      * @param roleRepository      repository vai trò (để lấy Role CUSTOMER)
      * @param appProperties       cấu hình ứng dụng (refreshExpirationDays)
+     * @param systemLogService    service ghi nhật ký hệ thống
      */
     public AuthServiceImpl(
             GoogleAuthService googleAuthService,
@@ -63,13 +67,15 @@ public class AuthServiceImpl implements AuthService {
             RefreshTokenService refreshTokenService,
             UserRepository userRepository,
             RoleRepository roleRepository,
-            AppProperties appProperties) {
+            AppProperties appProperties,
+            SystemLogService systemLogService) {
         this.googleAuthService = googleAuthService;
         this.jwtTokenService = jwtTokenService;
         this.refreshTokenService = refreshTokenService;
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
         this.appProperties = appProperties;
+        this.systemLogService = systemLogService;
     }
 
     /**
@@ -107,6 +113,8 @@ public class AuthServiceImpl implements AuthService {
         }
 
         if (UserStatus.LOCKED.equals(user.getStatus())) {
+            systemLogService.logSecurityEvent(user.getId(), "LOGIN_BLOCKED_LOCKED_ACCOUNT", "USER", user.getId(),
+                    "Chặn đăng nhập tài khoản đã bị khóa: " + AuditValueUtils.maskEmail(user.getEmail()));
             throw new UnauthorizedOperationException("Tài khoản đã bị khóa. Vui lòng liên hệ quản trị viên.");
         }
 
@@ -192,6 +200,8 @@ public class AuthServiceImpl implements AuthService {
 
         User saved = userRepository.save(newUser);
         log.info("Tạo tài khoản CUSTOMER mới cho email={}", payload.email());
+        systemLogService.log(saved.getId(), "CUSTOMER_REGISTERED", "USER", saved.getId(),
+                "Khách hàng đăng ký tài khoản qua Google: " + AuditValueUtils.maskEmail(saved.getEmail()));
         return saved;
     }
 

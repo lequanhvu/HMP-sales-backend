@@ -4,11 +4,14 @@ import com.hmp.sales.common.exception.BusinessRuleException;
 import com.hmp.sales.common.exception.ConflictWithPayloadException;
 import com.hmp.sales.common.exception.ResourceNotFoundException;
 import com.hmp.sales.common.response.PageResponse;
+import com.hmp.sales.common.util.AuditValueUtils;
+import com.hmp.sales.common.util.SecurityUtils;
 import com.hmp.sales.feature.category.dto.*;
 import com.hmp.sales.feature.category.entity.Category;
 import com.hmp.sales.feature.category.repository.CategoryRepository;
 import com.hmp.sales.feature.category.service.CategoryService;
 import com.hmp.sales.feature.product.repository.ProductRepository;
+import com.hmp.sales.feature.systemlog.service.SystemLogService;
 import com.hmp.sales.feature.user.repository.UserRepository;
 import com.hmp.sales.feature.category.entity.CategoryStatus;
 import com.hmp.sales.feature.product.dto.ProductSummaryResponse;
@@ -48,6 +51,7 @@ public class CategoryServiceImpl implements CategoryService {
     private final ProductRepository productRepository;
     private final UserRepository userRepository;
     private final PermissionEvaluationService permissionEvaluationService;
+    private final SystemLogService systemLogService;
     private ApplicationEventPublisher eventPublisher;
 
     @Autowired(required = false)
@@ -72,15 +76,18 @@ public class CategoryServiceImpl implements CategoryService {
      * @param productRepository           repository quản lý sản phẩm (kiểm tra đơn hàng dở dang)
      * @param userRepository              repository quản lý người dùng (xác định Manager tạo danh mục)
      * @param permissionEvaluationService service đánh giá quyền xem giá
+     * @param systemLogService            service ghi nhật ký hệ thống
      */
     public CategoryServiceImpl(CategoryRepository categoryRepository,
                                 ProductRepository productRepository,
                                 UserRepository userRepository,
-                                PermissionEvaluationService permissionEvaluationService) {
+                                PermissionEvaluationService permissionEvaluationService,
+                                SystemLogService systemLogService) {
         this.categoryRepository = categoryRepository;
         this.productRepository = productRepository;
         this.userRepository = userRepository;
         this.permissionEvaluationService = permissionEvaluationService;
+        this.systemLogService = systemLogService;
     }
 
     /**
@@ -145,6 +152,8 @@ public class CategoryServiceImpl implements CategoryService {
         category = categoryRepository.save(category);
         log.info("[CategoryService] Tạo danh mục gốc: {} (ID={})", category.getCategoryName(), category.getId());
         publishSearchInvalidation(category.getId(), SearchIndexInvalidationEvent.Operation.UPSERT);
+        systemLogService.log(managerId, "CATEGORY_CREATED", "CATEGORY", category.getId(),
+                "Tạo danh mục gốc: " + category.getCategoryName());
         return CategoryResponse.fromEntity(category);
     }
 
@@ -171,6 +180,8 @@ public class CategoryServiceImpl implements CategoryService {
         category = categoryRepository.save(category);
         log.info("[CategoryService] Tạo danh mục con '{}' (ID={}) trong cha ID={}", category.getCategoryName(), category.getId(), parentId);
         publishSearchInvalidation(category.getId(), SearchIndexInvalidationEvent.Operation.UPSERT);
+        systemLogService.log(managerId, "CATEGORY_CREATED", "CATEGORY", category.getId(),
+                "Tạo danh mục con '" + category.getCategoryName() + "' thuộc danh mục cha #" + parentId);
         return CategoryResponse.fromEntity(category);
     }
 
@@ -179,6 +190,7 @@ public class CategoryServiceImpl implements CategoryService {
     @Transactional
     public CategoryResponse updateCategory(Long categoryId, CategoryUpdateRequest request) {
         Category category = findActiveCategory(categoryId);
+        String oldName = category.getCategoryName();
 
         if (request.categoryName() != null && !request.categoryName().isBlank()) {
             String newName = request.categoryName().trim();
@@ -199,6 +211,11 @@ public class CategoryServiceImpl implements CategoryService {
 
         category = categoryRepository.save(category);
         publishSearchInvalidation(category.getId(), SearchIndexInvalidationEvent.Operation.UPSERT);
+        Long actorId = SecurityUtils.extractCurrentUserId();
+        systemLogService.logWithChange(actorId, "CATEGORY_UPDATED", "CATEGORY", category.getId(),
+                "Cập nhật danh mục: " + category.getCategoryName(),
+                AuditValueUtils.toJson(Map.of("categoryName", oldName)),
+                AuditValueUtils.toJson(Map.of("categoryName", category.getCategoryName())));
         return CategoryResponse.fromEntity(category);
     }
 
@@ -224,12 +241,15 @@ public class CategoryServiceImpl implements CategoryService {
         long productCount = productRepository.countByCategoryIdInAndIsDeletedFalse(allDescendantIds);
 
         boolean hasChildren = childCategoryCount > 0 || productCount > 0;
+        Long actorId = SecurityUtils.extractCurrentUserId();
 
         if (!hasChildren) {
             // Rỗng → xóa mềm ngay
             category.setIsDeleted(true);
             categoryRepository.save(category);
             publishSearchInvalidation(categoryId, SearchIndexInvalidationEvent.Operation.DELETE);
+            systemLogService.log(actorId, "CATEGORY_DELETED", "CATEGORY", categoryId,
+                    "Xóa mềm danh mục rỗng: " + category.getCategoryName());
             log.info("[CategoryService] Xóa mềm danh mục rỗng ID={}", categoryId);
             return;
         }
@@ -259,6 +279,9 @@ public class CategoryServiceImpl implements CategoryService {
         for (Long descId : allDescendantIds) {
             publishSearchInvalidation(descId, SearchIndexInvalidationEvent.Operation.DELETE);
         }
+        systemLogService.log(actorId, "CATEGORY_DELETED", "CATEGORY", categoryId,
+                "Cascade soft-delete danh mục '" + category.getCategoryName() + "' (force=true, "
+                        + childCategoryCount + " danh mục con, " + productCount + " sản phẩm)");
         log.info("[CategoryService] Cascade soft-delete danh mục ID={} và {} danh mục con, {} sản phẩm",
                 categoryId, childCategoryCount, productCount);
     }
@@ -298,6 +321,11 @@ public class CategoryServiceImpl implements CategoryService {
         category.setStatus(CategoryStatus.LOCKED);
         category = categoryRepository.save(category);
         publishSearchInvalidation(categoryId, SearchIndexInvalidationEvent.Operation.DELETE);
+        Long actorId = SecurityUtils.extractCurrentUserId();
+        systemLogService.logWithChange(actorId, "CATEGORY_LOCKED", "CATEGORY", categoryId,
+                "Khóa danh mục: " + category.getCategoryName(),
+                AuditValueUtils.toJson(Map.of("status", "ACTIVE")),
+                AuditValueUtils.toJson(Map.of("status", "LOCKED")));
         log.info("[CategoryService] Khóa danh mục ID={}", categoryId);
         return CategoryResponse.fromEntity(category);
     }
@@ -310,6 +338,11 @@ public class CategoryServiceImpl implements CategoryService {
         category.setStatus(CategoryStatus.ACTIVE);
         category = categoryRepository.save(category);
         publishSearchInvalidation(categoryId, SearchIndexInvalidationEvent.Operation.UPSERT);
+        Long actorId = SecurityUtils.extractCurrentUserId();
+        systemLogService.logWithChange(actorId, "CATEGORY_UNLOCKED", "CATEGORY", categoryId,
+                "Mở khóa danh mục: " + category.getCategoryName(),
+                AuditValueUtils.toJson(Map.of("status", "LOCKED")),
+                AuditValueUtils.toJson(Map.of("status", "ACTIVE")));
         log.info("[CategoryService] Mở khóa danh mục ID={}", categoryId);
         return CategoryResponse.fromEntity(category);
     }

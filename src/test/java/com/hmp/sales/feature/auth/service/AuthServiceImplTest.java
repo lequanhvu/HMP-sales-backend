@@ -44,6 +44,7 @@ class AuthServiceImplTest {
     @Mock private UserRepository userRepository;
     @Mock private RoleRepository roleRepository;
     @Mock private HttpServletResponse httpResponse;
+    @Mock private com.hmp.sales.feature.systemlog.service.SystemLogService systemLogService;
 
     private AuthServiceImpl authService;
     private AppProperties appProperties;
@@ -57,7 +58,7 @@ class AuthServiceImplTest {
         appProperties = new AppProperties(jwtProps, null, null, null, null, null);
         authService = new AuthServiceImpl(
                 googleAuthService, jwtTokenService, refreshTokenService,
-                userRepository, roleRepository, appProperties);
+                userRepository, roleRepository, appProperties, systemLogService);
 
         customerRole = new Role();
         customerRole.setRoleCode(RoleCode.CUSTOMER);

@@ -2,6 +2,8 @@ package com.hmp.sales.feature.product.service.impl;
 
 import com.hmp.sales.common.exception.BusinessRuleException;
 import com.hmp.sales.common.exception.ResourceNotFoundException;
+import com.hmp.sales.common.util.AuditValueUtils;
+import com.hmp.sales.common.util.SecurityUtils;
 import com.hmp.sales.common.util.VietnameseStringUtils;
 import com.hmp.sales.config.AppProperties;
 import com.hmp.sales.feature.category.entity.Category;
@@ -12,6 +14,7 @@ import com.hmp.sales.feature.product.repository.*;
 import com.hmp.sales.feature.product.service.ProductService;
 import com.hmp.sales.feature.search.dto.SearchResourceType;
 import com.hmp.sales.feature.search.event.SearchIndexInvalidationEvent;
+import com.hmp.sales.feature.systemlog.service.SystemLogService;
 import com.hmp.sales.feature.user.repository.UserRepository;
 import com.hmp.sales.security.PermissionEvaluationService;
 import org.springframework.context.ApplicationEventPublisher;
@@ -66,6 +69,7 @@ public class ProductServiceImpl implements ProductService {
     private final UserRepository userRepository;
     private final PermissionEvaluationService permissionEvaluationService;
     private final AppProperties appProperties;
+    private final SystemLogService systemLogService;
     private ApplicationEventPublisher eventPublisher;
 
     @Autowired(required = false)
@@ -99,6 +103,7 @@ public class ProductServiceImpl implements ProductService {
             UnitRepository unitRepository,
             UserRepository userRepository,
             PermissionEvaluationService permissionEvaluationService,
+            SystemLogService systemLogService,
             @Autowired(required = false) AppProperties appProperties) {
         this.productRepository = productRepository;
         this.productImageRepository = productImageRepository;
@@ -111,6 +116,7 @@ public class ProductServiceImpl implements ProductService {
         this.unitRepository = unitRepository;
         this.userRepository = userRepository;
         this.permissionEvaluationService = permissionEvaluationService;
+        this.systemLogService = systemLogService;
         this.appProperties = appProperties;
     }
 
@@ -128,10 +134,11 @@ public class ProductServiceImpl implements ProductService {
             ColorRepository colorRepository,
             UnitRepository unitRepository,
             UserRepository userRepository,
-            PermissionEvaluationService permissionEvaluationService) {
+            PermissionEvaluationService permissionEvaluationService,
+            SystemLogService systemLogService) {
         this(productRepository, productImageRepository, productVariantRepository, productColorRepository,
                 productPriceRepository, categoryRepository, brandRepository, colorRepository, unitRepository,
-                userRepository, permissionEvaluationService, null);
+                userRepository, permissionEvaluationService, systemLogService, null);
     }
 
     private int getMaxSecondaryImages() {
@@ -261,6 +268,8 @@ public class ProductServiceImpl implements ProductService {
 
         log.info("[ProductService] Tạo sản phẩm '{}' (ID={}) trong danh mục ID={}", product.getProductName(), product.getId(), categoryId);
         publishSearchInvalidation(product.getId(), SearchIndexInvalidationEvent.Operation.UPSERT);
+        systemLogService.log(managerId, "PRODUCT_CREATED", "PRODUCT", product.getId(),
+                "Tạo sản phẩm: " + product.getProductName());
         // Reload để có full children
         product = findActiveProduct(product.getId());
         boolean priceVisible = permissionEvaluationService.hasPermission("PRODUCT_PRICE_VIEW");
@@ -272,6 +281,7 @@ public class ProductServiceImpl implements ProductService {
     @Transactional
     public ProductDetailResponse updateProduct(Long productId, ProductUpdateRequest request) {
         Product product = findActiveProduct(productId);
+        String oldName = product.getProductName();
 
         if (request.productName() != null && !request.productName().isBlank()) {
             product.setProductName(request.productName().trim());
@@ -292,6 +302,11 @@ public class ProductServiceImpl implements ProductService {
 
         product = productRepository.save(product);
         publishSearchInvalidation(product.getId(), SearchIndexInvalidationEvent.Operation.UPSERT);
+        Long actorId = SecurityUtils.extractCurrentUserId();
+        systemLogService.logWithChange(actorId, "PRODUCT_UPDATED", "PRODUCT", productId,
+                "Cập nhật sản phẩm: " + product.getProductName(),
+                AuditValueUtils.toJson(Map.of("productName", oldName)),
+                AuditValueUtils.toJson(Map.of("productName", product.getProductName())));
         boolean priceVisible = permissionEvaluationService.hasPermission("PRODUCT_PRICE_VIEW");
         return ProductDetailResponse.fromEntity(product, priceVisible);
     }
@@ -304,6 +319,11 @@ public class ProductServiceImpl implements ProductService {
         product.setStatus(ProductStatus.INACTIVE);
         product = productRepository.save(product);
         publishSearchInvalidation(productId, SearchIndexInvalidationEvent.Operation.DELETE);
+        Long actorId = SecurityUtils.extractCurrentUserId();
+        systemLogService.logWithChange(actorId, "PRODUCT_LOCKED", "PRODUCT", productId,
+                "Khóa sản phẩm: " + product.getProductName(),
+                AuditValueUtils.toJson(Map.of("status", "ACTIVE")),
+                AuditValueUtils.toJson(Map.of("status", "INACTIVE")));
         boolean priceVisible = permissionEvaluationService.hasPermission("PRODUCT_PRICE_VIEW");
         return ProductDetailResponse.fromEntity(product, priceVisible);
     }
@@ -316,6 +336,11 @@ public class ProductServiceImpl implements ProductService {
         product.setStatus(ProductStatus.ACTIVE);
         product = productRepository.save(product);
         publishSearchInvalidation(productId, SearchIndexInvalidationEvent.Operation.UPSERT);
+        Long actorId = SecurityUtils.extractCurrentUserId();
+        systemLogService.logWithChange(actorId, "PRODUCT_UNLOCKED", "PRODUCT", productId,
+                "Mở khóa sản phẩm: " + product.getProductName(),
+                AuditValueUtils.toJson(Map.of("status", "INACTIVE")),
+                AuditValueUtils.toJson(Map.of("status", "ACTIVE")));
         boolean priceVisible = permissionEvaluationService.hasPermission("PRODUCT_PRICE_VIEW");
         return ProductDetailResponse.fromEntity(product, priceVisible);
     }
@@ -335,6 +360,9 @@ public class ProductServiceImpl implements ProductService {
         product.setIsDeleted(true);
         productRepository.save(product);
         publishSearchInvalidation(productId, SearchIndexInvalidationEvent.Operation.DELETE);
+        Long actorId = SecurityUtils.extractCurrentUserId();
+        systemLogService.log(actorId, "PRODUCT_DELETED", "PRODUCT", productId,
+                "Xóa mềm sản phẩm: " + product.getProductName());
         log.info("[ProductService] Xóa mềm sản phẩm ID={}", productId);
     }
 
@@ -389,6 +417,9 @@ public class ProductServiceImpl implements ProductService {
 
         List<ProductImage> savedImages = productImageRepository.saveAll(imagesToSave);
         log.info("[ProductService] Đã tải lên {} ảnh cho sản phẩm ID={}", savedImages.size(), productId);
+        Long actorId = SecurityUtils.extractCurrentUserId();
+        systemLogService.log(actorId, "PRODUCT_IMAGES_UPLOADED", "PRODUCT", productId,
+                "Tải lên " + savedImages.size() + " ảnh cho sản phẩm #" + productId);
         return savedImages.stream().map(ProductImageResponse::fromEntity).toList();
     }
 
@@ -414,6 +445,9 @@ public class ProductServiceImpl implements ProductService {
         }
 
         productImageRepository.softDeleteByProductIdAndIds(productId, imageIds);
+        Long actorId = SecurityUtils.extractCurrentUserId();
+        systemLogService.log(actorId, "PRODUCT_IMAGES_DELETED", "PRODUCT", productId,
+                "Xóa " + images.size() + " ảnh của sản phẩm #" + productId);
         log.info("[ProductService] Đã xóa mềm {} ảnh cho sản phẩm ID={}", images.size(), productId);
     }
 
@@ -430,6 +464,9 @@ public class ProductServiceImpl implements ProductService {
     public ProductVariantResponse addVariant(Long productId, ProductVariantRequest request) {
         Product product = findActiveProduct(productId);
         ProductVariant variant = createVariantInternal(product, request);
+        Long actorId = SecurityUtils.extractCurrentUserId();
+        systemLogService.log(actorId, "VARIANT_ADDED", "PRODUCT_VARIANT", variant.getId(),
+                "Thêm biến thể '" + variant.getVariantName() + "' cho sản phẩm #" + productId);
         boolean priceVisible = permissionEvaluationService.hasPermission("PRODUCT_PRICE_VIEW");
         return ProductVariantResponse.fromEntity(variant, priceVisible);
     }
@@ -441,6 +478,7 @@ public class ProductServiceImpl implements ProductService {
         findActiveProduct(productId);
         ProductVariant variant = productVariantRepository.findByIdAndIsDeletedFalse(variantId)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy biến thể ID: " + variantId));
+        String oldName = variant.getVariantName();
 
         if (request.variantName() != null) variant.setVariantName(request.variantName());
         if (request.variantCode() != null) variant.setVariantCode(request.variantCode());
@@ -459,6 +497,12 @@ public class ProductServiceImpl implements ProductService {
             updateColorsForVariant(variant, request.colorIds());
         }
 
+        Long actorId = SecurityUtils.extractCurrentUserId();
+        systemLogService.logWithChange(actorId, "VARIANT_UPDATED", "PRODUCT_VARIANT", variantId,
+                "Cập nhật biến thể '" + variant.getVariantName() + "' của sản phẩm #" + productId,
+                AuditValueUtils.toJson(Map.of("variantName", oldName)),
+                AuditValueUtils.toJson(Map.of("variantName", variant.getVariantName())));
+
         boolean priceVisible = permissionEvaluationService.hasPermission("PRODUCT_PRICE_VIEW");
         // Reload variant
         variant = productVariantRepository.findByIdAndIsDeletedFalse(variantId).get();
@@ -476,6 +520,9 @@ public class ProductServiceImpl implements ProductService {
         productPriceRepository.softDeleteByVariantId(variantId);
         variant.setIsDeleted(true);
         productVariantRepository.save(variant);
+        Long actorId = SecurityUtils.extractCurrentUserId();
+        systemLogService.log(actorId, "VARIANT_DELETED", "PRODUCT_VARIANT", variantId,
+                "Xóa mềm biến thể '" + variant.getVariantName() + "' của sản phẩm #" + productId);
     }
 
     /** {@inheritDoc} */
@@ -487,6 +534,11 @@ public class ProductServiceImpl implements ProductService {
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy biến thể ID: " + variantId));
         variant.setStatus(VariantStatus.INACTIVE);
         variant = productVariantRepository.save(variant);
+        Long actorId = SecurityUtils.extractCurrentUserId();
+        systemLogService.logWithChange(actorId, "VARIANT_LOCKED", "PRODUCT_VARIANT", variantId,
+                "Khóa biến thể '" + variant.getVariantName() + "' của sản phẩm #" + productId,
+                AuditValueUtils.toJson(Map.of("status", "ACTIVE")),
+                AuditValueUtils.toJson(Map.of("status", "INACTIVE")));
         boolean priceVisible = permissionEvaluationService.canViewProductPrice();
         return ProductVariantResponse.fromEntity(variant, priceVisible);
     }
@@ -500,6 +552,11 @@ public class ProductServiceImpl implements ProductService {
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy biến thể ID: " + variantId));
         variant.setStatus(VariantStatus.ACTIVE);
         variant = productVariantRepository.save(variant);
+        Long actorId = SecurityUtils.extractCurrentUserId();
+        systemLogService.logWithChange(actorId, "VARIANT_UNLOCKED", "PRODUCT_VARIANT", variantId,
+                "Mở khóa biến thể '" + variant.getVariantName() + "' của sản phẩm #" + productId,
+                AuditValueUtils.toJson(Map.of("status", "INACTIVE")),
+                AuditValueUtils.toJson(Map.of("status", "ACTIVE")));
         boolean priceVisible = permissionEvaluationService.canViewProductPrice();
         return ProductVariantResponse.fromEntity(variant, priceVisible);
     }

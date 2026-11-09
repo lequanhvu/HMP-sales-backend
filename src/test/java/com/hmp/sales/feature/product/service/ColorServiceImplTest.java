@@ -37,6 +37,9 @@ class ColorServiceImplTest {
     @Mock
     private ColorRepository colorRepository;
 
+    @Mock
+    private com.hmp.sales.feature.systemlog.service.SystemLogService systemLogService;
+
     @InjectMocks
     private ColorServiceImpl colorService;
 

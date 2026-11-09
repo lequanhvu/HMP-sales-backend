@@ -4,6 +4,7 @@ import com.hmp.sales.common.exception.BusinessRuleException;
 import com.hmp.sales.common.exception.InvalidOrderStateException;
 import com.hmp.sales.common.exception.ResourceNotFoundException;
 import com.hmp.sales.common.response.PageResponse;
+import com.hmp.sales.common.util.AuditValueUtils;
 import com.hmp.sales.common.util.DateUtils;
 import com.hmp.sales.feature.order.dto.CalculateOrderRequest;
 import com.hmp.sales.feature.order.dto.CancelOrderRequest;
@@ -26,6 +27,7 @@ import com.hmp.sales.feature.order.service.ManagerOrderService;
 import com.hmp.sales.feature.notification.event.OrderStatusChangedEvent;
 import com.hmp.sales.feature.product.entity.ProductPrice;
 import com.hmp.sales.feature.product.repository.ProductPriceRepository;
+import com.hmp.sales.feature.systemlog.service.SystemLogService;
 import com.hmp.sales.feature.user.entity.User;
 import com.hmp.sales.feature.user.repository.UserRepository;
 import lombok.extern.slf4j.Slf4j;
@@ -60,6 +62,7 @@ public class ManagerOrderServiceImpl implements ManagerOrderService {
     private final UserRepository userRepository;
     private final ProductPriceRepository productPriceRepository;
     private final ApplicationEventPublisher eventPublisher;
+    private final SystemLogService systemLogService;
 
     /**
      * Khởi tạo ManagerOrderServiceImpl với các phụ thuộc cần thiết.
@@ -70,6 +73,7 @@ public class ManagerOrderServiceImpl implements ManagerOrderService {
      * @param userRepository               repository quản lý thực thể User
      * @param productPriceRepository       repository tra cứu bảng giá sản phẩm
      * @param eventPublisher               bộ điều phối phát sinh sự kiện ứng dụng
+     * @param systemLogService             service ghi nhật ký hệ thống
      */
     public ManagerOrderServiceImpl(
             OrderRepository orderRepository,
@@ -77,13 +81,15 @@ public class ManagerOrderServiceImpl implements ManagerOrderService {
             OrderStatusHistoryRepository orderStatusHistoryRepository,
             UserRepository userRepository,
             ProductPriceRepository productPriceRepository,
-            ApplicationEventPublisher eventPublisher) {
+            ApplicationEventPublisher eventPublisher,
+            SystemLogService systemLogService) {
         this.orderRepository = orderRepository;
         this.orderItemRepository = orderItemRepository;
         this.orderStatusHistoryRepository = orderStatusHistoryRepository;
         this.userRepository = userRepository;
         this.productPriceRepository = productPriceRepository;
         this.eventPublisher = eventPublisher;
+        this.systemLogService = systemLogService;
     }
 
     /**
@@ -122,6 +128,8 @@ public class ManagerOrderServiceImpl implements ManagerOrderService {
     public OrderDetailResponse calculateOrderPrice(Long managerId, Long orderId, CalculateOrderRequest request) {
         Order order = orderRepository.findByIdAndIsDeletedFalse(orderId)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy đơn hàng ID: " + orderId));
+        Long oldTotal = order.getTotalAmount();
+        Long oldDiscount = order.getDiscountAmount();
 
         if (order.getStatus() == OrderStatus.COMPLETED || order.getStatus() == OrderStatus.CANCELLED) {
             throw new InvalidOrderStateException("Không thể tính giá đơn hàng đang ở trạng thái '" + order.getStatus() + "'.");
@@ -220,6 +228,10 @@ public class ManagerOrderServiceImpl implements ManagerOrderService {
 
         // LƯU Ý: Thao tác tính giá KHÔNG tự động chuyển trạng thái đơn (giữ nguyên trạng thái hiện tại)
         Order savedOrder = orderRepository.save(order);
+        systemLogService.logWithChange(managerId, "ORDER_PRICE_CALCULATED", "ORDER", orderId,
+                "Quản lý tính giá đơn hàng #" + orderId + " (Tổng tiền: " + totalAmount + ", Giảm giá: " + orderDiscount + ")",
+                AuditValueUtils.toJson(Map.of("totalAmount", oldTotal != null ? oldTotal : 0L, "discountAmount", oldDiscount != null ? oldDiscount : 0L)),
+                AuditValueUtils.toJson(Map.of("totalAmount", totalAmount, "discountAmount", orderDiscount)));
         log.info("[Order] Quản lý ID={} đã tính giá cho đơn hàng ID={}: Tạm tính={}, Giảm giá đơn={}, Tổng thanh toán={}",
                 managerId, orderId, subtotalAmount, orderDiscount, totalAmount);
 
@@ -269,6 +281,9 @@ public class ManagerOrderServiceImpl implements ManagerOrderService {
                 OrderStatus.CONFIRMED,
                 managerId
         ));
+
+        systemLogService.log(managerId, "ORDER_CONFIRMED", "ORDER", orderId,
+                "Quản lý xác nhận đơn hàng #" + orderId);
 
         log.info("[Order] Quản lý ID={} đã xác nhận đơn hàng ID={}", managerId, orderId);
 
@@ -322,6 +337,11 @@ public class ManagerOrderServiceImpl implements ManagerOrderService {
                 toStatus,
                 managerId
         ));
+
+        systemLogService.logWithChange(managerId, "ORDER_STATUS_UPDATED", "ORDER", orderId,
+                "Quản lý chuyển trạng thái đơn hàng #" + orderId + " từ " + fromStatus + " sang " + toStatus,
+                AuditValueUtils.toJson(Map.of("status", fromStatus.name())),
+                AuditValueUtils.toJson(Map.of("status", toStatus.name())));
 
         log.info("[Order] Quản lý ID={} cập nhật trạng thái đơn hàng ID={} từ {} sang {}", managerId, orderId, fromStatus, toStatus);
 
@@ -377,6 +397,11 @@ public class ManagerOrderServiceImpl implements ManagerOrderService {
                 OrderStatus.CANCELLED,
                 managerId
         ));
+
+        systemLogService.logWithChange(managerId, "ORDER_CANCELLED_BY_STAFF", "ORDER", orderId,
+                "Quản lý hủy đơn hàng #" + orderId,
+                AuditValueUtils.toJson(Map.of("status", fromStatus.name())),
+                AuditValueUtils.toJson(Map.of("status", OrderStatus.CANCELLED.name())));
 
         log.info("[Order] Quản lý ID={} đã hủy đơn hàng ID={}", managerId, orderId);
 
@@ -439,6 +464,11 @@ public class ManagerOrderServiceImpl implements ManagerOrderService {
                 previousStatus,
                 managerId
         ));
+
+        systemLogService.logWithChange(managerId, "ORDER_CANCEL_UNDONE_BY_STAFF", "ORDER", orderId,
+                "Quản lý hoàn tác hủy đơn hàng #" + orderId + ", khôi phục về " + previousStatus,
+                AuditValueUtils.toJson(Map.of("status", OrderStatus.CANCELLED.name())),
+                AuditValueUtils.toJson(Map.of("status", previousStatus.name())));
 
         log.info("[Order] Quản lý ID={} hoàn tác hủy thành công đơn hàng ID={}, khôi phục về trạng thái {}",
                 managerId, orderId, previousStatus);

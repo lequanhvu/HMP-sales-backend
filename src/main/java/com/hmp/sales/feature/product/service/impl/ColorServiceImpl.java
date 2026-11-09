@@ -2,6 +2,8 @@ package com.hmp.sales.feature.product.service.impl;
 
 import com.hmp.sales.common.exception.BusinessRuleException;
 import com.hmp.sales.common.exception.ResourceNotFoundException;
+import com.hmp.sales.common.util.AuditValueUtils;
+import com.hmp.sales.common.util.SecurityUtils;
 import com.hmp.sales.common.util.VietnameseStringUtils;
 import com.hmp.sales.feature.product.dto.ColorRequest;
 import com.hmp.sales.feature.product.dto.ColorResponse;
@@ -9,6 +11,7 @@ import com.hmp.sales.feature.product.entity.Color;
 import com.hmp.sales.feature.product.entity.ColorStatus;
 import com.hmp.sales.feature.product.repository.ColorRepository;
 import com.hmp.sales.feature.product.service.ColorService;
+import com.hmp.sales.feature.systemlog.service.SystemLogService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -17,6 +20,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
@@ -27,14 +31,17 @@ import java.util.stream.Collectors;
 public class ColorServiceImpl implements ColorService {
 
     private final ColorRepository colorRepository;
+    private final SystemLogService systemLogService;
 
     /**
-     * Khởi tạo ColorServiceImpl với repository màu sắc.
+     * Khởi tạo ColorServiceImpl với repository màu sắc và service ghi log hệ thống.
      *
-     * @param colorRepository repository quản lý màu sắc
+     * @param colorRepository  repository quản lý màu sắc
+     * @param systemLogService service ghi nhật ký hệ thống
      */
-    public ColorServiceImpl(ColorRepository colorRepository) {
+    public ColorServiceImpl(ColorRepository colorRepository, SystemLogService systemLogService) {
         this.colorRepository = colorRepository;
+        this.systemLogService = systemLogService;
     }
 
     /** {@inheritDoc} */
@@ -68,6 +75,9 @@ public class ColorServiceImpl implements ColorService {
                 .build();
         color = colorRepository.save(color);
         log.info("[ColorService] Tạo màu sắc: {} (ID={})", color.getColorName(), color.getId());
+        Long actorId = SecurityUtils.extractCurrentUserId();
+        systemLogService.log(actorId, "COLOR_CREATED", "COLOR", color.getId(),
+                "Tạo màu sắc: " + color.getColorName());
         return ColorResponse.fromEntity(color);
     }
 
@@ -76,12 +86,19 @@ public class ColorServiceImpl implements ColorService {
     @Transactional
     public ColorResponse updateColor(Long colorId, ColorRequest request) {
         Color color = findActiveColor(colorId);
+        String oldName = color.getColorName();
         if (colorRepository.existsByColorNameAndIsDeletedFalseAndIdNot(request.colorName(), colorId)) {
             throw new BusinessRuleException("Tên màu sắc '" + request.colorName() + "' đã tồn tại.");
         }
         color.setColorName(request.colorName());
         color.setImageUrl(request.imageUrl());
-        return ColorResponse.fromEntity(colorRepository.save(color));
+        Color saved = colorRepository.save(color);
+        Long actorId = SecurityUtils.extractCurrentUserId();
+        systemLogService.logWithChange(actorId, "COLOR_UPDATED", "COLOR", colorId,
+                "Cập nhật màu sắc: " + saved.getColorName(),
+                AuditValueUtils.toJson(Map.of("colorName", oldName)),
+                AuditValueUtils.toJson(Map.of("colorName", saved.getColorName())));
+        return ColorResponse.fromEntity(saved);
     }
 
     /** {@inheritDoc} */
@@ -90,7 +107,13 @@ public class ColorServiceImpl implements ColorService {
     public ColorResponse lockColor(Long colorId) {
         Color color = findActiveColor(colorId);
         color.setStatus(ColorStatus.LOCKED);
-        return ColorResponse.fromEntity(colorRepository.save(color));
+        Color saved = colorRepository.save(color);
+        Long actorId = SecurityUtils.extractCurrentUserId();
+        systemLogService.logWithChange(actorId, "COLOR_LOCKED", "COLOR", colorId,
+                "Khóa màu sắc: " + saved.getColorName(),
+                AuditValueUtils.toJson(Map.of("status", "ACTIVE")),
+                AuditValueUtils.toJson(Map.of("status", "LOCKED")));
+        return ColorResponse.fromEntity(saved);
     }
 
     /** {@inheritDoc} */
@@ -99,7 +122,13 @@ public class ColorServiceImpl implements ColorService {
     public ColorResponse unlockColor(Long colorId) {
         Color color = findActiveColor(colorId);
         color.setStatus(ColorStatus.ACTIVE);
-        return ColorResponse.fromEntity(colorRepository.save(color));
+        Color saved = colorRepository.save(color);
+        Long actorId = SecurityUtils.extractCurrentUserId();
+        systemLogService.logWithChange(actorId, "COLOR_UNLOCKED", "COLOR", colorId,
+                "Mở khóa màu sắc: " + saved.getColorName(),
+                AuditValueUtils.toJson(Map.of("status", "LOCKED")),
+                AuditValueUtils.toJson(Map.of("status", "ACTIVE")));
+        return ColorResponse.fromEntity(saved);
     }
 
     /** {@inheritDoc} */
@@ -112,6 +141,9 @@ public class ColorServiceImpl implements ColorService {
         }
         color.setIsDeleted(true);
         colorRepository.save(color);
+        Long actorId = SecurityUtils.extractCurrentUserId();
+        systemLogService.log(actorId, "COLOR_DELETED", "COLOR", colorId,
+                "Xóa mềm màu sắc: " + color.getColorName());
         log.info("[ColorService] Xóa mềm màu sắc ID={}", colorId);
     }
 

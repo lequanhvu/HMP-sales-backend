@@ -15,6 +15,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
 /**
@@ -32,6 +33,12 @@ class SystemSettingServiceImplTest {
 
     @Mock
     private AppProperties.OrderProperties orderProperties;
+
+    @Mock
+    private com.hmp.sales.feature.systemlog.service.SystemLogService systemLogService;
+
+    @Mock
+    private com.hmp.sales.feature.user.repository.UserRepository userRepository;
 
     @InjectMocks
     private SystemSettingServiceImpl systemSettingService;
@@ -147,6 +154,89 @@ class SystemSettingServiceImplTest {
 
         Optional<String> val = systemSettingService.getSettingValue("NOT_FOUND");
         assertThat(val).isEmpty();
+    }
+
+    @Test
+    @DisplayName("listSettings - Lấy danh sách thành công sắp xếp theo khóa")
+    void listSettings_returnsOrderedList() {
+        SystemSetting s1 = SystemSetting.builder()
+                .settingKey("A_KEY").settingValue("10").dataType("INT").description("A").build();
+        SystemSetting s2 = SystemSetting.builder()
+                .settingKey("B_KEY").settingValue("true").dataType("BOOLEAN").description("B").build();
+        when(systemSettingRepository.findAllByIsDeletedFalseOrderBySettingKeyAsc())
+                .thenReturn(java.util.List.of(s1, s2));
+
+        var list = systemSettingService.listSettings();
+        assertThat(list).hasSize(2);
+        assertThat(list.get(0).key()).isEqualTo("A_KEY");
+        assertThat(list.get(1).key()).isEqualTo("B_KEY");
+    }
+
+    @Test
+    @DisplayName("updateSetting - Cập nhật thành công và ghi nhật ký hệ thống")
+    void updateSetting_valid_successAndAudited() {
+        SystemSetting setting = SystemSetting.builder()
+                .id(10L)
+                .settingKey(SystemSettingService.KEY_CANCELLATION_WINDOW_MINUTES)
+                .settingValue("30")
+                .dataType("INT")
+                .description("Cửa sổ hủy")
+                .build();
+        when(systemSettingRepository.findBySettingKeyAndIsDeletedFalse(SystemSettingService.KEY_CANCELLATION_WINDOW_MINUTES))
+                .thenReturn(Optional.of(setting));
+        when(systemSettingRepository.save(any(SystemSetting.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        var res = systemSettingService.updateSetting(1L, SystemSettingService.KEY_CANCELLATION_WINDOW_MINUTES, "45");
+
+        assertThat(res.value()).isEqualTo("45");
+        org.mockito.Mockito.verify(systemLogService).logWithChange(
+                org.mockito.ArgumentMatchers.eq(1L),
+                org.mockito.ArgumentMatchers.eq("SYSTEM_SETTING_UPDATED"),
+                org.mockito.ArgumentMatchers.eq("SYSTEM_SETTING"),
+                org.mockito.ArgumentMatchers.eq(10L),
+                org.mockito.ArgumentMatchers.anyString(),
+                org.mockito.ArgumentMatchers.contains("30"),
+                org.mockito.ArgumentMatchers.contains("45")
+        );
+    }
+
+    @Test
+    @DisplayName("updateSetting - Ném ngoại lệ khi khóa không tồn tại")
+    void updateSetting_notFound_throwsResourceNotFoundException() {
+        when(systemSettingRepository.findBySettingKeyAndIsDeletedFalse("UNKNOWN"))
+                .thenReturn(Optional.empty());
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(() ->
+                systemSettingService.updateSetting(1L, "UNKNOWN", "123"))
+                .isInstanceOf(com.hmp.sales.common.exception.ResourceNotFoundException.class);
+    }
+
+    @Test
+    @DisplayName("updateSetting - Ném ngoại lệ khi giá trị trống hoặc sai kiểu dữ liệu")
+    void updateSetting_invalidDataType_throwsBusinessRuleException() {
+        SystemSetting setting = SystemSetting.builder()
+                .id(1L)
+                .settingKey(SystemSettingService.KEY_CANCELLATION_WINDOW_MINUTES)
+                .settingValue("30")
+                .dataType("INT")
+                .build();
+        when(systemSettingRepository.findBySettingKeyAndIsDeletedFalse(SystemSettingService.KEY_CANCELLATION_WINDOW_MINUTES))
+                .thenReturn(Optional.of(setting));
+
+        // Không phải số
+        org.assertj.core.api.Assertions.assertThatThrownBy(() ->
+                systemSettingService.updateSetting(1L, SystemSettingService.KEY_CANCELLATION_WINDOW_MINUTES, "abc"))
+                .isInstanceOf(com.hmp.sales.common.exception.BusinessRuleException.class);
+
+        // Cửa sổ = 0
+        org.assertj.core.api.Assertions.assertThatThrownBy(() ->
+                systemSettingService.updateSetting(1L, SystemSettingService.KEY_CANCELLATION_WINDOW_MINUTES, "0"))
+                .isInstanceOf(com.hmp.sales.common.exception.BusinessRuleException.class);
+
+        // Cửa sổ âm
+        org.assertj.core.api.Assertions.assertThatThrownBy(() ->
+                systemSettingService.updateSetting(1L, SystemSettingService.KEY_CANCELLATION_WINDOW_MINUTES, "-5"))
+                .isInstanceOf(com.hmp.sales.common.exception.BusinessRuleException.class);
     }
 }
 

@@ -37,6 +37,9 @@ class UnitServiceImplTest {
     @Mock
     private UnitRepository unitRepository;
 
+    @Mock
+    private com.hmp.sales.feature.systemlog.service.SystemLogService systemLogService;
+
     @InjectMocks
     private UnitServiceImpl unitService;
 

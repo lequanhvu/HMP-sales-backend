@@ -1,6 +1,6 @@
 # Project Status
 
-> Last updated: 2026-11-08 | By: @antigravity | Session: #18
+> Last updated: 2026-11-08 | By: @antigravity | Session: #19
 >
 > AI: update this file at the end of every session when asked.
 > Follow this exact format. Preserve full milestone checklists and project specifications.
@@ -8,6 +8,35 @@
 ---
 
 ## Completed
+- ✅ **Phase 5 (SystemSetting & SystemLog) — Quản trị Cấu hình Hệ thống & Nhật ký Audit Trail Toàn diện completed**:
+  - **Quản trị Cấu hình Động (`SystemSetting`)**:
+    - Repository bổ sung `findAllByIsDeletedFalseOrderBySettingKeyAsc`.
+    - `SystemSettingService` & `SystemSettingServiceImpl`:
+      - `listSettings()` trả danh sách `SettingResponse` (key, value, dataType, description, updatedAt).
+      - `updateSetting(actorId, key, value)` kiểm tra kiểu dữ liệu (`INT`, `BOOLEAN`, `DECIMAL`, `STRING`), bảo đảm cửa sổ thời gian hủy/hoàn tác hủy luôn là số nguyên dương, ghi nhận `updatedBy`, và kích hoạt audit trail `SYSTEM_SETTING_UPDATED` cùng giao dịch.
+    - `AdminSettingController`: cung cấp `GET /api/v1/admin/settings` và `PUT /api/v1/admin/settings/{key}`.
+    - `DataInitializer`: seed quyền `SYSTEM_SETTING_VIEW` (`GET /api/v1/admin/settings`) và `SYSTEM_SETTING_UPDATE` (`PUT /api/v1/admin/settings/{key}`) cho vai trò `ADMIN`.
+  - **Thực thể, Repository & Công cụ An toàn Nhật ký (`SystemLog`)**:
+    - Thực thể `SystemLog` mapping bảng `system_logs` (khóa chính tự tăng `log_id`, `user_id` FK nullable, `action`, `entity_type`, `entity_id`, `description`, `old_value`, `new_value`, `created_at`, `is_deleted`). Index tối ưu `(user_id, created_at)`, `(entity_type, entity_id)`, `(action)`.
+    - `AuditValueUtils`: tự động loại bỏ các trường nhạy cảm (password, token, otp, secret, authorization, credential), che số điện thoại (`09*****123`), che email (`c***@example.com`), cắt ngắn độ dài chuỗi tối đa tránh phình to DB.
+    - `SystemLogSpecification`: lọc động đa tiêu chí (`role` của actor, `activity`, khoảng ngày `fromDate`..`toDate` qua `DateUtils`, tìm tên người thực hiện không dấu qua `VietnameseStringUtils`, SĐT, email), sắp xếp mặc định mới nhất lên đầu.
+    - `SystemLogService` & `SystemLogServiceImpl`:
+      - `log` và `logWithChange`: tham gia cùng giao dịch nghiệp vụ (`REQUIRED`), cam kết tính toàn vẹn 100% của audit trail (thao tác và log cùng commit hoặc rollback).
+      - `logSecurityEvent`: mở giao dịch riêng (`REQUIRES_NEW`), nuốt lỗi khi DB sự cố nhằm bảo đảm ghi nhận các sự kiện bảo mật ngoại luồng (tài khoản khóa cố đăng nhập, replay attack) mà không làm vỡ logic người gọi.
+      - `search(filter, page, size)` và `getById(logId)`.
+    - `AdminSystemLogController`: cung cấp `GET /api/v1/admin/system-logs` (phân trang chuẩn `PageResponse`) và `GET /api/v1/admin/system-logs/{logId}`.
+    - `DataInitializer`: cập nhật đường dẫn quyền `SYSTEM_LOG_VIEW` thành `/api/v1/admin/system-logs/**`.
+  - **Gắn Dấu vết Kiểm toán (Audit Trail Wiring) Toàn diện trên Toàn bộ Service Quản trị & Nhân viên**:
+    - `CategoryServiceImpl`: `CATEGORY_CREATED` (root/child), `CATEGORY_UPDATED`, `CATEGORY_LOCKED`, `CATEGORY_UNLOCKED`, `CATEGORY_DELETED` (rỗng & cascade force=true).
+    - `ProductServiceImpl`: `PRODUCT_CREATED`, `PRODUCT_UPDATED`, `PRODUCT_LOCKED`, `PRODUCT_UNLOCKED`, `PRODUCT_DELETED`, `PRODUCT_IMAGES_UPLOADED`, `PRODUCT_IMAGES_DELETED`, `VARIANT_ADDED`, `VARIANT_UPDATED`, `VARIANT_DELETED`, `VARIANT_LOCKED`, `VARIANT_UNLOCKED`.
+    - `BrandServiceImpl`, `UnitServiceImpl`, `ColorServiceImpl`: Đầy đủ `*_CREATED`, `*_UPDATED`, `*_LOCKED`, `*_UNLOCKED`, `*_DELETED`.
+    - `ManagerOrderServiceImpl`: `ORDER_PRICE_CALCULATED` (old/new total và discount), `ORDER_CONFIRMED`, `ORDER_STATUS_UPDATED`, `ORDER_CANCELLED_BY_STAFF`, `ORDER_CANCEL_UNDONE_BY_STAFF`.
+    - `UserProfileServiceImpl`: `USER_PHONE_CHANGED` (khi đổi SĐT thành công qua OTP, số điện thoại được che).
+    - `AuthServiceImpl` & `RefreshTokenServiceImpl`: `CUSTOMER_REGISTERED` (đăng ký mới qua Google), `LOGIN_BLOCKED_LOCKED_ACCOUNT` (chặn đăng nhập tài khoản khóa), `REFRESH_TOKEN_REUSE_DETECTED` (phát hiện tái sử dụng refresh token).
+  - **Kiểm thử Toàn diện & Đồng bộ**:
+    - Thêm 23 unit tests mới: `SystemSettingServiceImplTest` (4 tests mới), `AdminSettingControllerTest` (3 tests), `SystemLogServiceImplTest` (7 tests), `AdminSystemLogControllerTest` (2 tests), `AuditValueUtilsTest` (5 tests), cập nhật mock cho toàn bộ các test service liên quan.
+    - Toàn bộ **403/403 tests pass 100%**.
+    - Đồng bộ `api-spec.md` (mục 15 & 16), `setting/CONTEXT.md`, `systemlog/CONTEXT.md`.
 - ✅ **Tính năng Hoàn tác Hủy Đơn hàng (`undo-cancel`) cho cả 3 vai trò (Customer, Manager, Admin) completed**:
   - **Nghiệp vụ & Phân quyền Hoàn tác Tách biệt Chặt chẽ**:
     - Áp dụng khi người dùng lỡ tay hủy đơn hàng, cho phép hoàn tác đưa đơn về đúng trạng thái trước khi hủy tra cứu từ bản ghi [`OrderStatusHistory`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/order/entity/OrderStatusHistory.java) gần nhất.
@@ -351,8 +380,8 @@ _Nothing._
 - ⚠️ **Scope Protection**: Do NOT implement V1 excluded modules (payment gateways, promotions, reviews, inventory, quotation, warranty, laser cutting, blogs).
 
 ## Next Tasks
-1. **[P2]** Implement Phase 5: SystemSetting entity, repository, and Admin configuration APIs (`GET /api/v1/admin/settings`, `PATCH /api/v1/admin/settings`).
-2. **[P2]** Implement Phase 5: SystemLog entity, repository, and business audit logging service (`GET /api/v1/admin/logs`).
+1. **[P2]** Phase 6: Triển khai kiểm thử tích hợp chuyên sâu (Integration Tests) với MockMvc và Spring Security cho toàn bộ phân hệ quản trị Admin (Users, Roles, Settings, SystemLogs, Master Data).
+2. **[P2]** Phase 6: Rà soát kiểm thử tự động cho toàn bộ các kịch bản biên giới hạn kích thước tôn sóng và ma trận trạng thái đơn hàng.
 
 ## Milestones
 
@@ -455,9 +484,9 @@ _Nothing._
 - [x] Notification service (dispatch in-app notifications on order status changes)
 - [x] Customer notification APIs (`GET /api/v1/notifications`, `GET /api/v1/notifications/unread-count`, mark as read)
 - [x] External notification integration (Zalo ZNS with RestClient, SendGrid Email with Thymeleaf HTML templates, and NoOp stub)
-- [ ] SystemSetting entity, repository, and Admin configuration APIs
-- [ ] SystemLog entity, repository, and business audit logging service
-- [ ] Admin system audit log query APIs (`GET /api/v1/admin/logs`)
+- [x] SystemSetting entity, repository, and Admin configuration APIs (`GET /api/v1/admin/settings`, `PUT /api/v1/admin/settings/{key}`)
+- [x] SystemLog entity, repository, and business audit logging service (persisted to PostgreSQL `system_logs`)
+- [x] Admin system audit log query APIs (`GET /api/v1/admin/system-logs`, `GET /api/v1/admin/system-logs/{logId}`)
 
 ### Phase 6 — Comprehensive Testing & Hardening
 - [ ] **JUnit 5 Unit Tests**:

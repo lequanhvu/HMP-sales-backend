@@ -38,6 +38,9 @@ class BrandServiceImplTest {
     @Mock
     private BrandRepository brandRepository;
 
+    @Mock
+    private com.hmp.sales.feature.systemlog.service.SystemLogService systemLogService;
+
     @InjectMocks
     private BrandServiceImpl brandService;
 

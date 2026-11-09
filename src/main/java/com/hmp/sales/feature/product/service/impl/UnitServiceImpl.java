@@ -2,6 +2,8 @@ package com.hmp.sales.feature.product.service.impl;
 
 import com.hmp.sales.common.exception.BusinessRuleException;
 import com.hmp.sales.common.exception.ResourceNotFoundException;
+import com.hmp.sales.common.util.AuditValueUtils;
+import com.hmp.sales.common.util.SecurityUtils;
 import com.hmp.sales.common.util.VietnameseStringUtils;
 import com.hmp.sales.feature.product.dto.UnitRequest;
 import com.hmp.sales.feature.product.dto.UnitResponse;
@@ -9,6 +11,7 @@ import com.hmp.sales.feature.product.entity.Unit;
 import com.hmp.sales.feature.product.entity.UnitStatus;
 import com.hmp.sales.feature.product.repository.UnitRepository;
 import com.hmp.sales.feature.product.service.UnitService;
+import com.hmp.sales.feature.systemlog.service.SystemLogService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -17,6 +20,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
@@ -27,14 +31,17 @@ import java.util.stream.Collectors;
 public class UnitServiceImpl implements UnitService {
 
     private final UnitRepository unitRepository;
+    private final SystemLogService systemLogService;
 
     /**
-     * Khởi tạo UnitServiceImpl với repository đơn vị tính.
+     * Khởi tạo UnitServiceImpl với repository đơn vị tính và service ghi log hệ thống.
      *
-     * @param unitRepository repository quản lý đơn vị tính
+     * @param unitRepository   repository quản lý đơn vị tính
+     * @param systemLogService service ghi nhật ký hệ thống
      */
-    public UnitServiceImpl(UnitRepository unitRepository) {
+    public UnitServiceImpl(UnitRepository unitRepository, SystemLogService systemLogService) {
         this.unitRepository = unitRepository;
+        this.systemLogService = systemLogService;
     }
 
     /** {@inheritDoc} */
@@ -65,6 +72,9 @@ public class UnitServiceImpl implements UnitService {
         Unit unit = Unit.builder().unitName(request.unitName()).build();
         unit = unitRepository.save(unit);
         log.info("[UnitService] Tạo đơn vị tính: {} (ID={})", unit.getUnitName(), unit.getId());
+        Long actorId = SecurityUtils.extractCurrentUserId();
+        systemLogService.log(actorId, "UNIT_CREATED", "UNIT", unit.getId(),
+                "Tạo đơn vị tính: " + unit.getUnitName());
         return UnitResponse.fromEntity(unit);
     }
 
@@ -73,11 +83,18 @@ public class UnitServiceImpl implements UnitService {
     @Transactional
     public UnitResponse updateUnit(Long unitId, UnitRequest request) {
         Unit unit = findActiveUnit(unitId);
+        String oldName = unit.getUnitName();
         if (unitRepository.existsByUnitNameAndIsDeletedFalseAndIdNot(request.unitName(), unitId)) {
             throw new BusinessRuleException("Tên đơn vị tính '" + request.unitName() + "' đã tồn tại.");
         }
         unit.setUnitName(request.unitName());
-        return UnitResponse.fromEntity(unitRepository.save(unit));
+        Unit saved = unitRepository.save(unit);
+        Long actorId = SecurityUtils.extractCurrentUserId();
+        systemLogService.logWithChange(actorId, "UNIT_UPDATED", "UNIT", unitId,
+                "Cập nhật đơn vị tính: " + saved.getUnitName(),
+                AuditValueUtils.toJson(Map.of("unitName", oldName)),
+                AuditValueUtils.toJson(Map.of("unitName", saved.getUnitName())));
+        return UnitResponse.fromEntity(saved);
     }
 
     /** {@inheritDoc} */
@@ -86,7 +103,13 @@ public class UnitServiceImpl implements UnitService {
     public UnitResponse lockUnit(Long unitId) {
         Unit unit = findActiveUnit(unitId);
         unit.setStatus(UnitStatus.LOCKED);
-        return UnitResponse.fromEntity(unitRepository.save(unit));
+        Unit saved = unitRepository.save(unit);
+        Long actorId = SecurityUtils.extractCurrentUserId();
+        systemLogService.logWithChange(actorId, "UNIT_LOCKED", "UNIT", unitId,
+                "Khóa đơn vị tính: " + saved.getUnitName(),
+                AuditValueUtils.toJson(Map.of("status", "ACTIVE")),
+                AuditValueUtils.toJson(Map.of("status", "LOCKED")));
+        return UnitResponse.fromEntity(saved);
     }
 
     /** {@inheritDoc} */
@@ -95,7 +118,13 @@ public class UnitServiceImpl implements UnitService {
     public UnitResponse unlockUnit(Long unitId) {
         Unit unit = findActiveUnit(unitId);
         unit.setStatus(UnitStatus.ACTIVE);
-        return UnitResponse.fromEntity(unitRepository.save(unit));
+        Unit saved = unitRepository.save(unit);
+        Long actorId = SecurityUtils.extractCurrentUserId();
+        systemLogService.logWithChange(actorId, "UNIT_UNLOCKED", "UNIT", unitId,
+                "Mở khóa đơn vị tính: " + saved.getUnitName(),
+                AuditValueUtils.toJson(Map.of("status", "LOCKED")),
+                AuditValueUtils.toJson(Map.of("status", "ACTIVE")));
+        return UnitResponse.fromEntity(saved);
     }
 
     /** {@inheritDoc} */
@@ -108,6 +137,9 @@ public class UnitServiceImpl implements UnitService {
         }
         unit.setIsDeleted(true);
         unitRepository.save(unit);
+        Long actorId = SecurityUtils.extractCurrentUserId();
+        systemLogService.log(actorId, "UNIT_DELETED", "UNIT", unitId,
+                "Xóa mềm đơn vị tính: " + unit.getUnitName());
         log.info("[UnitService] Xóa mềm đơn vị tính ID={}", unitId);
     }
 

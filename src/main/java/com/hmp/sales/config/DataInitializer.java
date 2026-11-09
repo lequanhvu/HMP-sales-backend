@@ -231,7 +231,8 @@ public class DataInitializer implements ApplicationRunner {
             new Object[]{"ME_ADDRESS_UPDATE",         "USER",     "/api/v1/me/addresses/**",                      "PATCH",  "Cập nhật địa chỉ nhận hàng cá nhân"},
             new Object[]{"ME_ADDRESS_DELETE",         "USER",     "/api/v1/me/addresses/**",                      "DELETE", "Xóa địa chỉ nhận hàng cá nhân"},
             // --- SYSTEM module ---
-            new Object[]{"SYSTEM_LOG_VIEW",           "SYSTEM",   "/api/v1/admin/logs",                           "GET",    "Xem nhật ký hệ thống"},
+            new Object[]{"SYSTEM_LOG_VIEW",           "SYSTEM",   "/api/v1/admin/system-logs/**",                 "GET",    "Xem nhật ký hệ thống"},
+            new Object[]{"SYSTEM_SETTING_VIEW",       "SYSTEM",   "/api/v1/admin/settings",                       "GET",    "Xem danh sách cấu hình hệ thống"},
             new Object[]{"SYSTEM_SETTING_UPDATE",     "SYSTEM",   "/api/v1/admin/settings/{key}",                 "PUT",    "Cập nhật cấu hình hệ thống"},
             // --- ROLE module ---
             new Object[]{"ROLE_PERMISSION_VIEW",      "ROLE",     "/api/v1/admin/roles/{id}/permissions",         "GET",    "Xem danh sách quyền hạn của vai trò"},
@@ -307,7 +308,7 @@ public class DataInitializer implements ApplicationRunner {
             "ORDER_CREATE", "ORDER_VIEW_OWN", "ORDER_CANCEL_OWN", "ORDER_UNDO_CANCEL_OWN", "ORDER_UNDO_CANCEL_ANY",
             "ME_PROFILE_VIEW", "ME_PROFILE_UPDATE", "ME_ADDRESS_VIEW", "ME_ADDRESS_CREATE", "ME_ADDRESS_UPDATE", "ME_ADDRESS_DELETE",
             "NOTIFICATION_VIEW_OWN", "NOTIFICATION_MARK_READ", "NOTIFICATION_MARK_ALL_READ",
-            "SYSTEM_LOG_VIEW", "SYSTEM_SETTING_UPDATE",
+            "SYSTEM_LOG_VIEW", "SYSTEM_SETTING_VIEW", "SYSTEM_SETTING_UPDATE",
             "ROLE_PERMISSION_VIEW", "ROLE_PERMISSION_UPDATE"
     );
 

@@ -3076,7 +3076,9 @@ GET /api/v1/admin/settings
     {
       "key": "ORDER_CUSTOMER_CANCELLATION_WINDOW_MINUTES",
       "value": "30",
-      "dataType": "INTEGER"
+      "dataType": "INT",
+      "description": "Thời gian tối đa (phút) khách hàng được phép hủy đơn hàng sau khi tạo đơn hoặc sau khi Quản lý chốt giá",
+      "updatedAt": "2026-10-01T10:00:00Z"
     }
   ],
   "message": "Thành công",
@@ -3117,7 +3119,9 @@ PUT /api/v1/admin/settings/{key}
   "data": {
     "key": "ORDER_CUSTOMER_CANCELLATION_WINDOW_MINUTES",
     "value": "60",
-    "dataType": "INTEGER"
+    "dataType": "INT",
+    "description": "Thời gian tối đa (phút) khách hàng được phép hủy đơn hàng sau khi tạo đơn hoặc sau khi Quản lý chốt giá",
+    "updatedAt": "2026-10-01T10:00:00Z"
   },
   "message": "Thành công",
   "timestamp": "2026-10-01T10:00:00"
@@ -3588,18 +3592,18 @@ System logs are audit records and are not exposed through destructive delete API
 {
   "statusCode": 200,
   "data": {
-    "content": [
+    "result": [
       {
         "logId": 9001,
         "userId": 2001,
         "activity": "PRODUCT_UPDATE",
         "description": "Updated product 100",
-        "createdAt": "2026-10-01T09:40:00"
+        "createdAt": "2026-10-01T09:40:00Z"
       }
     ],
     "meta": {
       "page": 0,
-      "size": 10,
+      "size": 20,
       "totalElements": 1,
       "totalPages": 1
     }

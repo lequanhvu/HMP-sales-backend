@@ -7,6 +7,7 @@ import com.hmp.sales.feature.auth.repository.RefreshTokenRepository;
 import com.hmp.sales.feature.auth.service.JwtTokenService;
 import com.hmp.sales.feature.auth.service.RefreshTokenService;
 import com.hmp.sales.feature.auth.util.HashUtils;
+import com.hmp.sales.feature.systemlog.service.SystemLogService;
 import com.hmp.sales.feature.user.entity.User;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -33,6 +34,7 @@ public class RefreshTokenServiceImpl implements RefreshTokenService {
     private final RefreshTokenRepository refreshTokenRepository;
     private final AppProperties appProperties;
     private final JwtTokenService jwtTokenService;
+    private final SystemLogService systemLogService;
 
     /**
      * Khởi tạo service với các phụ thuộc cần thiết.
@@ -40,14 +42,17 @@ public class RefreshTokenServiceImpl implements RefreshTokenService {
      * @param refreshTokenRepository repository lưu trữ refresh token trong PostgreSQL
      * @param appProperties          cấu hình ứng dụng (refreshExpirationDays)
      * @param jwtTokenService        dịch vụ JWT để thu hồi access token trên Redis khi refresh
+     * @param systemLogService       service ghi nhật ký hệ thống
      */
     public RefreshTokenServiceImpl(
             RefreshTokenRepository refreshTokenRepository,
             AppProperties appProperties,
-            JwtTokenService jwtTokenService) {
+            JwtTokenService jwtTokenService,
+            SystemLogService systemLogService) {
         this.refreshTokenRepository = refreshTokenRepository;
         this.appProperties = appProperties;
         this.jwtTokenService = jwtTokenService;
+        this.systemLogService = systemLogService;
     }
 
     /**
@@ -110,6 +115,9 @@ public class RefreshTokenServiceImpl implements RefreshTokenService {
             if (existing.getAccessTokenJti() != null) {
                 jwtTokenService.revokeAccessToken(existing.getAccessTokenJti());
             }
+            Long actorId = existing.getUser() != null ? existing.getUser().getId() : null;
+            systemLogService.logSecurityEvent(actorId, "REFRESH_TOKEN_REUSE_DETECTED", "REFRESH_TOKEN_FAMILY", null,
+                    "Phát hiện tấn công tái sử dụng token. Toàn bộ phiên thuộc họ token " + existing.getTokenFamilyId() + " đã bị thu hồi.");
             throw new UnauthorizedOperationException(
                     "Phát hiện tấn công tái sử dụng token. Toàn bộ phiên đăng nhập đã bị thu hồi.");
         }
