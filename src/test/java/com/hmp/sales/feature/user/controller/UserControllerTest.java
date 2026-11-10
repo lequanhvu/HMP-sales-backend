@@ -17,6 +17,9 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.MediaType;
+import org.springframework.security.authentication.TestingAuthenticationToken;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.web.method.annotation.AuthenticationPrincipalArgumentResolver;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
@@ -26,6 +29,7 @@ import java.util.List;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -41,11 +45,20 @@ class UserControllerTest {
     @InjectMocks
     private UserController userController;
 
+    private TestingAuthenticationToken authentication;
+
     @BeforeEach
     void setUp() {
         mockMvc = MockMvcBuilders.standaloneSetup(userController)
+                .setCustomArgumentResolvers(new AuthenticationPrincipalArgumentResolver())
                 .setControllerAdvice(new GlobalExceptionHandler())
                 .build();
+
+        Jwt jwt = Jwt.withTokenValue("mock-token")
+                .header("alg", "none")
+                .claim("sub", "999")
+                .build();
+        authentication = new TestingAuthenticationToken(jwt, null);
     }
 
     @Test
@@ -79,5 +92,54 @@ class UserControllerTest {
                 .andExpect(jsonPath("$.data.meta.size").value(20))
                 .andExpect(jsonPath("$.data.meta.totalElements").value(1))
                 .andExpect(jsonPath("$.data.meta.totalPages").value(1));
+    }
+
+    @Test
+    @DisplayName("POST /api/v1/admin/managers - Tạo Manager thành công với email hợp lệ đầy đủ TLD")
+    void createManager_validRequest_returns201() throws Exception {
+        UserSummaryResponse response = new UserSummaryResponse(
+                28L,
+                "managerName",
+                "managertest@gmail.com",
+                null,
+                "MANAGER",
+                UserStatus.ACTIVE
+        );
+
+        when(userService.createManager(any(com.hmp.sales.feature.user.dto.CreateManagerRequest.class), any())).thenReturn(response);
+
+        mockMvc.perform(post("/api/v1/admin/managers")
+                        .principal(authentication)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "email": "managertest@gmail.com",
+                                  "fullName": "managerName"
+                                }
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.statusCode").value(201))
+                .andExpect(jsonPath("$.message").value("Tạo tài khoản Manager thành công."))
+                .andExpect(jsonPath("$.data.userId").value(28))
+                .andExpect(jsonPath("$.data.email").value("managertest@gmail.com"));
+    }
+
+    @Test
+    @DisplayName("POST /api/v1/admin/managers - Báo lỗi 400 Bad Request khi email thiếu đuôi tên miền TLD (ví dụ managertest@gmai)")
+    void createManager_invalidEmailWithoutTld_returns400() throws Exception {
+        mockMvc.perform(post("/api/v1/admin/managers")
+                        .principal(authentication)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "email": "managertest@gmai",
+                                  "fullName": "managerName"
+                                }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.statusCode").value(400))
+                .andExpect(jsonPath("$.message").value("Dữ liệu yêu cầu không hợp lệ."))
+                .andExpect(jsonPath("$.errors[0].field").value("email"))
+                .andExpect(jsonPath("$.errors[0].message").value("Định dạng email không hợp lệ"));
     }
 }
