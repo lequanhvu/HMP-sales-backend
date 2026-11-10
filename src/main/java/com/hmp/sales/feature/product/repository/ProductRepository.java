@@ -6,8 +6,10 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
@@ -141,9 +143,20 @@ public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpec
      * @param productIds danh sách ID sản phẩm cần xóa mềm
      */
     @Query("UPDATE Product p SET p.isDeleted = true WHERE p.id IN :productIds")
-    @org.springframework.data.jpa.repository.Modifying
-    @org.springframework.transaction.annotation.Transactional
+    @Modifying 
+    @Transactional 
     void softDeleteByIds(@Param("productIds") List<Long> productIds);
+
+    /**
+     * Cập nhật trạng thái hàng loạt sản phẩm theo danh sách ID (dùng khi cascade khóa sản phẩm thuộc cây danh mục).
+     *
+     * @param productIds danh sách ID sản phẩm cần cập nhật
+     * @param status     trạng thái mới (ACTIVE / INACTIVE)
+     */
+    @Query("UPDATE Product p SET p.status = :status WHERE p.id IN :productIds")
+    @Modifying
+    @Transactional
+    void updateStatusByIds(@Param("productIds") List<Long> productIds, @Param("status") ProductStatus status);
 
     /**
      * Đếm số sản phẩm chưa xóa thuộc một danh mục.

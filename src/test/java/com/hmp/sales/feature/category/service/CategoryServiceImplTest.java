@@ -4,6 +4,7 @@ import com.hmp.sales.common.exception.BusinessRuleException;
 import com.hmp.sales.common.exception.ConflictWithPayloadException;
 import com.hmp.sales.common.exception.ResourceNotFoundException;
 import com.hmp.sales.feature.category.dto.CategoryCreateRequest;
+import com.hmp.sales.feature.category.dto.CategoryLockWarningResponse;
 import com.hmp.sales.feature.category.dto.CategoryProductsResponse;
 import com.hmp.sales.feature.category.dto.CategoryResponse;
 import com.hmp.sales.feature.category.dto.CategoryTreeResponse;
@@ -221,6 +222,71 @@ class CategoryServiceImplTest {
 
         CategoryResponse unlocked = categoryService.unlockCategory(10L);
         assertThat(unlocked.status()).isEqualTo(CategoryStatus.ACTIVE);
+    }
+
+    @Test
+    @DisplayName("lockCategory ném lỗi khi danh mục đã ở trạng thái LOCKED")
+    void lockCategory_alreadyLocked_throwsException() {
+        Category lockedCategory = Category.builder()
+                .id(10L)
+                .categoryName("Tôn lợp mái")
+                .status(CategoryStatus.LOCKED)
+                .isDeleted(false)
+                .build();
+        when(categoryRepository.findByIdAndIsDeletedFalse(10L)).thenReturn(Optional.of(lockedCategory));
+
+        assertThatThrownBy(() -> categoryService.lockCategory(10L, false))
+                .isInstanceOf(BusinessRuleException.class)
+                .hasMessageContaining("đã ở trạng thái bị khóa");
+    }
+
+    @Test
+    @DisplayName("lockCategory khi có danh mục con hoặc sản phẩm và force=false thì ném ConflictWithPayloadException")
+    void lockCategory_withChildren_forceFalse_throwsConflictWithPayloadException() {
+        when(categoryRepository.findByIdAndIsDeletedFalse(10L)).thenReturn(Optional.of(rootCategory));
+        when(categoryRepository.findAllDescendantIds(10L)).thenReturn(List.of(10L, 20L));
+        when(productRepository.countByCategoryIdInAndIsDeletedFalse(List.of(10L, 20L))).thenReturn(5L);
+
+        assertThatThrownBy(() -> categoryService.lockCategory(10L, false))
+                .isInstanceOf(ConflictWithPayloadException.class)
+                .satisfies(ex -> {
+                    ConflictWithPayloadException cfe = (ConflictWithPayloadException) ex;
+                    assertThat(cfe.getPayload()).isInstanceOf(CategoryLockWarningResponse.class);
+                    CategoryLockWarningResponse warning = (CategoryLockWarningResponse) cfe.getPayload();
+                    assertThat(warning.childCategoryCount()).isEqualTo(1L);
+                    assertThat(warning.productCount()).isEqualTo(5L);
+                    assertThat(warning.totalImpactCount()).isEqualTo(6L);
+                });
+    }
+
+    @Test
+    @DisplayName("lockCategory khi force=true nhưng có sản phẩm nằm trong đơn dở dang thì ném BusinessRuleException")
+    void lockCategory_withChildren_forceTrue_hasIncompleteOrders_throwsException() {
+        when(categoryRepository.findByIdAndIsDeletedFalse(10L)).thenReturn(Optional.of(rootCategory));
+        when(categoryRepository.findAllDescendantIds(10L)).thenReturn(List.of(10L, 20L));
+        when(productRepository.countByCategoryIdInAndIsDeletedFalse(List.of(10L, 20L))).thenReturn(2L);
+        when(productRepository.findIdsByCategoryIdIn(List.of(10L, 20L))).thenReturn(List.of(100L));
+        when(productRepository.anyHasIncompleteOrders(List.of(100L))).thenReturn(true);
+
+        assertThatThrownBy(() -> categoryService.lockCategory(10L, true))
+                .isInstanceOf(BusinessRuleException.class)
+                .hasMessageContaining("đơn hàng chưa hoàn thành");
+    }
+
+    @Test
+    @DisplayName("lockCategory khi force=true và không có đơn dở dang thì cascade khóa toàn bộ cây con")
+    void lockCategory_withChildren_forceTrue_success_cascadeLocks() {
+        when(categoryRepository.findByIdAndIsDeletedFalse(10L)).thenReturn(Optional.of(rootCategory));
+        when(categoryRepository.findAllDescendantIds(10L)).thenReturn(List.of(10L, 20L));
+        when(productRepository.countByCategoryIdInAndIsDeletedFalse(List.of(10L, 20L))).thenReturn(2L);
+        when(productRepository.findIdsByCategoryIdIn(List.of(10L, 20L))).thenReturn(List.of(100L));
+        when(productRepository.anyHasIncompleteOrders(List.of(100L))).thenReturn(false);
+
+        CategoryResponse response = categoryService.lockCategory(10L, true);
+
+        assertThat(response.status()).isEqualTo(CategoryStatus.LOCKED);
+        verify(categoryRepository).updateStatusByIds(List.of(10L, 20L), CategoryStatus.LOCKED);
+        verify(productRepository).updateStatusByIds(List.of(100L), ProductStatus.INACTIVE);
     }
 
     @Test

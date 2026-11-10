@@ -1627,14 +1627,11 @@ PATCH /api/v1/manager/categories/{categoryId}
 ## 9.4 Lock category
 
 ```http
-POST /api/v1/manager/categories/{categoryId}/lock
+POST /api/v1/manager/categories/{categoryId}/lock?force=false
 ```
 
-### Request example
-
-```json
-{}
-```
+### Query parameters
+- `force` (boolean, optional, default: `false`): Xác nhận khóa cascade toàn bộ cây con khi danh mục còn chứa danh mục con hoặc sản phẩm.
 
 ### Success response — 200
 
@@ -1643,20 +1640,39 @@ POST /api/v1/manager/categories/{categoryId}/lock
   "statusCode": 200,
   "data": {
     "categoryId": 10,
+    "categoryName": "Tôn lợp mái",
+    "parentId": null,
     "status": "LOCKED"
   },
-  "message": "Thành công",
+  "message": "Khóa danh mục thành công.",
   "timestamp": "2026-10-01T10:00:00"
 }
 ```
 
-### Failure response — 409
+### Failure response — 409 (Cần xác nhận khi có danh mục con hoặc sản phẩm)
 
 ```json
 {
   "statusCode": 409,
+  "data": {
+    "categoryId": 10,
+    "categoryName": "Tôn lợp mái",
+    "childCategoryCount": 2,
+    "productCount": 5,
+    "totalImpactCount": 7
+  },
+  "message": "Danh mục này chứa 7 danh mục và sản phẩm. Vui lòng xác nhận khóa toàn bộ.",
+  "timestamp": "2026-10-01T10:00:00"
+}
+```
+
+### Failure response — 400 (Có đơn hàng chưa hoàn thành trong cây con khi force=true)
+
+```json
+{
+  "statusCode": 400,
   "data": null,
-  "message": "Category cannot be locked in its current state.",
+  "message": "Không thể khóa danh mục vì có sản phẩm đang nằm trong đơn hàng chưa hoàn thành.",
   "timestamp": "2026-10-01T10:00:00"
 }
 ```

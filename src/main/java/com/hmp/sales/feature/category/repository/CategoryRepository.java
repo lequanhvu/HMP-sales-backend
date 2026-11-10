@@ -1,9 +1,13 @@
 package com.hmp.sales.feature.category.repository;
 
 import com.hmp.sales.feature.category.entity.Category;
+
+
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
@@ -102,7 +106,18 @@ public interface CategoryRepository extends JpaRepository<Category, Long> {
      * @param ids danh sách ID danh mục cần xóa mềm
      */
     @Query("UPDATE Category c SET c.isDeleted = true WHERE c.id IN :ids")
-    @org.springframework.data.jpa.repository.Modifying
-    @org.springframework.transaction.annotation.Transactional
+    @Modifying 
+    @Transactional 
     void softDeleteByIds(@Param("ids") List<Long> ids);
+
+    /**
+     * Cập nhật trạng thái danh mục hàng loạt theo danh sách ID (phục vụ cascade khóa/mở khóa cây con).
+     *
+     * @param ids    danh sách ID danh mục cần cập nhật
+     * @param status trạng thái mới
+     */
+    @Query("UPDATE Category c SET c.status = :status WHERE c.id IN :ids")
+    @Modifying
+    @Transactional 
+    void updateStatusByIds(@Param("ids") List<Long> ids, @Param("status") com.hmp.sales.feature.category.entity.CategoryStatus status);
 }

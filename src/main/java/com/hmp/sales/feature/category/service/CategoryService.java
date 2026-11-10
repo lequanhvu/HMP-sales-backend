@@ -109,13 +109,35 @@ public interface CategoryService {
     }
 
     /**
-     * Khóa danh mục (chuyển sang LOCKED).
+     * Khóa danh mục với cơ chế kiểm tra và xác nhận hai bước khi còn con/sản phẩm.
+     * <p>
+     * Luồng xử lý:
+     * <ol>
+     *   <li>Nếu danh mục rỗng: khóa ngay ({@code status = LOCKED}).</li>
+     *   <li>Nếu còn con/sản phẩm và {@code force = false}: ném {@code ConflictWithPayloadException}
+     *       kèm payload {@link com.hmp.sales.feature.category.dto.CategoryLockWarningResponse} để frontend hiển thị popup xác nhận.</li>
+     *   <li>Nếu còn con/sản phẩm và {@code force = true}: kiểm tra đơn hàng dở dang;
+     *       nếu an toàn thì cascade khóa toàn bộ cây con (danh mục con thành LOCKED, sản phẩm thành INACTIVE).</li>
+     * </ol>
+     *
+     * @param categoryId ID danh mục
+     * @param force      true nếu người dùng đã xác nhận popup cảnh báo
+     * @return danh mục sau khi khóa
+     * @throws com.hmp.sales.common.exception.ResourceNotFoundException nếu không tìm thấy danh mục
+     * @throws com.hmp.sales.common.exception.BusinessRuleException    nếu danh mục đã bị khóa, hoặc có đơn hàng dở dang
+     */
+    CategoryResponse lockCategory(Long categoryId, boolean force);
+
+    /**
+     * Khóa danh mục với giá trị mặc định {@code force = false}.
      *
      * @param categoryId ID danh mục
      * @return danh mục sau khi khóa
      * @throws com.hmp.sales.common.exception.ResourceNotFoundException nếu không tìm thấy danh mục
      */
-    CategoryResponse lockCategory(Long categoryId);
+    default CategoryResponse lockCategory(Long categoryId) {
+        return lockCategory(categoryId, false);
+    }
 
     /**
      * Mở khóa danh mục (chuyển sang ACTIVE).

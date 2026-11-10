@@ -107,14 +107,23 @@ public class ManagerCategoryController {
 
     /**
      * Khóa danh mục (chuyển sang trạng thái LOCKED).
+     * <p>
+     * Nếu danh mục còn chứa danh mục con hoặc sản phẩm:
+     * <ul>
+     *   <li>Nếu {@code force = false}: Ném lỗi 409 kèm thông tin đếm để frontend hiển thị modal confirm.</li>
+     *   <li>Nếu {@code force = true}: Cascade khóa toàn bộ cây con (danh mục con thành LOCKED, sản phẩm thành INACTIVE)
+     *       sau khi kiểm tra không có đơn dở dang.</li>
+     * </ul>
      *
      * @param categoryId ID danh mục cần khóa
+     * @param force      cờ xác nhận người dùng đã đồng ý trên popup xác nhận
      * @return thông tin danh mục sau khi khóa
      */
     @PostMapping("/{categoryId}/lock")
     public ResponseEntity<ApiSuccessResponse<CategoryResponse>> lockCategory(
-            @PathVariable Long categoryId) {
-        CategoryResponse response = categoryService.lockCategory(categoryId);
+            @PathVariable Long categoryId,
+            @RequestParam(defaultValue = "false") boolean force) {
+        CategoryResponse response = categoryService.lockCategory(categoryId, force);
         return ResponseEntity.ok(ApiSuccessResponse.success("Khóa danh mục thành công.", response));
     }
 

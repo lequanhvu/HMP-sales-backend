@@ -5,6 +5,7 @@ import com.hmp.sales.common.exception.GlobalExceptionHandler;
 import com.hmp.sales.common.response.PageResponse;
 import com.hmp.sales.feature.category.dto.CategoryCreateRequest;
 import com.hmp.sales.feature.category.dto.CategoryDeleteWarningResponse;
+import com.hmp.sales.feature.category.dto.CategoryLockWarningResponse;
 import com.hmp.sales.feature.category.dto.CategoryProductsResponse;
 import com.hmp.sales.feature.category.dto.CategoryResponse;
 import com.hmp.sales.feature.category.entity.CategoryStatus;
@@ -129,6 +130,35 @@ class ManagerCategoryControllerTest {
         mockMvc.perform(delete("/api/v1/manager/categories/10?force=true"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.statusCode").value(200));
+    }
+
+    @Test
+    @DisplayName("POST /api/v1/manager/categories/{id}/lock - Còn con/sản phẩm mà force=false trả về 409 Conflict kèm payload confirm")
+    void lockCategory_withChildren_forceFalse_returns409WithPayload() throws Exception {
+        CategoryLockWarningResponse warning = new CategoryLockWarningResponse(
+                10L, "Tôn lợp mái", 2L, 5L, 7L);
+        doThrow(new ConflictWithPayloadException("Danh mục này chứa 7 danh mục và sản phẩm", warning))
+                .when(categoryService).lockCategory(10L, false);
+
+        mockMvc.perform(post("/api/v1/manager/categories/10/lock?force=false"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.statusCode").value(409))
+                .andExpect(jsonPath("$.data.childCategoryCount").value(2))
+                .andExpect(jsonPath("$.data.productCount").value(5))
+                .andExpect(jsonPath("$.data.totalImpactCount").value(7));
+    }
+
+    @Test
+    @DisplayName("POST /api/v1/manager/categories/{id}/lock - force=true khóa thành công trả về 200 OK")
+    void lockCategory_forceTrue_returns200() throws Exception {
+        CategoryResponse response = new CategoryResponse(10L, "Tôn lợp mái", CategoryStatus.LOCKED, null, null, null);
+        when(categoryService.lockCategory(10L, true)).thenReturn(response);
+
+        mockMvc.perform(post("/api/v1/manager/categories/10/lock?force=true"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.statusCode").value(200))
+                .andExpect(jsonPath("$.message").value("Khóa danh mục thành công."))
+                .andExpect(jsonPath("$.data.status").value("LOCKED"));
     }
 
     @Test

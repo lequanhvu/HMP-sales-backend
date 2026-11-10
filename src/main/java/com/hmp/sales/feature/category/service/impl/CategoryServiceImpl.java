@@ -181,7 +181,7 @@ public class CategoryServiceImpl implements CategoryService {
         log.info("[CategoryService] Tạo danh mục con '{}' (ID={}) trong cha ID={}", category.getCategoryName(), category.getId(), parentId);
         publishSearchInvalidation(category.getId(), SearchIndexInvalidationEvent.Operation.UPSERT);
         systemLogService.log(managerId, "CATEGORY_CREATED", "CATEGORY", category.getId(),
-                "Tạo danh mục con '" + category.getCategoryName() + "' thuộc danh mục cha #" + parentId);
+                "Tạo danh mục con '" + category.getCategoryName() + "' thuộc danh mục cha '" + category.getParentCategory().getCategoryName() + "'");
         return CategoryResponse.fromEntity(category);
     }
 
@@ -236,8 +236,11 @@ public class CategoryServiceImpl implements CategoryService {
 
         // Lấy toàn bộ ID trong cây con (bao gồm cả chính nó)
         List<Long> allDescendantIds = categoryRepository.findAllDescendantIds(categoryId);
+        if (allDescendantIds == null || allDescendantIds.isEmpty()) {
+            allDescendantIds = List.of(categoryId);
+        }
         // Loại bỏ categoryId chính để đếm chỉ con cháu
-        long childCategoryCount = allDescendantIds.size() - 1;
+        long childCategoryCount = Math.max(0, allDescendantIds.size() - 1);
         long productCount = productRepository.countByCategoryIdInAndIsDeletedFalse(allDescendantIds);
 
         boolean hasChildren = childCategoryCount > 0 || productCount > 0;
@@ -279,6 +282,15 @@ public class CategoryServiceImpl implements CategoryService {
         for (Long descId : allDescendantIds) {
             publishSearchInvalidation(descId, SearchIndexInvalidationEvent.Operation.DELETE);
         }
+        if (eventPublisher != null) {
+            for (Long pid : productIds) {
+                try {
+                    eventPublisher.publishEvent(new SearchIndexInvalidationEvent(SearchResourceType.PRODUCT, pid, SearchIndexInvalidationEvent.Operation.DELETE));
+                } catch (Exception e) {
+                    log.debug("[CategoryService] Không thể bắn event search index sync cho product ID={}: {}", pid, e.getMessage());
+                }
+            }
+        }
         systemLogService.log(actorId, "CATEGORY_DELETED", "CATEGORY", categoryId,
                 "Cascade soft-delete danh mục '" + category.getCategoryName() + "' (force=true, "
                         + childCategoryCount + " danh mục con, " + productCount + " sản phẩm)");
@@ -316,17 +328,81 @@ public class CategoryServiceImpl implements CategoryService {
     /** {@inheritDoc} */
     @Override
     @Transactional
-    public CategoryResponse lockCategory(Long categoryId) {
+    public CategoryResponse lockCategory(Long categoryId, boolean force) {
         Category category = findActiveCategory(categoryId);
-        category.setStatus(CategoryStatus.LOCKED);
-        category = categoryRepository.save(category);
-        publishSearchInvalidation(categoryId, SearchIndexInvalidationEvent.Operation.DELETE);
+        if (category.getStatus() == CategoryStatus.LOCKED) {
+            throw new BusinessRuleException("Danh mục này đã ở trạng thái bị khóa.");
+        }
+
+        // Lấy toàn bộ ID trong cây con (bao gồm cả chính nó)
+        List<Long> allDescendantIds = categoryRepository.findAllDescendantIds(categoryId);
+        if (allDescendantIds == null || allDescendantIds.isEmpty()) {
+            allDescendantIds = List.of(categoryId);
+        }
+        // Loại bỏ categoryId chính để đếm chỉ con cháu
+        long childCategoryCount = Math.max(0, allDescendantIds.size() - 1);
+        long productCount = productRepository.countByCategoryIdInAndIsDeletedFalse(allDescendantIds);
+
+        boolean hasChildren = childCategoryCount > 0 || productCount > 0;
         Long actorId = SecurityUtils.extractCurrentUserId();
-        systemLogService.logWithChange(actorId, "CATEGORY_LOCKED", "CATEGORY", categoryId,
-                "Khóa danh mục: " + category.getCategoryName(),
-                AuditValueUtils.toJson(Map.of("status", "ACTIVE")),
-                AuditValueUtils.toJson(Map.of("status", "LOCKED")));
-        log.info("[CategoryService] Khóa danh mục ID={}", categoryId);
+
+        if (!hasChildren) {
+            // Rỗng → khóa ngay
+            category.setStatus(CategoryStatus.LOCKED);
+            category = categoryRepository.save(category);
+            publishSearchInvalidation(categoryId, SearchIndexInvalidationEvent.Operation.DELETE);
+            systemLogService.logWithChange(actorId, "CATEGORY_LOCKED", "CATEGORY", categoryId,
+                    "Khóa danh mục rỗng: " + category.getCategoryName(),
+                    AuditValueUtils.toJson(Map.of("status", "ACTIVE")),
+                    AuditValueUtils.toJson(Map.of("status", "LOCKED")));
+            log.info("[CategoryService] Khóa danh mục rỗng ID={}", categoryId);
+            return CategoryResponse.fromEntity(category);
+        }
+
+        if (!force) {
+            // Trả về cảnh báo để frontend hiển thị popup confirm
+            long totalImpact = childCategoryCount + productCount;
+            CategoryLockWarningResponse warning = new CategoryLockWarningResponse(
+                    categoryId, category.getCategoryName(), childCategoryCount, productCount, totalImpact);
+            throw new ConflictWithPayloadException(
+                    "Danh mục này chứa " + totalImpact + " danh mục và sản phẩm. Vui lòng xác nhận khóa toàn bộ.",
+                    warning);
+        }
+
+        // force=true → kiểm tra đơn hàng dở dang trước khi cascade khóa
+        List<Long> productIds = productRepository.findIdsByCategoryIdIn(allDescendantIds);
+        if (!productIds.isEmpty() && productRepository.anyHasIncompleteOrders(productIds)) {
+            throw new BusinessRuleException(
+                    "Không thể khóa danh mục vì có sản phẩm đang nằm trong đơn hàng chưa hoàn thành.");
+        }
+
+        // Cascade khóa toàn bộ cây con: danh mục con thành LOCKED, sản phẩm thành INACTIVE
+        categoryRepository.updateStatusByIds(allDescendantIds, CategoryStatus.LOCKED);
+        if (!productIds.isEmpty()) {
+            productRepository.updateStatusByIds(productIds, ProductStatus.INACTIVE);
+        }
+
+        // Đồng bộ RAM search index
+        for (Long descId : allDescendantIds) {
+            publishSearchInvalidation(descId, SearchIndexInvalidationEvent.Operation.DELETE);
+        }
+        if (eventPublisher != null) {
+            for (Long pid : productIds) {
+                try {
+                    eventPublisher.publishEvent(new SearchIndexInvalidationEvent(SearchResourceType.PRODUCT, pid, SearchIndexInvalidationEvent.Operation.DELETE));
+                } catch (Exception e) {
+                    log.debug("[CategoryService] Không thể bắn event search index sync cho product ID={}: {}", pid, e.getMessage());
+                }
+            }
+        }
+
+        systemLogService.log(actorId, "CATEGORY_LOCKED", "CATEGORY", categoryId,
+                "Cascade khóa danh mục '" + category.getCategoryName() + "' (force=true, "
+                        + childCategoryCount + " danh mục con, " + productCount + " sản phẩm)");
+        log.info("[CategoryService] Cascade khóa danh mục ID={} và {} danh mục con, {} sản phẩm",
+                categoryId, childCategoryCount, productCount);
+
+        category.setStatus(CategoryStatus.LOCKED);
         return CategoryResponse.fromEntity(category);
     }
 

@@ -1,6 +1,6 @@
 # Project Status
 
-> Last updated: 2026-11-08 | By: @antigravity | Session: #19
+> Last updated: 2026-11-09 | By: @antigravity | Session: #20
 >
 > AI: update this file at the end of every session when asked.
 > Follow this exact format. Preserve full milestone checklists and project specifications.
@@ -8,6 +8,22 @@
 ---
 
 ## Completed
+- ✅ **Nâng cấp Kiểm tra Xác thực Khóa Danh mục (`lockCategory`) theo Cơ chế Xác nhận 2 bước & Kiểm tra Đơn dở dang completed**:
+  - **Cơ chế Xác nhận Hai Bước khi Khóa (`POST /api/v1/manager/categories/{id}/lock?force=false`)**:
+    - Khi danh mục rỗng: khóa ngay lập tức (`status = LOCKED`), ghi audit trail `CATEGORY_LOCKED`.
+    - Khi danh mục còn chứa danh mục con hoặc sản phẩm và `force = false`: ném `ConflictWithPayloadException` (HTTP 409 Conflict) kèm DTO `CategoryLockWarningResponse` (`childCategoryCount`, `productCount`, `totalImpactCount`) để frontend hiển thị popup xác nhận.
+    - Chặn khóa danh mục đã ở trạng thái `LOCKED` (ném `BusinessRuleException`).
+  - **Kiểm tra Toàn vẹn & Cascade Khóa khi `force = true`**:
+    - Kiểm tra đơn hàng dở dang: ném `BusinessRuleException` chặn thao tác nếu có bất kỳ sản phẩm nào trong cây con đang nằm trong đơn hàng chưa hoàn thành (`PENDING`, `CONFIRMED`, `PROCESSING`, `SHIPPING`).
+    - Cascade khóa: gọi `categoryRepository.updateStatusByIds` chuyển toàn bộ danh mục con sang `LOCKED`, và `productRepository.updateStatusByIds` chuyển toàn bộ sản phẩm thuộc cây con sang `INACTIVE`.
+    - Tự động xóa chỉ mục tìm kiếm trong RAM (`SearchIndexInvalidationEvent.Operation.DELETE`) cho toàn bộ danh mục và sản phẩm bị khóa.
+    - Ghi log kiểm toán `CATEGORY_LOCKED` lưu vết số lượng con và sản phẩm bị cascade.
+  - **Chuẩn hóa Ràng buộc Email Manager (`CreateManagerRequest`)**:
+    - Bổ sung regex chặt chẽ `^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$` chặn triệt để email thiếu tên miền / TLD (như `managertest@gmai`), trả về lỗi 400 Bad Request rõ ràng.
+  - **Kiểm thử Toàn diện**:
+    - Bổ sung 6 unit test cases mới: `CategoryServiceImplTest` (4 tests), `ManagerCategoryControllerTest` (2 tests), `UserControllerTest` (2 tests).
+    - Toàn bộ **413/413 tests pass 100%**.
+    - Đồng bộ `api-spec.md` Section 9.4.
 - ✅ **Phase 5 (SystemSetting & SystemLog) — Quản trị Cấu hình Hệ thống & Nhật ký Audit Trail Toàn diện completed**:
   - **Quản trị Cấu hình Động (`SystemSetting`)**:
     - Repository bổ sung `findAllByIsDeletedFalseOrderBySettingKeyAsc`.
