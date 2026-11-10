@@ -8,6 +8,7 @@ import com.hmp.sales.feature.product.dto.*;
 import com.hmp.sales.feature.product.entity.*;
 import com.hmp.sales.feature.product.repository.*;
 import com.hmp.sales.feature.product.service.impl.ProductServiceImpl;
+import com.hmp.sales.feature.systemlog.service.SystemLogService;
 import com.hmp.sales.feature.user.entity.User;
 import com.hmp.sales.feature.user.repository.UserRepository;
 import com.hmp.sales.security.PermissionEvaluationService;
@@ -76,7 +77,7 @@ class ProductServiceImplTest {
     private PermissionEvaluationService permissionEvaluationService;
 
     @Mock
-    private com.hmp.sales.feature.systemlog.service.SystemLogService systemLogService;
+    private SystemLogService systemLogService;
 
     @InjectMocks
     private ProductServiceImpl productService;

@@ -45,6 +45,7 @@ import com.hmp.sales.feature.user.entity.CustomerAddress;
 import com.hmp.sales.feature.user.entity.User;
 import com.hmp.sales.feature.user.repository.CustomerAddressRepository;
 import com.hmp.sales.feature.user.repository.UserRepository;
+import com.hmp.sales.security.PermissionEvaluationService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
@@ -80,7 +81,7 @@ public class CustomerOrderServiceImpl implements CustomerOrderService {
     private final PhoneOtpService phoneOtpService;
     private final SystemSettingService systemSettingService;
     private final CustomerAddressRepository customerAddressRepository;
-    private final com.hmp.sales.security.PermissionEvaluationService permissionEvaluationService;
+    private final PermissionEvaluationService permissionEvaluationService;
     private final ApplicationEventPublisher eventPublisher;
 
     /**
@@ -116,7 +117,7 @@ public class CustomerOrderServiceImpl implements CustomerOrderService {
             PhoneOtpService phoneOtpService,
             SystemSettingService systemSettingService,
             CustomerAddressRepository customerAddressRepository,
-            com.hmp.sales.security.PermissionEvaluationService permissionEvaluationService,
+            PermissionEvaluationService permissionEvaluationService,
             ApplicationEventPublisher eventPublisher) {
         this.orderRepository = orderRepository;
         this.orderItemRepository = orderItemRepository;

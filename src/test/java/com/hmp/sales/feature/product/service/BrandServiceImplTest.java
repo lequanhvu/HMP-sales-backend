@@ -8,6 +8,7 @@ import com.hmp.sales.feature.product.entity.Brand;
 import com.hmp.sales.feature.product.entity.BrandStatus;
 import com.hmp.sales.feature.product.repository.BrandRepository;
 import com.hmp.sales.feature.product.service.impl.BrandServiceImpl;
+import com.hmp.sales.feature.systemlog.service.SystemLogService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -39,7 +40,7 @@ class BrandServiceImplTest {
     private BrandRepository brandRepository;
 
     @Mock
-    private com.hmp.sales.feature.systemlog.service.SystemLogService systemLogService;
+    private SystemLogService systemLogService;
 
     @InjectMocks
     private BrandServiceImpl brandService;

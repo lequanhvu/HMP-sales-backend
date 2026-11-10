@@ -36,6 +36,7 @@ Do not introduce a new framework or infrastructure component without a concrete 
 - Prefer clear, explicit code over speculative abstractions.
 - Avoid generic utility classes unless there is a demonstrated reuse case.
 - Write meaningful Javadoc/comments for public classes, records, functions, DTOs, and service methods (see section 20).
+- Explicitly import all classes/interfaces at the top of the file before using them; never use inline Fully-Qualified Class Names (FQCN) unless there is a name collision (see section 21).
 - Do not hard-code pagination parameters (`page`, `size`) or limit constraints (e.g. maximum product images) in business logic. Always declare them in `application.yaml` under `app.pagination` (`default-page-size`, `max-page-size`) and `app.product` (`max-secondary-images`), bind through `AppProperties`, and inject/access them in services and business components. (In controllers, keep `@RequestParam(defaultValue = "...")` using numeric string literals like `"0"` and `"20"` to guarantee MockMvc standalone test compatibility).
 - Do not silently change an established business rule.
 - When a requirement is not defined, mark it as `TBD` rather than inventing behavior.
@@ -525,4 +526,19 @@ Mọi mã nguồn trong dự án phải tuân thủ các quy tắc comment và t
    - Không viết comment lặp lại tên hàm một cách sáo rỗng (ví dụ: `// get name` cho `getName()`). Chỉ giải thích mục đích, logic đặc thù, hoặc bối cảnh nghiệp vụ.
 6. **Bảo mật và an toàn dữ liệu**:
    - Tuyệt đối không đưa mật khẩu, JWT token, refresh token, secret key, mã OTP, payload nhạy cảm hoặc thông tin định danh cá nhân vào comment code.
+
+---
+
+## 21. Explicit Class Import Rules (Quy tắc import class tường minh)
+
+Mọi mã nguồn trong dự án (bao gồm cả mã nghiệp vụ và mã kiểm thử `src/main` & `src/test`) phải tuân thủ nghiêm ngặt quy tắc import sau:
+
+1. **Import tường minh ở đầu file**:
+   - Luôn luôn thực hiện `import` class, interface, enum hoặc annotation ở phần khai báo import đầu file mã nguồn trước khi sử dụng.
+2. **Tuyệt đối không dùng FQCN (Fully-Qualified Class Name) nội dòng**:
+   - Nghiêm cấm viết tên gói đầy đủ trực tiếp trong khai báo phương thức, kiểu trả về, tham số, khai báo biến hoặc trong code logic (ví dụ cấm: `org.springframework.web.multipart.MultipartFile imageFile`, `java.util.List.of()`, `com.hmp.sales.common.exception.BusinessRuleException`). Thay vào đó phải import ở đầu file và sử dụng tên ngắn gọn (`MultipartFile imageFile`, `List.of()`, `BusinessRuleException`).
+   - Tương tự trong Javadoc tag `@throws`, `@see`, `@link`: ưu tiên import class vào file để viết `@throws BusinessRuleException` thay vì viết kèm tên package dài.
+3. **Trường hợp ngoại lệ duy nhất**:
+   - Chỉ được phép sử dụng FQCN trực tiếp trong code khi xảy ra xung đột tên (name collision) giữa hai class/interface trùng tên từ hai package khác nhau trong cùng một file (ví dụ: `java.util.Date` và `java.sql.Date`, hoặc `org.springframework.security.core.userdetails.User` và `com.hmp.sales.feature.user.entity.User`).
+
 

@@ -105,3 +105,14 @@ app:
       from-address: ${EMAIL_FROM_ADDRESS:no-reply@hmp.vn}
       from-name: ${EMAIL_FROM_NAME:HMP Sales}
       sendgrid-api-key: ${SENDGRID_API_KEY:}
+
+  # Cấu hình lưu trữ tệp trên Cloudflare R2 (S3-compatible Object Storage)
+  storage:
+    r2:
+      # Bật/tắt lưu trữ trên Cloudflare R2 (mặc định false khi chưa cấu hình key)
+      enabled: ${R2_STORAGE_ENABLED:false}
+      account-id: ${R2_ACCOUNT_ID:}
+      access-key: ${R2_ACCESS_KEY:}
+      secret-key: ${R2_SECRET_KEY:}
+      bucket-name: ${R2_BUCKET_NAME:}
+      public-domain: ${R2_PUBLIC_DOMAIN:}

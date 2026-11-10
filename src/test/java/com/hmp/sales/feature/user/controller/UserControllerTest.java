@@ -1,6 +1,7 @@
 package com.hmp.sales.feature.user.controller;
 
 import com.hmp.sales.common.exception.GlobalExceptionHandler;
+import com.hmp.sales.feature.user.dto.CreateManagerRequest;
 import com.hmp.sales.feature.user.dto.UserSearchRequest;
 import com.hmp.sales.feature.user.dto.UserSummaryResponse;
 import com.hmp.sales.feature.user.entity.AuthProvider;
@@ -106,7 +107,7 @@ class UserControllerTest {
                 UserStatus.ACTIVE
         );
 
-        when(userService.createManager(any(com.hmp.sales.feature.user.dto.CreateManagerRequest.class), any())).thenReturn(response);
+        when(userService.createManager(any(CreateManagerRequest.class), any())).thenReturn(response);
 
         mockMvc.perform(post("/api/v1/admin/managers")
                         .principal(authentication)

@@ -8,11 +8,15 @@ import com.hmp.sales.feature.product.dto.ColorRequest;
 import com.hmp.sales.feature.product.dto.ColorResponse;
 import com.hmp.sales.feature.product.service.ColorService;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 /**
  * REST Controller dành cho Admin quản lý danh mục Màu sắc sản xuất (Color).
@@ -85,12 +89,31 @@ public class AdminColorController {
     }
 
     /**
-     * Tạo mới màu sắc.
+     * Tạo mới màu sắc bằng form-data kèm tệp ảnh mẫu trực tiếp (1 bước duy nhất).
+     *
+     * @param colorName tên màu sắc (bắt buộc, tối đa 100 ký tự)
+     * @param image     tệp ảnh tải lên từ máy tính (tùy chọn)
+     * @param imageUrl  đường dẫn URL ảnh trực tiếp (tùy chọn, dùng nếu không tải tệp)
+     * @return thông tin màu sắc vừa tạo
+     */
+    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<ApiSuccessResponse<ColorResponse>> createColorWithFile(
+            @RequestParam("colorName") @NotBlank(message = "Tên màu sắc không được để trống.")
+            @Size(max = 100, message = "Tên màu sắc không được vượt quá 100 ký tự.") String colorName,
+            @RequestParam(value = "image", required = false) MultipartFile image,
+            @RequestParam(value = "imageUrl", required = false) String imageUrl) {
+        ColorResponse response = colorService.createColor(colorName, image, imageUrl);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiSuccessResponse.created("Tạo màu sắc thành công.", response));
+    }
+
+    /**
+     * Tạo mới màu sắc bằng JSON payload (dành cho client đã có sẵn URL ảnh).
      *
      * @param request payload chứa tên màu sắc
      * @return thông tin màu sắc vừa tạo
      */
-    @PostMapping
+    @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<ApiSuccessResponse<ColorResponse>> createColor(
             @Valid @RequestBody ColorRequest request) {
         ColorResponse response = colorService.createColor(request);
@@ -99,13 +122,33 @@ public class AdminColorController {
     }
 
     /**
-     * Cập nhật thông tin màu sắc.
+     * Cập nhật thông tin màu sắc bằng form-data kèm tệp ảnh mẫu mới (1 bước duy nhất).
+     *
+     * @param colorId   ID màu sắc cần cập nhật
+     * @param colorName tên màu sắc mới (bắt buộc)
+     * @param image     tệp ảnh mới tải lên từ máy tính (tùy chọn)
+     * @param imageUrl  đường dẫn URL ảnh mới (tùy chọn)
+     * @return thông tin màu sắc sau cập nhật
+     */
+    @PatchMapping(value = "/{colorId}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<ApiSuccessResponse<ColorResponse>> updateColorWithFile(
+            @PathVariable Long colorId,
+            @RequestParam("colorName") @NotBlank(message = "Tên màu sắc không được để trống.")
+            @Size(max = 100, message = "Tên màu sắc không được vượt quá 100 ký tự.") String colorName,
+            @RequestParam(value = "image", required = false) MultipartFile image,
+            @RequestParam(value = "imageUrl", required = false) String imageUrl) {
+        ColorResponse response = colorService.updateColor(colorId, colorName, image, imageUrl);
+        return ResponseEntity.ok(ApiSuccessResponse.success("Cập nhật màu sắc thành công.", response));
+    }
+
+    /**
+     * Cập nhật thông tin màu sắc bằng JSON payload.
      *
      * @param colorId ID màu sắc cần cập nhật
      * @param request payload chứa thông tin mới
      * @return thông tin màu sắc sau cập nhật
      */
-    @PatchMapping("/{colorId}")
+    @PatchMapping(value = "/{colorId}", consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<ApiSuccessResponse<ColorResponse>> updateColor(
             @PathVariable Long colorId,
             @Valid @RequestBody ColorRequest request) {

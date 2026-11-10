@@ -7,6 +7,7 @@ import com.hmp.sales.feature.auth.entity.RefreshToken;
 import com.hmp.sales.feature.auth.service.impl.AuthServiceImpl;
 import com.hmp.sales.feature.auth.service.GoogleAuthService.GoogleUserPayload;
 import com.hmp.sales.feature.auth.service.RefreshTokenService.RefreshTokenPair;
+import com.hmp.sales.feature.systemlog.service.SystemLogService;
 import com.hmp.sales.feature.user.entity.AuthProvider;
 import com.hmp.sales.feature.user.entity.Role;
 import com.hmp.sales.feature.user.entity.RoleCode;
@@ -14,6 +15,8 @@ import com.hmp.sales.feature.user.entity.User;
 import com.hmp.sales.feature.user.entity.UserStatus;
 import com.hmp.sales.feature.user.repository.RoleRepository;
 import com.hmp.sales.feature.user.repository.UserRepository;
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -44,7 +47,7 @@ class AuthServiceImplTest {
     @Mock private UserRepository userRepository;
     @Mock private RoleRepository roleRepository;
     @Mock private HttpServletResponse httpResponse;
-    @Mock private com.hmp.sales.feature.systemlog.service.SystemLogService systemLogService;
+    @Mock private SystemLogService systemLogService;
 
     private AuthServiceImpl authService;
     private AppProperties appProperties;
@@ -202,9 +205,9 @@ class AuthServiceImplTest {
     @Test
     @DisplayName("refreshToken - Thành công: xoay vòng refresh token và sinh access token với đúng JTI mới")
     void refreshToken_success() {
-        jakarta.servlet.http.HttpServletRequest httpRequest = mock(jakarta.servlet.http.HttpServletRequest.class);
-        jakarta.servlet.http.Cookie cookie = new jakarta.servlet.http.Cookie("refresh_token", "raw-refresh-token");
-        when(httpRequest.getCookies()).thenReturn(new jakarta.servlet.http.Cookie[]{cookie});
+        HttpServletRequest httpRequest = mock(HttpServletRequest.class);
+        Cookie cookie = new Cookie("refresh_token", "raw-refresh-token");
+        when(httpRequest.getCookies()).thenReturn(new Cookie[]{cookie});
 
         UUID newJti = UUID.randomUUID();
         when(jwtTokenService.generateJti()).thenReturn(newJti);

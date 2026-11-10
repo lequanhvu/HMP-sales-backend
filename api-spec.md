@@ -3484,12 +3484,43 @@ GET /api/v1/admin/colors
 POST /api/v1/admin/colors
 ```
 
-### Request example
+Hỗ trợ 2 phương thức gửi dữ liệu:
+
+### Phương thức 1: `multipart/form-data` (Khuyến nghị cho UI / 1 bước hoàn tất)
+Tải trực tiếp tệp ảnh mẫu kèm tên màu sắc trong cùng 1 request:
+- `colorName` (Text, bắt buộc, tối đa 100 ký tự)
+- `image` (File, tùy chọn, định dạng JPEG/PNG/WebP, tối đa 5MB)
+- `imageUrl` (Text, tùy chọn, nếu không tải tệp)
+
+```http
+POST /api/v1/admin/colors
+Authorization: Bearer <admin_jwt>
+Content-Type: multipart/form-data
+
+--boundary
+Content-Disposition: form-data; name="colorName"
+
+Xanh rêu
+--boundary
+Content-Disposition: form-data; name="image"; filename="xanh-reu.png"
+Content-Type: image/png
+
+<binary data>
+--boundary--
+```
+
+### Phương thức 2: `application/json` (Dành cho client đã có sẵn URL ảnh)
+
+```http
+POST /api/v1/admin/colors
+Authorization: Bearer <admin_jwt>
+Content-Type: application/json
+```
 
 ```json
 {
   "colorName": "Xanh rêu",
-  "imageUrl": "https://cdn.example.com/colors/xanh-reu.png"
+  "imageUrl": "https://pub-your-id.r2.dev/colors/xanh-reu.png"
 }
 ```
 
@@ -3499,10 +3530,12 @@ POST /api/v1/admin/colors
 {
   "statusCode": 201,
   "data": {
-    "colorId": 3,
+    "id": 3,
     "colorName": "Xanh rêu",
-    "imageUrl": "https://cdn.example.com/colors/xanh-reu.png",
-    "status": "ACTIVE"
+    "imageUrl": "https://pub-your-id.r2.dev/colors/abc-xyz-xanh-reu.png",
+    "status": "ACTIVE",
+    "createdAt": "2026-10-01T10:00:00Z",
+    "updatedAt": "2026-10-01T10:00:00Z"
   },
   "message": "Tạo màu sắc thành công.",
   "timestamp": "2026-10-01T10:00:00"
@@ -3515,7 +3548,7 @@ POST /api/v1/admin/colors
 {
   "statusCode": 409,
   "data": null,
-  "message": "Màu sắc này đã tồn tại.",
+  "message": "Tên màu sắc 'Xanh rêu' đã tồn tại.",
   "timestamp": "2026-10-01T10:00:00"
 }
 ```
@@ -3526,15 +3559,22 @@ POST /api/v1/admin/colors
 PATCH /api/v1/admin/colors/{colorId}
 ```
 
+Hỗ trợ cả 2 định dạng:
+- `multipart/form-data`: cập nhật `colorName` kèm tệp `image` mới.
+- `application/json`: cập nhật `colorName` và `imageUrl`.
+
 ### Success response — 200
 
 ```json
 {
   "statusCode": 200,
   "data": {
-    "colorId": 3,
+    "id": 3,
     "colorName": "Xanh rêu nhạt",
-    "status": "ACTIVE"
+    "imageUrl": "https://pub-your-id.r2.dev/colors/new-xanh-reu.png",
+    "status": "ACTIVE",
+    "createdAt": "2026-10-01T10:00:00Z",
+    "updatedAt": "2026-10-01T10:30:00Z"
   },
   "message": "Cập nhật màu sắc thành công.",
   "timestamp": "2026-10-01T10:00:00"
@@ -3860,6 +3900,65 @@ POST /api/v1/notifications/read-all
   "data": null,
   "message": "Authentication is required.",
   "timestamp": "2026-10-01T10:00:00"
+}
+```
+
+---
+
+# 17.5 File Storage & Upload APIs
+
+## 17.5.1 Upload Image File
+
+Upload tệp hình ảnh (PNG, JPEG, WEBP, GIF) lên Cloudflare R2 Object Storage phục vụ ảnh sản phẩm, ảnh mẫu màu sắc, logo thương hiệu.
+
+```http
+POST /api/v1/files/upload
+```
+
+### Request Headers
+- `Content-Type`: `multipart/form-data`
+- `Authorization`: `Bearer <token>` (Yêu cầu quyền `FILE_UPLOAD` — ADMIN hoặc MANAGER)
+
+### Form-data Parameters
+- `file` (MultipartFile, required): Dữ liệu nhị phân của tệp ảnh (tối đa 5MB).
+- `folder` (string, optional, default: `"general"`): Thư mục con phân loại trên storage (ví dụ: `"colors"`, `"products"`, `"brands"`).
+
+### Success response — 200
+
+```json
+{
+  "statusCode": 200,
+  "data": {
+    "fileUrl": "https://pub-xxx.r2.dev/colors/6d1ce6d3-f82d-4ed7-98cd-1c20ccb43db5.png",
+    "originalName": "mau-ton-xanh.png",
+    "storedName": "6d1ce6d3-f82d-4ed7-98cd-1c20ccb43db5.png",
+    "contentType": "image/png",
+    "size": 102400
+  },
+  "message": "Tải tệp lên thành công.",
+  "timestamp": "2026-11-10T00:30:00"
+}
+```
+
+### Failure response — 400 (Tệp không hợp lệ / dung lượng vượt quá giới hạn)
+
+```json
+{
+  "statusCode": 400,
+  "data": null,
+  "message": "Kích thước tệp vượt quá giới hạn tối đa cho phép (5MB).",
+  "timestamp": "2026-11-10T00:30:00"
+}
+```
+
+### Failure response — 403 (Không có quyền FILE_UPLOAD)
+
+```json
+{
+  "statusCode": 403,
+  "data": null,
+  "message": "Không có quyền thực hiện thao tác này.",
+  "timestamp": "2026-11-10T00:30:00"
 }
 ```
 

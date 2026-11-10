@@ -16,6 +16,7 @@ import com.hmp.sales.feature.category.service.impl.CategoryServiceImpl;
 import com.hmp.sales.feature.product.entity.Product;
 import com.hmp.sales.feature.product.entity.ProductStatus;
 import com.hmp.sales.feature.product.repository.ProductRepository;
+import com.hmp.sales.feature.systemlog.service.SystemLogService;
 import com.hmp.sales.feature.user.entity.User;
 import com.hmp.sales.feature.user.repository.UserRepository;
 import com.hmp.sales.security.PermissionEvaluationService;
@@ -59,7 +60,7 @@ class CategoryServiceImplTest {
     private PermissionEvaluationService permissionEvaluationService;
 
     @Mock
-    private com.hmp.sales.feature.systemlog.service.SystemLogService systemLogService;
+    private SystemLogService systemLogService;
 
     @InjectMocks
     private CategoryServiceImpl categoryService;

@@ -14,7 +14,8 @@ public record AppProperties(
     CorsProperties cors,
     PaginationProperties pagination,
     ProductProperties product,
-    NotificationProperties notification
+    NotificationProperties notification,
+    StorageProperties storage
 ) {
     @ConstructorBinding
     public AppProperties {
@@ -30,6 +31,9 @@ public record AppProperties(
                 new EmailProperties(false, "", "HMP Sales", "")
             );
         }
+        if (storage == null) {
+            storage = new StorageProperties(new R2Properties(false, "", "", "", "", ""));
+        }
     }
 
     public AppProperties(
@@ -40,7 +44,19 @@ public record AppProperties(
         PaginationProperties pagination,
         ProductProperties product
     ) {
-        this(jwt, otp, order, cors, pagination, product, null);
+        this(jwt, otp, order, cors, pagination, product, null, null);
+    }
+
+    public AppProperties(
+        JwtProperties jwt,
+        OtpProperties otp,
+        OrderProperties order,
+        CorsProperties cors,
+        PaginationProperties pagination,
+        ProductProperties product,
+        NotificationProperties notification
+    ) {
+        this(jwt, otp, order, cors, pagination, product, notification, null);
     }
 
     public record JwtProperties(
@@ -136,5 +152,24 @@ public record AppProperties(
         String fromAddress,
         String fromName,
         String sendgridApiKey
+    ) {}
+
+    public record StorageProperties(
+        R2Properties r2
+    ) {
+        public StorageProperties {
+            if (r2 == null) {
+                r2 = new R2Properties(false, "", "", "", "", "");
+            }
+        }
+    }
+
+    public record R2Properties(
+        boolean enabled,
+        String accountId,
+        String accessKey,
+        String secretKey,
+        String bucketName,
+        String publicDomain
     ) {}
 }

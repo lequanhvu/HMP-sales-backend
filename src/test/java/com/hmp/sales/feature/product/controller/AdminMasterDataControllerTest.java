@@ -21,9 +21,15 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+
+import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
@@ -117,9 +123,9 @@ class AdminMasterDataControllerTest {
     @DisplayName("GET /api/v1/admin/brands - Danh sách thương hiệu trả về format phân trang chuẩn")
     void listBrands_returnsPagedResponse() throws Exception {
         BrandResponse response = new BrandResponse(1L, "Tôn Hoa Sen", BrandStatus.ACTIVE, null, null);
-        org.springframework.data.domain.Page<BrandResponse> paged = new org.springframework.data.domain.PageImpl<>(
-                java.util.List.of(response),
-                org.springframework.data.domain.PageRequest.of(0, 20),
+        Page<BrandResponse> paged = new PageImpl<>(
+                List.of(response),
+                PageRequest.of(0, 20),
                 1
         );
         when(brandService.searchBrands(any(), any(), eq(0), eq(20))).thenReturn(paged);
@@ -139,9 +145,9 @@ class AdminMasterDataControllerTest {
     @DisplayName("GET /api/v1/admin/units - Danh sách đơn vị tính trả về format phân trang chuẩn")
     void listUnits_returnsPagedResponse() throws Exception {
         UnitResponse response = new UnitResponse(1L, "mét", UnitStatus.ACTIVE, null, null);
-        org.springframework.data.domain.Page<UnitResponse> paged = new org.springframework.data.domain.PageImpl<>(
-                java.util.List.of(response),
-                org.springframework.data.domain.PageRequest.of(0, 20),
+        Page<UnitResponse> paged = new PageImpl<>(
+                List.of(response),
+                PageRequest.of(0, 20),
                 1
         );
         when(unitService.searchUnits(any(), any(), eq(0), eq(20))).thenReturn(paged);
@@ -161,9 +167,9 @@ class AdminMasterDataControllerTest {
     @DisplayName("GET /api/v1/admin/colors - Danh sách màu sắc trả về format phân trang chuẩn")
     void listColors_returnsPagedResponse() throws Exception {
         ColorResponse response = new ColorResponse(1L, "Xanh ngọc", ColorStatus.ACTIVE, null, null);
-        org.springframework.data.domain.Page<ColorResponse> paged = new org.springframework.data.domain.PageImpl<>(
-                java.util.List.of(response),
-                org.springframework.data.domain.PageRequest.of(0, 20),
+        Page<ColorResponse> paged = new PageImpl<>(
+                List.of(response),
+                PageRequest.of(0, 20),
                 1
         );
         when(colorService.searchColors(any(), any(), eq(0), eq(20))).thenReturn(paged);
@@ -191,5 +197,41 @@ class AdminMasterDataControllerTest {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.statusCode").value(201))
                 .andExpect(jsonPath("$.data.colorName").value("Xanh ngọc"));
+    }
+
+    @Test
+    @DisplayName("POST /api/v1/admin/colors (multipart) - Tạo màu sắc kèm tệp ảnh 201 Created")
+    void createColorWithMultipart_returns201() throws Exception {
+        MockMultipartFile file = new MockMultipartFile("image", "color.jpg", "image/jpeg", "image-content".getBytes());
+        ColorResponse response = new ColorResponse(1L, "Xanh rêu", "https://r2.cdn/color.jpg", ColorStatus.ACTIVE, null, null);
+        when(colorService.createColor(eq("Xanh rêu"), any(), any())).thenReturn(response);
+
+        mockMvcColor.perform(multipart("/api/v1/admin/colors")
+                        .file(file)
+                        .param("colorName", "Xanh rêu"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.statusCode").value(201))
+                .andExpect(jsonPath("$.data.colorName").value("Xanh rêu"))
+                .andExpect(jsonPath("$.data.imageUrl").value("https://r2.cdn/color.jpg"));
+    }
+
+    @Test
+    @DisplayName("PATCH /api/v1/admin/colors/{id} (multipart) - Cập nhật màu sắc kèm tệp ảnh 200 OK")
+    void updateColorWithMultipart_returns200() throws Exception {
+        MockMultipartFile file = new MockMultipartFile("image", "new-color.jpg", "image/jpeg", "new-image-content".getBytes());
+        ColorResponse response = new ColorResponse(1L, "Xanh lá", "https://r2.cdn/new-color.jpg", ColorStatus.ACTIVE, null, null);
+        when(colorService.updateColor(eq(1L), eq("Xanh lá"), any(), any())).thenReturn(response);
+
+        mockMvcColor.perform(multipart("/api/v1/admin/colors/1")
+                        .file(file)
+                        .param("colorName", "Xanh lá")
+                        .with(request -> {
+                            request.setMethod("PATCH");
+                            return request;
+                        }))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.statusCode").value(200))
+                .andExpect(jsonPath("$.data.colorName").value("Xanh lá"))
+                .andExpect(jsonPath("$.data.imageUrl").value("https://r2.cdn/new-color.jpg"));
     }
 }

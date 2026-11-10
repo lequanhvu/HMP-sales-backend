@@ -15,6 +15,7 @@ import com.hmp.sales.feature.user.repository.PermissionRepository;
 import com.hmp.sales.feature.user.repository.RolePermissionRepository;
 import com.hmp.sales.feature.user.repository.RoleRepository;
 import com.hmp.sales.feature.user.repository.UserRepository;
+import com.hmp.sales.security.PermissionAuthorizationManager;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -59,7 +60,7 @@ class AdminRoleServiceTest {
         private SystemLogService systemLogService;
 
         @Mock
-        private com.hmp.sales.security.PermissionAuthorizationManager permissionAuthorizationManager;
+        private PermissionAuthorizationManager permissionAuthorizationManager;
 
         private RoleServiceImpl adminRoleService;
 

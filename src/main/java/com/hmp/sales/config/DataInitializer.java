@@ -18,6 +18,7 @@ import com.hmp.sales.feature.user.repository.PermissionRepository;
 import com.hmp.sales.feature.user.repository.RolePermissionRepository;
 import com.hmp.sales.feature.user.repository.RoleRepository;
 import com.hmp.sales.feature.user.repository.UserRepository;
+import com.hmp.sales.security.PermissionAuthorizationManager;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
@@ -56,7 +57,7 @@ public class DataInitializer implements ApplicationRunner {
     private final ProductColorRepository productColorRepository;
     private final ProductPriceRepository productPriceRepository;
     private final SystemSettingRepository systemSettingRepository;
-    private final com.hmp.sales.security.PermissionAuthorizationManager permissionAuthorizationManager;
+    private final PermissionAuthorizationManager permissionAuthorizationManager;
 
     /**
      * Khởi tạo DataInitializer với các repository và manager cần thiết để seed dữ liệu.
@@ -92,7 +93,7 @@ public class DataInitializer implements ApplicationRunner {
             ProductColorRepository productColorRepository,
             ProductPriceRepository productPriceRepository,
             SystemSettingRepository systemSettingRepository,
-            com.hmp.sales.security.PermissionAuthorizationManager permissionAuthorizationManager) {
+            PermissionAuthorizationManager permissionAuthorizationManager) {
         this.roleRepository = roleRepository;
         this.permissionRepository = permissionRepository;
         this.rolePermissionRepository = rolePermissionRepository;
@@ -239,7 +240,9 @@ public class DataInitializer implements ApplicationRunner {
             // --- NOTIFICATION module ---
             new Object[]{"NOTIFICATION_VIEW_OWN",     "NOTIFICATION", "/api/v1/notifications/**",                 "GET",    "Xem danh sách thông báo và số lượng chưa đọc"},
             new Object[]{"NOTIFICATION_MARK_READ",    "NOTIFICATION", "/api/v1/notifications/**/read",            "POST",   "Đánh dấu thông báo đã đọc"},
-            new Object[]{"NOTIFICATION_MARK_ALL_READ", "NOTIFICATION", "/api/v1/notifications/read-all",          "POST",   "Đánh dấu toàn bộ thông báo đã đọc"}
+            new Object[]{"NOTIFICATION_MARK_ALL_READ", "NOTIFICATION", "/api/v1/notifications/read-all",          "POST",   "Đánh dấu toàn bộ thông báo đã đọc"},
+            // --- FILE module ---
+            new Object[]{"FILE_UPLOAD",               "FILE",     "/api/v1/files/upload",                         "POST",   "Tải tệp hình ảnh lên máy chủ lưu trữ"}
     );
 
     private void seedPermissions() {
@@ -308,7 +311,8 @@ public class DataInitializer implements ApplicationRunner {
             "ME_PROFILE_VIEW", "ME_PROFILE_UPDATE", "ME_ADDRESS_VIEW", "ME_ADDRESS_CREATE", "ME_ADDRESS_UPDATE", "ME_ADDRESS_DELETE",
             "NOTIFICATION_VIEW_OWN", "NOTIFICATION_MARK_READ", "NOTIFICATION_MARK_ALL_READ",
             "SYSTEM_LOG_VIEW", "SYSTEM_SETTING_VIEW", "SYSTEM_SETTING_UPDATE",
-            "ROLE_PERMISSION_VIEW", "ROLE_PERMISSION_UPDATE"
+            "ROLE_PERMISSION_VIEW", "ROLE_PERMISSION_UPDATE",
+            "FILE_UPLOAD"
     );
 
     private static final Set<String> MANAGER_PERMISSIONS = Set.of(
@@ -320,7 +324,8 @@ public class DataInitializer implements ApplicationRunner {
             "ORDER_VIEW_ALL", "ORDER_CALCULATE", "ORDER_CONFIRM", "ORDER_CANCEL_ANY", "ORDER_STATUS_UPDATE",
             "ORDER_CREATE", "ORDER_VIEW_OWN", "ORDER_CANCEL_OWN", "ORDER_UNDO_CANCEL_OWN", "ORDER_UNDO_CANCEL_ANY",
             "ME_PROFILE_VIEW", "ME_PROFILE_UPDATE", "ME_ADDRESS_VIEW", "ME_ADDRESS_CREATE", "ME_ADDRESS_UPDATE", "ME_ADDRESS_DELETE",
-            "NOTIFICATION_VIEW_OWN", "NOTIFICATION_MARK_READ", "NOTIFICATION_MARK_ALL_READ"
+            "NOTIFICATION_VIEW_OWN", "NOTIFICATION_MARK_READ", "NOTIFICATION_MARK_ALL_READ",
+            "FILE_UPLOAD"
     );
 
     private static final Set<String> CUSTOMER_PERMISSIONS = Set.of(

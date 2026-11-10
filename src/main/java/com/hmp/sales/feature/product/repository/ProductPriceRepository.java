@@ -9,6 +9,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Repository truy vấn dữ liệu cho thực thể {@link ProductPrice}.
@@ -33,7 +34,7 @@ public interface ProductPriceRepository extends JpaRepository<ProductPrice, Prod
      * @return Optional chứa bảng giá nếu tồn tại
      */
     @Query("SELECT pp FROM ProductPrice pp WHERE pp.variant.id = :variantId AND pp.unit.id = :unitId AND pp.isDeleted = false")
-    java.util.Optional<ProductPrice> findByVariantIdAndUnitId(@Param("variantId") Long variantId, @Param("unitId") Long unitId);
+    Optional<ProductPrice> findByVariantIdAndUnitId(@Param("variantId") Long variantId, @Param("unitId") Long unitId);
 
     /**
      * Kiểm tra xem đơn vị tính có trong bảng giá của biến thể sản phẩm và chưa bị xóa mềm hay không.

@@ -3,6 +3,7 @@ package com.hmp.sales.feature.user.service;
 import com.hmp.sales.common.exception.BusinessRuleException;
 import com.hmp.sales.common.exception.ResourceNotFoundException;
 import com.hmp.sales.feature.otp.service.PhoneOtpService;
+import com.hmp.sales.feature.systemlog.service.SystemLogService;
 import com.hmp.sales.feature.user.dto.UpdateProfileRequest;
 import com.hmp.sales.feature.user.dto.UserProfileResponse;
 import com.hmp.sales.feature.user.entity.AuthProvider;
@@ -39,7 +40,7 @@ class UserProfileServiceImplTest {
     private PhoneOtpService phoneOtpService;
 
     @Mock
-    private com.hmp.sales.feature.systemlog.service.SystemLogService systemLogService;
+    private SystemLogService systemLogService;
 
     @InjectMocks
     private UserProfileServiceImpl userProfileService;

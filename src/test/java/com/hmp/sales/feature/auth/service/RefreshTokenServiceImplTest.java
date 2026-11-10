@@ -6,6 +6,7 @@ import com.hmp.sales.feature.auth.entity.RefreshToken;
 import com.hmp.sales.feature.auth.repository.RefreshTokenRepository;
 import com.hmp.sales.feature.auth.service.impl.RefreshTokenServiceImpl;
 import com.hmp.sales.feature.auth.util.HashUtils;
+import com.hmp.sales.feature.systemlog.service.SystemLogService;
 import com.hmp.sales.feature.user.entity.Role;
 import com.hmp.sales.feature.user.entity.RoleCode;
 import com.hmp.sales.feature.user.entity.User;
@@ -39,7 +40,7 @@ class RefreshTokenServiceImplTest {
     private JwtTokenService jwtTokenService;
 
     @Mock
-    private com.hmp.sales.feature.systemlog.service.SystemLogService systemLogService;
+    private SystemLogService systemLogService;
 
     private RefreshTokenServiceImpl refreshTokenService;
     private AppProperties appProperties;

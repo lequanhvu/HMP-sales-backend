@@ -1,9 +1,13 @@
 package com.hmp.sales.feature.setting.service;
 
+import com.hmp.sales.common.exception.BusinessRuleException;
+import com.hmp.sales.common.exception.ResourceNotFoundException;
 import com.hmp.sales.config.AppProperties;
 import com.hmp.sales.feature.setting.entity.SystemSetting;
 import com.hmp.sales.feature.setting.repository.SystemSettingRepository;
 import com.hmp.sales.feature.setting.service.impl.SystemSettingServiceImpl;
+import com.hmp.sales.feature.systemlog.service.SystemLogService;
+import com.hmp.sales.feature.user.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -15,6 +19,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
@@ -35,10 +40,10 @@ class SystemSettingServiceImplTest {
     private AppProperties.OrderProperties orderProperties;
 
     @Mock
-    private com.hmp.sales.feature.systemlog.service.SystemLogService systemLogService;
+    private SystemLogService systemLogService;
 
     @Mock
-    private com.hmp.sales.feature.user.repository.UserRepository userRepository;
+    private UserRepository userRepository;
 
     @InjectMocks
     private SystemSettingServiceImpl systemSettingService;
@@ -206,9 +211,9 @@ class SystemSettingServiceImplTest {
         when(systemSettingRepository.findBySettingKeyAndIsDeletedFalse("UNKNOWN"))
                 .thenReturn(Optional.empty());
 
-        org.assertj.core.api.Assertions.assertThatThrownBy(() ->
+        assertThatThrownBy(() ->
                 systemSettingService.updateSetting(1L, "UNKNOWN", "123"))
-                .isInstanceOf(com.hmp.sales.common.exception.ResourceNotFoundException.class);
+                .isInstanceOf(ResourceNotFoundException.class);
     }
 
     @Test
@@ -224,19 +229,19 @@ class SystemSettingServiceImplTest {
                 .thenReturn(Optional.of(setting));
 
         // Không phải số
-        org.assertj.core.api.Assertions.assertThatThrownBy(() ->
+        assertThatThrownBy(() ->
                 systemSettingService.updateSetting(1L, SystemSettingService.KEY_CANCELLATION_WINDOW_MINUTES, "abc"))
-                .isInstanceOf(com.hmp.sales.common.exception.BusinessRuleException.class);
+                .isInstanceOf(BusinessRuleException.class);
 
         // Cửa sổ = 0
-        org.assertj.core.api.Assertions.assertThatThrownBy(() ->
+        assertThatThrownBy(() ->
                 systemSettingService.updateSetting(1L, SystemSettingService.KEY_CANCELLATION_WINDOW_MINUTES, "0"))
-                .isInstanceOf(com.hmp.sales.common.exception.BusinessRuleException.class);
+                .isInstanceOf(BusinessRuleException.class);
 
         // Cửa sổ âm
-        org.assertj.core.api.Assertions.assertThatThrownBy(() ->
+        assertThatThrownBy(() ->
                 systemSettingService.updateSetting(1L, SystemSettingService.KEY_CANCELLATION_WINDOW_MINUTES, "-5"))
-                .isInstanceOf(com.hmp.sales.common.exception.BusinessRuleException.class);
+                .isInstanceOf(BusinessRuleException.class);
     }
 }
 

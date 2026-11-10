@@ -5,6 +5,7 @@ import com.hmp.sales.common.exception.InvalidOrderStateException;
 import com.hmp.sales.common.exception.OtpVerificationException;
 import com.hmp.sales.common.exception.ResourceNotFoundException;
 import com.hmp.sales.common.response.PageResponse;
+import com.hmp.sales.feature.notification.event.OrderStatusChangedEvent;
 import com.hmp.sales.feature.order.dto.CancelOrderRequest;
 import com.hmp.sales.feature.order.dto.CreateOrderRequest;
 import com.hmp.sales.feature.order.dto.OrderDetailResponse;
@@ -42,6 +43,7 @@ import com.hmp.sales.feature.user.entity.User;
 import com.hmp.sales.feature.user.entity.UserStatus;
 import com.hmp.sales.feature.user.repository.CustomerAddressRepository;
 import com.hmp.sales.feature.user.repository.UserRepository;
+import com.hmp.sales.security.PermissionEvaluationService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -118,7 +120,7 @@ class CustomerOrderServiceImplTest {
     private CustomerAddressRepository customerAddressRepository;
 
     @Mock
-    private com.hmp.sales.security.PermissionEvaluationService permissionEvaluationService;
+    private PermissionEvaluationService permissionEvaluationService;
 
     @Mock
     private ApplicationEventPublisher eventPublisher;
@@ -840,7 +842,7 @@ class CustomerOrderServiceImplTest {
         assertThat(sampleOrder.getCancellationReason()).isNull();
 
         verify(orderStatusHistoryRepository).save(any(OrderStatusHistory.class));
-        verify(eventPublisher).publishEvent(any(com.hmp.sales.feature.notification.event.OrderStatusChangedEvent.class));
+        verify(eventPublisher).publishEvent(any(OrderStatusChangedEvent.class));
     }
 
     @Test

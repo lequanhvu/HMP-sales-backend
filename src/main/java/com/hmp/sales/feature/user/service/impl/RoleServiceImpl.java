@@ -15,6 +15,7 @@ import com.hmp.sales.feature.user.repository.RolePermissionRepository;
 import com.hmp.sales.feature.user.repository.RoleRepository;
 import com.hmp.sales.feature.user.repository.UserRepository;
 import com.hmp.sales.feature.user.service.RoleService;
+import com.hmp.sales.security.PermissionAuthorizationManager;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -48,7 +49,7 @@ public class RoleServiceImpl implements RoleService {
     private final UserRepository userRepository;
     private final StringRedisTemplate stringRedisTemplate;
     private final SystemLogService systemLogService;
-    private final com.hmp.sales.security.PermissionAuthorizationManager permissionAuthorizationManager;
+    private final PermissionAuthorizationManager permissionAuthorizationManager;
 
     public RoleServiceImpl(
             RoleRepository roleRepository,
@@ -57,7 +58,7 @@ public class RoleServiceImpl implements RoleService {
             UserRepository userRepository,
             StringRedisTemplate stringRedisTemplate,
             SystemLogService systemLogService,
-            com.hmp.sales.security.PermissionAuthorizationManager permissionAuthorizationManager) {
+            PermissionAuthorizationManager permissionAuthorizationManager) {
         this.roleRepository = roleRepository;
         this.permissionRepository = permissionRepository;
         this.rolePermissionRepository = rolePermissionRepository;

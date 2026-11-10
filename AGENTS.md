@@ -53,6 +53,7 @@ Do not invent business behavior when the requirements are silent. Mark unresolve
 5. Add or update tests for business rules and security-sensitive behavior.
 
 ### When implementing a feature:
+- Explicitly import all classes/interfaces at the top of the file before using them; never use inline Fully-Qualified Class Names (FQCN) in method declarations, parameters, or return types unless resolving name collisions.
 - Write clear Javadoc comments for all public classes, records, functions, DTOs, and service methods.
 - Update the relevant `.md` document when the behavior or contract changes.
 - Update `project-status.md` only after the implementation state actually changes.

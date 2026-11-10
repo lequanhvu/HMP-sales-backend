@@ -4,6 +4,7 @@ import com.hmp.sales.common.exception.BusinessRuleException;
 import com.hmp.sales.common.exception.InvalidOrderStateException;
 import com.hmp.sales.common.exception.ResourceNotFoundException;
 import com.hmp.sales.common.response.PageResponse;
+import com.hmp.sales.feature.notification.event.OrderStatusChangedEvent;
 import com.hmp.sales.feature.order.dto.CalculateOrderRequest;
 import com.hmp.sales.feature.order.dto.CancelOrderRequest;
 import com.hmp.sales.feature.order.dto.ManagerOrderFilterRequest;
@@ -24,6 +25,7 @@ import com.hmp.sales.feature.product.entity.ProductPrice;
 import com.hmp.sales.feature.product.entity.ProductVariant;
 import com.hmp.sales.feature.product.entity.Unit;
 import com.hmp.sales.feature.product.repository.ProductPriceRepository;
+import com.hmp.sales.feature.systemlog.service.SystemLogService;
 import com.hmp.sales.feature.user.entity.User;
 import com.hmp.sales.feature.user.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -76,7 +78,7 @@ class ManagerOrderServiceImplTest {
     private ApplicationEventPublisher eventPublisher;
 
     @Mock
-    private com.hmp.sales.feature.systemlog.service.SystemLogService systemLogService;
+    private SystemLogService systemLogService;
 
     @InjectMocks
     private ManagerOrderServiceImpl managerOrderService;
@@ -567,7 +569,7 @@ class ManagerOrderServiceImplTest {
         assertThat(order.getCancellationReason()).isNull();
 
         verify(orderStatusHistoryRepository).save(any(OrderStatusHistory.class));
-        verify(eventPublisher).publishEvent(any(com.hmp.sales.feature.notification.event.OrderStatusChangedEvent.class));
+        verify(eventPublisher).publishEvent(any(OrderStatusChangedEvent.class));
     }
 
     @Test

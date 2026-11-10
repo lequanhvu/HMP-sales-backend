@@ -5,6 +5,8 @@ import com.hmp.sales.common.exception.ResourceNotFoundException;
 import com.hmp.sales.common.util.AuditValueUtils;
 import com.hmp.sales.common.util.SecurityUtils;
 import com.hmp.sales.common.util.VietnameseStringUtils;
+import com.hmp.sales.feature.file.dto.FileUploadResponse;
+import com.hmp.sales.feature.file.service.FileStorageService;
 import com.hmp.sales.feature.product.dto.ColorRequest;
 import com.hmp.sales.feature.product.dto.ColorResponse;
 import com.hmp.sales.feature.product.entity.Color;
@@ -13,11 +15,13 @@ import com.hmp.sales.feature.product.repository.ColorRepository;
 import com.hmp.sales.feature.product.service.ColorService;
 import com.hmp.sales.feature.systemlog.service.SystemLogService;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.Map;
@@ -32,16 +36,32 @@ public class ColorServiceImpl implements ColorService {
 
     private final ColorRepository colorRepository;
     private final SystemLogService systemLogService;
+    private final FileStorageService fileStorageService;
 
     /**
-     * Khởi tạo ColorServiceImpl với repository màu sắc và service ghi log hệ thống.
+     * Khởi tạo ColorServiceImpl với đầy đủ các dependency.
+     *
+     * @param colorRepository    repository quản lý màu sắc
+     * @param systemLogService   service ghi nhật ký hệ thống
+     * @param fileStorageService service tải tệp lưu trữ đám mây (tùy chọn)
+     */
+    @Autowired
+    public ColorServiceImpl(ColorRepository colorRepository,
+                            SystemLogService systemLogService,
+                            @Autowired(required = false) FileStorageService fileStorageService) {
+        this.colorRepository = colorRepository;
+        this.systemLogService = systemLogService;
+        this.fileStorageService = fileStorageService;
+    }
+
+    /**
+     * Khởi tạo ColorServiceImpl đơn giản (dành cho unit test).
      *
      * @param colorRepository  repository quản lý màu sắc
      * @param systemLogService service ghi nhật ký hệ thống
      */
     public ColorServiceImpl(ColorRepository colorRepository, SystemLogService systemLogService) {
-        this.colorRepository = colorRepository;
-        this.systemLogService = systemLogService;
+        this(colorRepository, systemLogService, null);
     }
 
     /** {@inheritDoc} */
@@ -84,6 +104,21 @@ public class ColorServiceImpl implements ColorService {
     /** {@inheritDoc} */
     @Override
     @Transactional
+    public ColorResponse createColor(String colorName, MultipartFile imageFile, String imageUrl) {
+        String resolvedImageUrl = imageUrl;
+        if (imageFile != null && !imageFile.isEmpty()) {
+            if (fileStorageService == null) {
+                throw new BusinessRuleException("Dịch vụ lưu trữ tệp chưa sẵn sàng để xử lý ảnh tải lên.");
+            }
+            FileUploadResponse uploadResponse = fileStorageService.uploadImage(imageFile, "colors");
+            resolvedImageUrl = uploadResponse.fileUrl();
+        }
+        return createColor(new ColorRequest(colorName, resolvedImageUrl));
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    @Transactional
     public ColorResponse updateColor(Long colorId, ColorRequest request) {
         Color color = findActiveColor(colorId);
         String oldName = color.getColorName();
@@ -99,6 +134,21 @@ public class ColorServiceImpl implements ColorService {
                 AuditValueUtils.toJson(Map.of("colorName", oldName)),
                 AuditValueUtils.toJson(Map.of("colorName", saved.getColorName())));
         return ColorResponse.fromEntity(saved);
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    @Transactional
+    public ColorResponse updateColor(Long colorId, String colorName, MultipartFile imageFile, String imageUrl) {
+        String resolvedImageUrl = imageUrl;
+        if (imageFile != null && !imageFile.isEmpty()) {
+            if (fileStorageService == null) {
+                throw new BusinessRuleException("Dịch vụ lưu trữ tệp chưa sẵn sàng để xử lý ảnh tải lên.");
+            }
+            FileUploadResponse uploadResponse = fileStorageService.uploadImage(imageFile, "colors");
+            resolvedImageUrl = uploadResponse.fileUrl();
+        }
+        return updateColor(colorId, new ColorRequest(colorName, resolvedImageUrl));
     }
 
     /** {@inheritDoc} */

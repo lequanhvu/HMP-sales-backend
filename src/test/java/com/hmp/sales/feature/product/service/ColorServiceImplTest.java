@@ -1,12 +1,15 @@
 package com.hmp.sales.feature.product.service;
 
 import com.hmp.sales.common.exception.BusinessRuleException;
+import com.hmp.sales.feature.file.dto.FileUploadResponse;
+import com.hmp.sales.feature.file.service.FileStorageService;
 import com.hmp.sales.feature.product.dto.ColorRequest;
 import com.hmp.sales.feature.product.dto.ColorResponse;
 import com.hmp.sales.feature.product.entity.Color;
 import com.hmp.sales.feature.product.entity.ColorStatus;
 import com.hmp.sales.feature.product.repository.ColorRepository;
 import com.hmp.sales.feature.product.service.impl.ColorServiceImpl;
+import com.hmp.sales.feature.systemlog.service.SystemLogService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -17,6 +20,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
+import org.springframework.mock.web.MockMultipartFile;
 
 import java.util.List;
 import java.util.Optional;
@@ -38,7 +42,10 @@ class ColorServiceImplTest {
     private ColorRepository colorRepository;
 
     @Mock
-    private com.hmp.sales.feature.systemlog.service.SystemLogService systemLogService;
+    private SystemLogService systemLogService;
+
+    @Mock
+    private FileStorageService fileStorageService;
 
     @InjectMocks
     private ColorServiceImpl colorService;
@@ -134,5 +141,66 @@ class ColorServiceImplTest {
 
         assertThat(color.getIsDeleted()).isTrue();
         verify(colorRepository).save(color);
+    }
+
+    @Test
+    @DisplayName("createColor (Multipart) - Tải tệp ảnh trực tiếp và tạo màu sắc thành công")
+    void createColor_withMultipartFile_success() {
+        MockMultipartFile file = new MockMultipartFile("image", "color-sample.jpg", "image/jpeg", "fake-image".getBytes());
+        FileUploadResponse uploadResponse = new FileUploadResponse(
+                "https://pub-r2.test/colors/sample.jpg",
+                "color-sample.jpg",
+                "colors/sample.jpg",
+                "image/jpeg",
+                10L
+        );
+        when(fileStorageService.uploadImage(file, "colors")).thenReturn(uploadResponse);
+        when(colorRepository.existsByColorNameAndIsDeletedFalse("Xanh rêu")).thenReturn(false);
+        when(colorRepository.save(any(Color.class))).thenAnswer(inv -> {
+            Color c = inv.getArgument(0);
+            c.setId(10L);
+            return c;
+        });
+
+        ColorResponse response = colorService.createColor("Xanh rêu", file, null);
+
+        assertThat(response).isNotNull();
+        assertThat(response.colorName()).isEqualTo("Xanh rêu");
+        assertThat(response.imageUrl()).isEqualTo("https://pub-r2.test/colors/sample.jpg");
+        verify(fileStorageService).uploadImage(file, "colors");
+    }
+
+    @Test
+    @DisplayName("createColor (Multipart) - Khi FileStorageService null ném BusinessRuleException")
+    void createColor_withMultipartFile_whenFileStorageNull_throwsException() {
+        ColorServiceImpl serviceWithoutStorage = new ColorServiceImpl(colorRepository, systemLogService);
+        MockMultipartFile file = new MockMultipartFile("image", "color.jpg", "image/jpeg", "fake".getBytes());
+
+        assertThatThrownBy(() -> serviceWithoutStorage.createColor("Xanh rêu", file, null))
+                .isInstanceOf(BusinessRuleException.class)
+                .hasMessageContaining("Dịch vụ lưu trữ tệp chưa sẵn sàng");
+    }
+
+    @Test
+    @DisplayName("updateColor (Multipart) - Tải tệp ảnh mới và cập nhật màu sắc thành công")
+    void updateColor_withMultipartFile_success() {
+        MockMultipartFile file = new MockMultipartFile("image", "new-color.jpg", "image/jpeg", "fake".getBytes());
+        FileUploadResponse uploadResponse = new FileUploadResponse(
+                "https://pub-r2.test/colors/new-color.jpg",
+                "new-color.jpg",
+                "colors/new-color.jpg",
+                "image/jpeg",
+                4L
+        );
+        when(colorRepository.findByIdAndIsDeletedFalse(1L)).thenReturn(Optional.of(color));
+        when(colorRepository.existsByColorNameAndIsDeletedFalseAndIdNot("Xanh lá", 1L)).thenReturn(false);
+        when(fileStorageService.uploadImage(file, "colors")).thenReturn(uploadResponse);
+        when(colorRepository.save(any(Color.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        ColorResponse response = colorService.updateColor(1L, "Xanh lá", file, null);
+
+        assertThat(response).isNotNull();
+        assertThat(response.colorName()).isEqualTo("Xanh lá");
+        assertThat(response.imageUrl()).isEqualTo("https://pub-r2.test/colors/new-color.jpg");
     }
 }

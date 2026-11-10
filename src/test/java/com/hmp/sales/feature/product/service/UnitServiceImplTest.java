@@ -7,6 +7,7 @@ import com.hmp.sales.feature.product.entity.Unit;
 import com.hmp.sales.feature.product.entity.UnitStatus;
 import com.hmp.sales.feature.product.repository.UnitRepository;
 import com.hmp.sales.feature.product.service.impl.UnitServiceImpl;
+import com.hmp.sales.feature.systemlog.service.SystemLogService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -38,7 +39,7 @@ class UnitServiceImplTest {
     private UnitRepository unitRepository;
 
     @Mock
-    private com.hmp.sales.feature.systemlog.service.SystemLogService systemLogService;
+    private SystemLogService systemLogService;
 
     @InjectMocks
     private UnitServiceImpl unitService;

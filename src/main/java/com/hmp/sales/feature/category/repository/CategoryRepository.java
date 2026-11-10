@@ -1,6 +1,7 @@
 package com.hmp.sales.feature.category.repository;
 
 import com.hmp.sales.feature.category.entity.Category;
+import com.hmp.sales.feature.category.entity.CategoryStatus;
 
 
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -119,5 +120,5 @@ public interface CategoryRepository extends JpaRepository<Category, Long> {
     @Query("UPDATE Category c SET c.status = :status WHERE c.id IN :ids")
     @Modifying
     @Transactional 
-    void updateStatusByIds(@Param("ids") List<Long> ids, @Param("status") com.hmp.sales.feature.category.entity.CategoryStatus status);
+    void updateStatusByIds(@Param("ids") List<Long> ids, @Param("status") CategoryStatus status);
 }

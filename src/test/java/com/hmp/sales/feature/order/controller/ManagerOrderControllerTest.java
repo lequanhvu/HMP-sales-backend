@@ -310,7 +310,7 @@ class ManagerOrderControllerTest {
     @DisplayName("POST /api/v1/manager/orders/{orderId}/undo-cancel - Đơn hàng do khách hủy trả về 400 Bad Request")
     void undoCancelOrder_cancelledByCustomer_returns400() throws Exception {
         when(managerOrderService.undoCancelOrder(eq(2L), eq(100L)))
-                .thenThrow(new com.hmp.sales.common.exception.BusinessRuleException("Đơn hàng này do khách hàng chủ động hủy, Quản lý không thể thực hiện hoàn tác."));
+                .thenThrow(new BusinessRuleException("Đơn hàng này do khách hàng chủ động hủy, Quản lý không thể thực hiện hoàn tác."));
 
         mockMvc.perform(post("/api/v1/manager/orders/100/undo-cancel")
                         .principal(authentication))

@@ -1,6 +1,6 @@
 # Project Status
 
-> Last updated: 2026-11-09 | By: @antigravity | Session: #20
+> Last updated: 2026-11-10 | By: @antigravity | Session: #20
 >
 > AI: update this file at the end of every session when asked.
 > Follow this exact format. Preserve full milestone checklists and project specifications.
@@ -8,6 +8,38 @@
 ---
 
 ## Completed
+- ✅ **Quy trình Tạo / Cập nhật Màu sắc 1 bước (1-Step Color Creation with Direct Image Upload) completed**:
+  - **Tối ưu trải nghiệm Admin/UI**:
+    - Nâng cấp `POST /api/v1/admin/colors` và `PATCH /api/v1/admin/colors/{colorId}` tiếp nhận `multipart/form-data` trực tiếp với các tham số: `colorName` (Text, bắt buộc), `image` (MultipartFile, tùy chọn), `imageUrl` (Text, tùy chọn).
+    - Tự động upload ảnh mẫu màu lên Cloudflare R2 trong thư mục `"colors"` và lưu trực tiếp URL vào database trong cùng 1 request duy nhất (phía UI/Postman chỉ cần 1 thao tác nhấn Tạo).
+    - Duy trì song song endpoint nhận `application/json` đảm bảo tương thích ngược 100% cho các client có sẵn URL.
+  - **Dịch vụ Nghiệp vụ ([`ColorService`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/product/service/ColorService.java) & [`ColorServiceImpl`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/product/service/impl/ColorServiceImpl.java))**:
+    - Thêm `createColor(String colorName, MultipartFile imageFile, String imageUrl)` và `updateColor(Long colorId, String colorName, MultipartFile imageFile, String imageUrl)`.
+    - Kiểm tra tính sẵn sàng của `FileStorageService`, xử lý an toàn khi dịch vụ tải tệp chưa được kích hoạt.
+  - **Kiểm thử Đơn vị & MockMvc**:
+    - [`ColorServiceImplTest`](file:///d:/HMP/sales-backend/src/test/java/com/hmp/sales/feature/product/service/ColorServiceImplTest.java) bổ sung 3 tests mới: tải tệp tạo màu thành công, ném exception khi storage null, cập nhật ảnh mới thành công.
+    - [`AdminMasterDataControllerTest`](file:///d:/HMP/sales-backend/src/test/java/com/hmp/sales/feature/product/controller/AdminMasterDataControllerTest.java) bổ sung 2 tests mới: `multipart("/api/v1/admin/colors")` trả về 201 Created và `PATCH multipart` trả về 200 OK.
+    - Toàn bộ **425/425 tests pass 100%**.
+    - Đồng bộ `api-spec.md` Section 15.5.2 và 15.5.3.
+- ✅ **Module Lưu trữ Tệp Đám mây Cloudflare R2 (S3-Compatible Object Storage) & File Upload API completed**:
+  - **Tích hợp AWS S3 SDK v2 & Cấu hình Đám mây R2**:
+    - Bổ sung `software.amazon.awssdk:s3:2.29.17` vào `pom.xml`.
+    - Mở rộng [`AppProperties`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/config/AppProperties.java) và `application.yaml` với cấu hình `app.storage.r2` (`enabled`, `account-id`, `access-key`, `secret-key`, `bucket-name`, `public-domain`), bảo mật qua biến môi trường.
+    - Cấu hình Bean `S3Client` trong [`R2StorageConfig`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/file/config/R2StorageConfig.java) với `@ConditionalOnProperty(name = "app.storage.r2.enabled", havingValue = "true")`, trỏ vào endpoint `https://<account-id>.r2.cloudflarestorage.com`.
+  - **Dịch vụ Lưu trữ Tệp An toàn ([`FileStorageService`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/file/service/FileStorageService.java) & [`R2FileStorageServiceImpl`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/file/service/impl/R2FileStorageServiceImpl.java))**:
+    - Kiểm tra định dạng tệp: chỉ chấp nhận ảnh MIME `image/jpeg`, `image/png`, `image/webp`, `image/gif`.
+    - Giới hạn kích thước tệp tải lên tối đa 5MB.
+    - Tự động sinh tên tệp ngẫu nhiên theo UUID chống trùng lặp và ghi đè.
+    - Làm sạch tên thư mục (sanitize folder) ngăn ngừa tấn công Path Traversal.
+    - Đẩy luồng dữ liệu lên R2 qua `PutObjectRequest` và sinh đường dẫn URL công khai chuẩn (`publicDomain + "/" + objectKey`).
+  - **REST Controller Tải Tệp ([`FileUploadController`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/file/controller/FileUploadController.java))**:
+    - Cung cấp endpoint `POST /api/v1/files/upload` (tiếp nhận `multipart/form-data` gồm `file` và `folder` tùy chọn).
+    - Khởi tạo quyền `FILE_UPLOAD` trong [`DataInitializer`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/config/DataInitializer.java), cấp cho `ROLE_ADMIN` và `ROLE_MANAGER`.
+  - **Kiểm thử Đơn vị Toàn diện**:
+    - [`R2FileStorageServiceImplTest`](file:///d:/HMP/sales-backend/src/test/java/com/hmp/sales/feature/file/service/R2FileStorageServiceImplTest.java) (6 tests): kiểm thử tắt R2, tệp rỗng, tệp quá 5MB, sai định dạng MIME, tải tệp PNG thành công và tải tệp JPEG với thư mục mặc định.
+    - [`FileUploadControllerTest`](file:///d:/HMP/sales-backend/src/test/java/com/hmp/sales/feature/file/controller/FileUploadControllerTest.java) (1 test): kiểm thử endpoint multipart upload trả về 200 OK và cấu trúc envelope chuẩn.
+    - Toàn bộ **420/420 tests pass 100%**.
+    - Đồng bộ `api-spec.md` Section 17.5.
 - ✅ **Nâng cấp Kiểm tra Xác thực Khóa Danh mục (`lockCategory`) theo Cơ chế Xác nhận 2 bước & Kiểm tra Đơn dở dang completed**:
   - **Cơ chế Xác nhận Hai Bước khi Khóa (`POST /api/v1/manager/categories/{id}/lock?force=false`)**:
     - Khi danh mục rỗng: khóa ngay lập tức (`status = LOCKED`), ghi audit trail `CATEGORY_LOCKED`.
