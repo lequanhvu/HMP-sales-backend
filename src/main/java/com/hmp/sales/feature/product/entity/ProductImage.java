@@ -43,9 +43,9 @@ public class ProductImage {
     private Product product;
 
     /**
-     * URL ảnh lưu trên cloud/object storage (tối đa 1000 ký tự).
+     * URL ảnh lưu trữ (có thể rỗng nếu chưa tải ảnh).
      */
-    @Column(name = "image_url", nullable = false, length = 1000)
+    @Column(name = "image_url", length = 1000)
     private String imageUrl;
 
     /**

@@ -7,7 +7,6 @@ import com.hmp.sales.feature.category.repository.CategoryRepository;
 import com.hmp.sales.feature.product.entity.Brand;
 import com.hmp.sales.feature.product.entity.BrandStatus;
 import com.hmp.sales.feature.product.entity.Product;
-import com.hmp.sales.feature.product.entity.ProductImage;
 import com.hmp.sales.feature.product.entity.ProductStatus;
 import com.hmp.sales.feature.product.repository.BrandRepository;
 import com.hmp.sales.feature.product.repository.ProductRepository;
@@ -103,18 +102,12 @@ public class SearchSuggestionServiceImpl implements SearchSuggestionService {
         List<Product> products = productRepository.findAllActiveForSearchIndex();
         List<SuggestionIndexItem> items = new ArrayList<>();
         for (Product p : products) {
-            String primaryImage = p.getImages().stream()
-                    .filter(img -> Boolean.TRUE.equals(img.getIsPrimary()))
-                    .map(ProductImage::getImageUrl)
-                    .findFirst()
-                    .orElse(null);
-
             String extra = p.getCategory() != null ? p.getCategory().getCategoryName() : null;
             String unaccent = p.getProductNameUnaccent() != null && !p.getProductNameUnaccent().isBlank()
                     ? p.getProductNameUnaccent()
                     : VietnameseStringUtils.toUnaccentLowerCase(p.getProductName());
 
-            items.add(new SuggestionIndexItem(p.getId(), p.getProductName(), unaccent, SearchResourceType.PRODUCT, primaryImage, extra));
+            items.add(new SuggestionIndexItem(p.getId(), p.getProductName(), unaccent, SearchResourceType.PRODUCT, null, extra));
         }
         indexMap.put(SearchResourceType.PRODUCT, new CopyOnWriteArrayList<>(items));
     }
@@ -323,16 +316,11 @@ public class SearchSuggestionServiceImpl implements SearchSuggestionService {
             switch (type) {
                 case PRODUCT -> productRepository.findByIdForSearchIndex(targetId).ifPresent(p -> {
                     if (Boolean.FALSE.equals(p.getIsDeleted()) && p.getStatus() == ProductStatus.ACTIVE) {
-                        String primaryImage = p.getImages().stream()
-                                .filter(img -> Boolean.TRUE.equals(img.getIsPrimary()))
-                                .map(ProductImage::getImageUrl)
-                                .findFirst()
-                                .orElse(null);
                         String extra = p.getCategory() != null ? p.getCategory().getCategoryName() : null;
                         String unaccent = p.getProductNameUnaccent() != null && !p.getProductNameUnaccent().isBlank()
                                 ? p.getProductNameUnaccent()
                                 : VietnameseStringUtils.toUnaccentLowerCase(p.getProductName());
-                        targetList.add(new SuggestionIndexItem(p.getId(), p.getProductName(), unaccent, SearchResourceType.PRODUCT, primaryImage, extra));
+                        targetList.add(new SuggestionIndexItem(p.getId(), p.getProductName(), unaccent, SearchResourceType.PRODUCT, null, extra));
                     }
                 });
                 case CATEGORY -> categoryRepository.findById(targetId).ifPresent(c -> {

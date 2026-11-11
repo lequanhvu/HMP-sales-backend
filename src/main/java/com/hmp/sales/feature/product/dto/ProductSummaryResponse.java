@@ -1,6 +1,7 @@
 package com.hmp.sales.feature.product.dto;
 
 import com.hmp.sales.feature.product.entity.Product;
+import com.hmp.sales.feature.product.entity.ProductImage;
 import com.hmp.sales.feature.product.entity.ProductStatus;
 
 /**
@@ -38,9 +39,9 @@ public record ProductSummaryResponse(
      */
     public static ProductSummaryResponse fromEntity(Product product, boolean priceVisible) {
         String primaryImageUrl = product.getImages().stream()
-                .filter(img -> !img.getIsDeleted() && img.getIsPrimary())
-                .map(img -> img.getImageUrl())
+                .filter(img -> !img.getIsDeleted() && Boolean.TRUE.equals(img.getIsPrimary()))
                 .findFirst()
+                .map(ProductImage::getImageUrl)
                 .orElse(null);
 
         return new ProductSummaryResponse(
