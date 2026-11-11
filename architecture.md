@@ -565,19 +565,20 @@ Current intended state:
 ADMIN    -> allowed
 MANAGER  -> allowed
 CUSTOMER -> configurable by Admin; initially disabled
+GUEST    -> inherits from CUSTOMER role (when CUSTOMER is allowed, anonymous guests can also see prices)
 ```
 
 Authorization flow:
 
 ```text
 Request product
- -> JWT authentication
- -> resolve authorities
- -> check PRODUCT_PRICE_VIEW
+ -> Check authentication:
+    - If Authenticated: resolve user roles -> check PRODUCT_PRICE_VIEW in RAM cache
+    - If Anonymous (Guest): inherit check from ROLE_CUSTOMER -> check PRODUCT_PRICE_VIEW for ROLE_CUSTOMER in RAM cache
  -> include BasePrice / Variant price only when allowed
 ```
 
-Do not implement this as a hard-coded `role == CUSTOMER` rule.
+Do not implement this as a hard-coded `role == CUSTOMER` rule. All evaluations remain dynamically driven by whether the `PRODUCT_PRICE_VIEW` permission is assigned to the role in the database/RAM cache.
 
 ## 18. Flow: Dynamic In-Memory Permission Authorization & Cache Invalidation
 

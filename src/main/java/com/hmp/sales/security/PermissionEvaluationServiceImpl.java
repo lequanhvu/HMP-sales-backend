@@ -1,5 +1,6 @@
 package com.hmp.sales.security;
 
+import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -37,14 +38,22 @@ public class PermissionEvaluationServiceImpl implements PermissionEvaluationServ
      * Tra cứu quyền hạn của người dùng từ bộ nhớ đệm RAM thông qua
      * {@link PermissionAuthorizationManager} dựa trên danh sách vai trò (Role)
      * có trong thông tin xác thực {@link Authentication}.
+     * <p>
+     * Đối với khách vãng lai (chưa đăng nhập hoặc mang {@link AnonymousAuthenticationToken}),
+     * hệ thống cho phép kế thừa quyền {@code PRODUCT_PRICE_VIEW} từ vai trò {@code CUSTOMER}
+     * nếu Quản trị viên (Admin) đã bật quyền xem giá cho khách hàng. Mọi quyền hạn khác
+     * đối với khách vãng lai đều bị từ chối (false).
      *
-     * @param authentication đối tượng xác thực hiện tại (chứa danh sách roles)
+     * @param authentication đối tượng xác thực hiện tại (chứa danh sách roles hoặc anonymous)
      * @param permissionName tên quyền cần kiểm tra (ví dụ: {@code "PRODUCT_PRICE_VIEW"})
-     * @return {@code true} nếu bất kỳ vai trò nào của người dùng sở hữu quyền này trong cache
+     * @return {@code true} nếu người dùng hoặc khách vãng lai được phép thực hiện quyền này
      */
     @Override
     public boolean hasPermission(Authentication authentication, String permissionName) {
-        if (authentication == null || !authentication.isAuthenticated()) {
+        if (authentication == null || !authentication.isAuthenticated() || authentication instanceof AnonymousAuthenticationToken) {
+            if (PRODUCT_PRICE_VIEW.equals(permissionName)) {
+                return permissionAuthorizationManager.hasRolePermission("ROLE_CUSTOMER", PRODUCT_PRICE_VIEW);
+            }
             return false;
         }
 

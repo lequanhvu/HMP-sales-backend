@@ -32,21 +32,50 @@ class PermissionEvaluationServiceTest {
     }
 
     @Test
-    @DisplayName("hasPermission: trả về false khi authentication là null")
-    void hasPermission_NullAuth_ReturnsFalse() {
+    @DisplayName("hasPermission: trả về false khi authentication là null và kiểm tra quyền không phải xem giá")
+    void hasPermission_NullAuth_OtherPermission_ReturnsFalse() {
+        boolean result = permissionEvaluationService.hasPermission(null, "ORDER_CREATE");
+        assertThat(result).isFalse();
+    }
+
+    @Test
+    @DisplayName("hasPermission: khách vãng lai (null) được xem giá khi vai trò CUSTOMER có quyền PRODUCT_PRICE_VIEW")
+    void hasPermission_NullAuth_CustomerHasPriceView_ReturnsTrue() {
+        when(permissionAuthorizationManager.hasRolePermission("ROLE_CUSTOMER", "PRODUCT_PRICE_VIEW")).thenReturn(true);
+
+        boolean result = permissionEvaluationService.hasPermission(null, "PRODUCT_PRICE_VIEW");
+        assertThat(result).isTrue();
+    }
+
+    @Test
+    @DisplayName("hasPermission: khách vãng lai (null) bị ẩn giá khi vai trò CUSTOMER thiếu quyền PRODUCT_PRICE_VIEW")
+    void hasPermission_NullAuth_CustomerLacksPriceView_ReturnsFalse() {
+        when(permissionAuthorizationManager.hasRolePermission("ROLE_CUSTOMER", "PRODUCT_PRICE_VIEW")).thenReturn(false);
+
         boolean result = permissionEvaluationService.hasPermission(null, "PRODUCT_PRICE_VIEW");
         assertThat(result).isFalse();
     }
 
     @Test
-    @DisplayName("hasPermission: trả về false khi người dùng là anonymous / chưa xác thực")
-    void hasPermission_Unauthenticated_ReturnsFalse() {
-        Authentication unauth = new AnonymousAuthenticationToken(
+    @DisplayName("hasPermission: khách vãng lai (AnonymousAuthenticationToken) được xem giá khi CUSTOMER có quyền PRODUCT_PRICE_VIEW")
+    void hasPermission_Anonymous_CustomerHasPriceView_ReturnsTrue() {
+        Authentication anonymous = new AnonymousAuthenticationToken(
                 "key", "anonymousUser", List.of(new SimpleGrantedAuthority("ROLE_ANONYMOUS"))
         );
-        unauth.setAuthenticated(false);
+        when(permissionAuthorizationManager.hasRolePermission("ROLE_CUSTOMER", "PRODUCT_PRICE_VIEW")).thenReturn(true);
 
-        boolean result = permissionEvaluationService.hasPermission(unauth, "PRODUCT_PRICE_VIEW");
+        boolean result = permissionEvaluationService.hasPermission(anonymous, "PRODUCT_PRICE_VIEW");
+        assertThat(result).isTrue();
+    }
+
+    @Test
+    @DisplayName("hasPermission: khách vãng lai (AnonymousAuthenticationToken) bị từ chối với các quyền khác ngoài PRODUCT_PRICE_VIEW")
+    void hasPermission_Anonymous_OtherPermission_ReturnsFalse() {
+        Authentication anonymous = new AnonymousAuthenticationToken(
+                "key", "anonymousUser", List.of(new SimpleGrantedAuthority("ROLE_ANONYMOUS"))
+        );
+
+        boolean result = permissionEvaluationService.hasPermission(anonymous, "ORDER_CREATE");
         assertThat(result).isFalse();
     }
 

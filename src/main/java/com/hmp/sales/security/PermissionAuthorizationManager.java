@@ -187,6 +187,35 @@ public class PermissionAuthorizationManager implements AuthorizationManager<Requ
     }
 
     /**
+     * Kiểm tra xem một vai trò cụ thể có sở hữu quyền hạn trong cache RAM hay không.
+     * <p>
+     * Hỗ trợ cả mã vai trò có tiền tố (ví dụ: {@code "ROLE_CUSTOMER"}) hoặc không có tiền tố (ví dụ: {@code "CUSTOMER"}).
+     *
+     * @param roleCode       mã vai trò cần kiểm tra
+     * @param permissionName tên quyền cần kiểm tra
+     * @return {@code true} nếu vai trò này sở hữu quyền hạn được chỉ định trong cache RAM
+     */
+    public boolean hasRolePermission(String roleCode, String permissionName) {
+        if (roleCode == null || permissionName == null) {
+            return false;
+        }
+
+        List<Permission> permissions = rolePermissionsCache.get(roleCode);
+        if (permissions == null && !roleCode.startsWith("ROLE_")) {
+            permissions = rolePermissionsCache.get("ROLE_" + roleCode);
+        }
+
+        if (permissions != null) {
+            for (Permission p : permissions) {
+                if (permissionName.equals(p.getPermissionName())) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    /**
      * Lấy bản sao đọc của bộ nhớ đệm phân quyền phục vụ mục đích kiểm thử và theo dõi.
      *
      * @return bản đồ vai trò và danh sách quyền hạn

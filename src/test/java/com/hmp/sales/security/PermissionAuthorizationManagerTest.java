@@ -216,4 +216,25 @@ class PermissionAuthorizationManagerTest {
         boolean hasPriceView = authorizationManager.hasPermission(auth, "PRODUCT_PRICE_VIEW");
         assertThat(hasPriceView).isFalse();
     }
+
+    @Test
+    @DisplayName("hasRolePermission: Trả về true khi vai trò sở hữu quyền trong cache")
+    void hasRolePermission_RoleHasPermission_ReturnsTrue() {
+        boolean hasPriceView = authorizationManager.hasRolePermission("ROLE_MANAGER", "PRODUCT_PRICE_VIEW");
+        assertThat(hasPriceView).isTrue();
+
+        // Kiểm tra không có tiền tố ROLE_
+        boolean hasPriceViewWithoutPrefix = authorizationManager.hasRolePermission("MANAGER", "PRODUCT_PRICE_VIEW");
+        assertThat(hasPriceViewWithoutPrefix).isTrue();
+    }
+
+    @Test
+    @DisplayName("hasRolePermission: Trả về false khi vai trò không có quyền trong cache hoặc truyền null")
+    void hasRolePermission_RoleDoesNotHavePermission_ReturnsFalse() {
+        boolean hasPriceView = authorizationManager.hasRolePermission("ROLE_CUSTOMER", "PRODUCT_PRICE_VIEW");
+        assertThat(hasPriceView).isFalse();
+
+        assertThat(authorizationManager.hasRolePermission(null, "PRODUCT_PRICE_VIEW")).isFalse();
+        assertThat(authorizationManager.hasRolePermission("ROLE_CUSTOMER", null)).isFalse();
+    }
 }
