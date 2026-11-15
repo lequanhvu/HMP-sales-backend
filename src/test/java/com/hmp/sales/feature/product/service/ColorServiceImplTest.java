@@ -294,4 +294,17 @@ class ColorServiceImplTest {
                 .isInstanceOf(BusinessRuleException.class)
                 .hasMessageContaining("tối đa 1 ảnh");
     }
+
+    @Test
+    @DisplayName("createColor - Khi trường image chứa 2 tệp ảnh ném BusinessRuleException")
+    void createColor_imageFieldHasTwoFiles_throwsException() {
+        MockMultipartFile file1 = new MockMultipartFile("image", "img1.jpg", "image/jpeg", "1".getBytes());
+        MockMultipartFile file2 = new MockMultipartFile("image", "img2.jpg", "image/jpeg", "2".getBytes());
+
+        ColorUploadRequest request = new ColorUploadRequest("Xanh dương", List.of(file1, file2), null, null, null, null);
+
+        assertThatThrownBy(() -> colorService.createColor(request))
+                .isInstanceOf(BusinessRuleException.class)
+                .hasMessageContaining("tối đa 1 ảnh");
+    }
 }

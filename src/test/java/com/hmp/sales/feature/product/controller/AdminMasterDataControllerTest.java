@@ -235,4 +235,19 @@ class AdminMasterDataControllerTest {
                 .andExpect(jsonPath("$.data.colorName").value("Xanh lá"))
                 .andExpect(jsonPath("$.data.imageUrl").value("https://r2.cdn/new-color.jpg"));
     }
+
+    @Test
+    @DisplayName("POST /api/v1/admin/colors (multipart) - Khi tải lên 2 tệp ảnh trả về 400 Bad Request")
+    void createColorWithMultipart_multipleFiles_returns400() throws Exception {
+        MockMultipartFile file1 = new MockMultipartFile("image", "color1.jpg", "image/jpeg", "content1".getBytes());
+        MockMultipartFile file2 = new MockMultipartFile("image", "color2.jpg", "image/jpeg", "content2".getBytes());
+
+        mockMvcColor.perform(multipart("/api/v1/admin/colors")
+                        .file(file1)
+                        .file(file2)
+                        .param("colorName", "Xanh rêu"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.statusCode").value(400))
+                .andExpect(jsonPath("$.message").value("Mỗi màu sắc chỉ được phép có tối đa 1 ảnh mẫu."));
+    }
 }

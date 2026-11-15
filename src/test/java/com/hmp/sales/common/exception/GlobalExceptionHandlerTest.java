@@ -11,6 +11,7 @@ import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.exc.InvalidFormatException;
 
@@ -108,6 +109,18 @@ class GlobalExceptionHandlerTest {
         assertNotNull(response.getBody());
         assertEquals(401, response.getBody().statusCode());
         assertEquals("Yêu cầu chưa được xác thực hoặc thông tin xác thực không hợp lệ.", response.getBody().message());
+    }
+
+    @Test
+    @DisplayName("handleMaxUploadSizeExceeded returns 400 with Vietnamese message")
+    void handleMaxUploadSizeExceeded_returns400() {
+        MaxUploadSizeExceededException ex = new MaxUploadSizeExceededException(5 * 1024 * 1024);
+        ResponseEntity<ApiErrorResponse> response = exceptionHandler.handleMaxUploadSizeExceeded(ex);
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertEquals(400, response.getBody().statusCode());
+        assertTrue(response.getBody().message().contains("5MB"));
     }
 
     @Test

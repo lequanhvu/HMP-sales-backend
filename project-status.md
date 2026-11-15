@@ -23,7 +23,7 @@
   - **Kiểm thử Toàn diện & Đồng bộ**:
     - [`ProductServiceImplTest`](file:///d:/HMP/sales-backend/src/test/java/com/hmp/sales/feature/product/service/ProductServiceImplTest.java) bổ sung 5 unit tests mới: upload 1 file, upload batch files, chặn upload khi storage null, validate danh sách rỗng, tạo sản phẩm kèm ảnh 1 bước.
     - [`ManagerProductControllerTest`](file:///d:/HMP/sales-backend/src/test/java/com/hmp/sales/feature/product/controller/ManagerProductControllerTest.java) bổ sung 3 MockMvc tests mới: `multipart` upload ảnh đơn (201 Created), `multipart` upload batch ảnh (201 Created), và `multipart` tạo sản phẩm kèm ảnh (201 Created).
-    - Toàn bộ **446/446 tests pass 100%**.
+    - Toàn bộ **449/449 tests pass 100%**.
     - Đồng bộ `api-spec.md` Section 10.1, 10.6, 10.7.
 - ✅ **Quy trình Tạo / Cập nhật Màu sắc 1 bước (1-Step Color Creation with Direct Image Upload) completed**:
   - **Tối ưu trải nghiệm Admin/UI & Chuẩn hóa DTO Request**:

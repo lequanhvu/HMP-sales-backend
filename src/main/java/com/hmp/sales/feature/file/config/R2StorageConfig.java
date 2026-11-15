@@ -9,6 +9,7 @@ import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.S3Configuration;
 
 import java.net.URI;
 
@@ -16,6 +17,8 @@ import java.net.URI;
  * Cấu hình kết nối AWS S3Client trỏ đến Cloudflare R2 Object Storage.
  * <p>
  * Cloudflare R2 tương thích 100% với chuẩn S3 API.
+ * Cần cấu hình pathStyleAccessEnabled(true) và chunkedEncodingEnabled(false)
+ * để tương thích với cơ chế tiếp nhận tệp của Cloudflare R2 (chống lỗi Connection reset / 403).
  * Bean {@link S3Client} chỉ được nạp vào Spring context khi thuộc tính
  * {@code app.storage.r2.enabled = true}.
  */
@@ -36,11 +39,17 @@ public class R2StorageConfig {
         log.info("[R2StorageConfig] Khởi tạo kết nối Cloudflare R2: bucket={}, endpoint=https://{}.r2.cloudflarestorage.com",
                 r2.bucketName(), r2.accountId());
 
+        S3Configuration s3Configuration = S3Configuration.builder()
+                .pathStyleAccessEnabled(true)
+                .chunkedEncodingEnabled(false)
+                .build();
+
         return S3Client.builder()
                 .endpointOverride(URI.create("https://" + r2.accountId() + ".r2.cloudflarestorage.com"))
                 .credentialsProvider(StaticCredentialsProvider.create(
                         AwsBasicCredentials.create(r2.accessKey(), r2.secretKey())))
                 .region(Region.of("auto"))
+                .serviceConfiguration(s3Configuration)
                 .build();
     }
 }

@@ -16,6 +16,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.util.List;
@@ -276,6 +277,22 @@ public class GlobalExceptionHandler {
             .body(ApiErrorResponse.of(
                 HttpStatus.METHOD_NOT_ALLOWED.value(),
                 "Phương thức HTTP không được hỗ trợ cho tài nguyên này."
+            ));
+    }
+
+    /**
+     * Xử lý ngoại lệ khi tệp tải lên vượt quá dung lượng tối đa cho phép (400 Bad Request).
+     *
+     * @param ex Ngoại lệ MaxUploadSizeExceededException do Spring multipart resolver ném ra.
+     * @return Phản hồi lỗi với mã HTTP 400 và thông báo rõ ràng về giới hạn dung lượng tệp.
+     */
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<ApiErrorResponse> handleMaxUploadSizeExceeded(MaxUploadSizeExceededException ex) {
+        log.warn("Tệp tải lên vượt quá dung lượng tối đa cho phép: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+            .body(ApiErrorResponse.of(
+                HttpStatus.BAD_REQUEST.value(),
+                "Kích thước tệp tải lên vượt quá giới hạn tối đa cho phép (5MB mỗi tệp)."
             ));
     }
 

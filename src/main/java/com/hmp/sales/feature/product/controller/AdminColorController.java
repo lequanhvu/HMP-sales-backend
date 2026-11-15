@@ -1,5 +1,6 @@
 package com.hmp.sales.feature.product.controller;
 
+import com.hmp.sales.common.exception.BusinessRuleException;
 import com.hmp.sales.common.response.ApiSuccessResponse;
 import com.hmp.sales.common.response.PageResponse;
 import com.hmp.sales.common.util.PaginationUtils;
@@ -8,6 +9,7 @@ import com.hmp.sales.feature.product.dto.ColorRequest;
 import com.hmp.sales.feature.product.dto.ColorResponse;
 import com.hmp.sales.feature.product.dto.ColorUploadRequest;
 import com.hmp.sales.feature.product.service.ColorService;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
@@ -15,6 +17,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartHttpServletRequest;
+
+import java.util.List;
 
 /**
  * REST Controller dành cho Admin quản lý danh mục Màu sắc sản xuất (Color).
@@ -89,12 +94,15 @@ public class AdminColorController {
     /**
      * Tạo mới màu sắc bằng form-data kèm tệp ảnh mẫu trực tiếp qua DTO request (1 bước duy nhất).
      *
-     * @param request payload chứa thông tin màu sắc và tệp ảnh tải lên
+     * @param request        payload chứa thông tin màu sắc và tệp ảnh tải lên
+     * @param servletRequest đối tượng HttpServletRequest kiểm tra tổng số tệp multipart tải lên
      * @return thông tin màu sắc vừa tạo
      */
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ApiSuccessResponse<ColorResponse>> createColorWithFile(
-            @Valid @ModelAttribute ColorUploadRequest request) {
+            @Valid @ModelAttribute ColorUploadRequest request,
+            HttpServletRequest servletRequest) {
+        validateMaxOneImage(request, servletRequest);
         ColorResponse response = colorService.createColor(request);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiSuccessResponse.created("Tạo màu sắc thành công.", response));
@@ -117,16 +125,34 @@ public class AdminColorController {
     /**
      * Cập nhật thông tin màu sắc bằng form-data kèm tệp ảnh mẫu mới qua DTO request (1 bước duy nhất).
      *
-     * @param colorId ID màu sắc cần cập nhật
-     * @param request payload chứa thông tin cập nhật và tệp ảnh tải lên
+     * @param colorId        ID màu sắc cần cập nhật
+     * @param request        payload chứa thông tin cập nhật và tệp ảnh tải lên
+     * @param servletRequest đối tượng HttpServletRequest kiểm tra tổng số tệp multipart tải lên
      * @return thông tin màu sắc sau cập nhật
      */
     @PatchMapping(value = "/{colorId}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ApiSuccessResponse<ColorResponse>> updateColorWithFile(
             @PathVariable Long colorId,
-            @Valid @ModelAttribute ColorUploadRequest request) {
+            @Valid @ModelAttribute ColorUploadRequest request,
+            HttpServletRequest servletRequest) {
+        validateMaxOneImage(request, servletRequest);
         ColorResponse response = colorService.updateColor(colorId, request);
         return ResponseEntity.ok(ApiSuccessResponse.success("Cập nhật màu sắc thành công.", response));
+    }
+
+    private void validateMaxOneImage(ColorUploadRequest request, HttpServletRequest servletRequest) {
+        if (servletRequest instanceof MultipartHttpServletRequest multipartRequest) {
+            long totalFiles = multipartRequest.getMultiFileMap().values().stream()
+                    .flatMap(List::stream)
+                    .filter(f -> f != null && !f.isEmpty())
+                    .count();
+            if (totalFiles > 1) {
+                throw new BusinessRuleException("Mỗi màu sắc chỉ được phép có tối đa 1 ảnh mẫu.");
+            }
+        }
+        if (request != null && request.allUploadedFiles().size() > 1) {
+            throw new BusinessRuleException("Mỗi màu sắc chỉ được phép có tối đa 1 ảnh mẫu.");
+        }
     }
 
     /**

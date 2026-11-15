@@ -110,31 +110,12 @@ public class ColorServiceImpl implements ColorService {
             throw new BusinessRuleException("Dữ liệu tạo màu sắc không được để trống.");
         }
 
-        // Kiểm tra số lượng ảnh tối đa là 1
-        int uploadedCount = 0;
-        if (request.image() != null && !request.image().isEmpty()) {
-            uploadedCount++;
-        }
-        if (request.images() != null) {
-            uploadedCount += (int) request.images().stream()
-                    .filter(f -> f != null && !f.isEmpty())
-                    .count();
-        }
-
-        if (uploadedCount > 1) {
+        List<MultipartFile> uploadedFiles = request.allUploadedFiles();
+        if (uploadedFiles.size() > 1) {
             throw new BusinessRuleException("Mỗi màu sắc chỉ được phép có tối đa 1 ảnh mẫu.");
         }
 
-        MultipartFile targetFile = null;
-        if (request.image() != null && !request.image().isEmpty()) {
-            targetFile = request.image();
-        } else if (request.images() != null && !request.images().isEmpty()) {
-            targetFile = request.images().stream()
-                    .filter(f -> f != null && !f.isEmpty())
-                    .findFirst()
-                    .orElse(null);
-        }
-
+        MultipartFile targetFile = uploadedFiles.isEmpty() ? null : uploadedFiles.get(0);
         String resolvedImageUrl = request.imageUrl();
         if (targetFile != null && !targetFile.isEmpty()) {
             if (fileStorageService == null) {
@@ -182,31 +163,12 @@ public class ColorServiceImpl implements ColorService {
             throw new BusinessRuleException("Dữ liệu cập nhật màu sắc không được để trống.");
         }
 
-        // Kiểm tra số lượng ảnh tối đa là 1
-        int uploadedCount = 0;
-        if (request.image() != null && !request.image().isEmpty()) {
-            uploadedCount++;
-        }
-        if (request.images() != null) {
-            uploadedCount += (int) request.images().stream()
-                    .filter(f -> f != null && !f.isEmpty())
-                    .count();
-        }
-
-        if (uploadedCount > 1) {
+        List<MultipartFile> uploadedFiles = request.allUploadedFiles();
+        if (uploadedFiles.size() > 1) {
             throw new BusinessRuleException("Mỗi màu sắc chỉ được phép có tối đa 1 ảnh mẫu.");
         }
 
-        MultipartFile targetFile = null;
-        if (request.image() != null && !request.image().isEmpty()) {
-            targetFile = request.image();
-        } else if (request.images() != null && !request.images().isEmpty()) {
-            targetFile = request.images().stream()
-                    .filter(f -> f != null && !f.isEmpty())
-                    .findFirst()
-                    .orElse(null);
-        }
-
+        MultipartFile targetFile = uploadedFiles.isEmpty() ? null : uploadedFiles.get(0);
         String resolvedImageUrl = request.imageUrl();
         if (targetFile != null && !targetFile.isEmpty()) {
             if (fileStorageService == null) {
