@@ -4,6 +4,7 @@ import com.hmp.sales.common.exception.BusinessRuleException;
 import com.hmp.sales.common.exception.ResourceNotFoundException;
 import com.hmp.sales.feature.product.dto.ColorRequest;
 import com.hmp.sales.feature.product.dto.ColorResponse;
+import com.hmp.sales.feature.product.dto.ColorUploadRequest;
 import org.springframework.data.domain.Page;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -46,6 +47,17 @@ public interface ColorService {
     ColorResponse createColor(ColorRequest request);
 
     /**
+     * Tạo mới màu sắc kèm tệp ảnh mẫu qua DTO request (1 bước duy nhất).
+     * <p>
+     * Ràng buộc: Mỗi màu sắc chỉ được phép có tối đa 1 ảnh mẫu.
+     *
+     * @param request payload chứa tên màu sắc và tệp ảnh tải lên
+     * @return thông tin màu sắc vừa tạo
+     * @throws BusinessRuleException nếu tên màu đã tồn tại, vượt quá 1 ảnh mẫu, hoặc tệp ảnh không hợp lệ
+     */
+    ColorResponse createColor(ColorUploadRequest request);
+
+    /**
      * Tạo mới màu sắc kèm tệp ảnh mẫu (tùy chọn) trong 1 bước duy nhất.
      * <p>
      * Nếu có truyền tệp ảnh {@code imageFile}, hệ thống sẽ tự động tải lên dịch vụ lưu trữ
@@ -69,6 +81,19 @@ public interface ColorService {
      * @throws BusinessRuleException    nếu tên mới đã tồn tại
      */
     ColorResponse updateColor(Long colorId, ColorRequest request);
+
+    /**
+     * Cập nhật thông tin màu sắc kèm tệp ảnh mẫu mới qua DTO request (1 bước duy nhất).
+     * <p>
+     * Ràng buộc: Mỗi màu sắc chỉ được phép có tối đa 1 ảnh mẫu.
+     *
+     * @param colorId ID màu sắc cần cập nhật
+     * @param request payload chứa thông tin màu sắc và tệp ảnh tải lên
+     * @return thông tin màu sắc sau cập nhật
+     * @throws ResourceNotFoundException nếu không tìm thấy
+     * @throws BusinessRuleException    nếu tên mới đã tồn tại, vượt quá 1 ảnh mẫu, hoặc tệp ảnh không hợp lệ
+     */
+    ColorResponse updateColor(Long colorId, ColorUploadRequest request);
 
     /**
      * Cập nhật thông tin màu sắc kèm tệp ảnh mẫu mới (tùy chọn) trong 1 bước duy nhất.

@@ -9,6 +9,7 @@ import com.hmp.sales.feature.file.dto.FileUploadResponse;
 import com.hmp.sales.feature.file.service.FileStorageService;
 import com.hmp.sales.feature.product.dto.ColorRequest;
 import com.hmp.sales.feature.product.dto.ColorResponse;
+import com.hmp.sales.feature.product.dto.ColorUploadRequest;
 import com.hmp.sales.feature.product.entity.Color;
 import com.hmp.sales.feature.product.entity.ColorStatus;
 import com.hmp.sales.feature.product.repository.ColorRepository;
@@ -104,16 +105,53 @@ public class ColorServiceImpl implements ColorService {
     /** {@inheritDoc} */
     @Override
     @Transactional
-    public ColorResponse createColor(String colorName, MultipartFile imageFile, String imageUrl) {
-        String resolvedImageUrl = imageUrl;
-        if (imageFile != null && !imageFile.isEmpty()) {
+    public ColorResponse createColor(ColorUploadRequest request) {
+        if (request == null) {
+            throw new BusinessRuleException("Dữ liệu tạo màu sắc không được để trống.");
+        }
+
+        // Kiểm tra số lượng ảnh tối đa là 1
+        int uploadedCount = 0;
+        if (request.image() != null && !request.image().isEmpty()) {
+            uploadedCount++;
+        }
+        if (request.images() != null) {
+            uploadedCount += (int) request.images().stream()
+                    .filter(f -> f != null && !f.isEmpty())
+                    .count();
+        }
+
+        if (uploadedCount > 1) {
+            throw new BusinessRuleException("Mỗi màu sắc chỉ được phép có tối đa 1 ảnh mẫu.");
+        }
+
+        MultipartFile targetFile = null;
+        if (request.image() != null && !request.image().isEmpty()) {
+            targetFile = request.image();
+        } else if (request.images() != null && !request.images().isEmpty()) {
+            targetFile = request.images().stream()
+                    .filter(f -> f != null && !f.isEmpty())
+                    .findFirst()
+                    .orElse(null);
+        }
+
+        String resolvedImageUrl = request.imageUrl();
+        if (targetFile != null && !targetFile.isEmpty()) {
             if (fileStorageService == null) {
                 throw new BusinessRuleException("Dịch vụ lưu trữ tệp chưa sẵn sàng để xử lý ảnh tải lên.");
             }
-            FileUploadResponse uploadResponse = fileStorageService.uploadImage(imageFile, "colors");
+            FileUploadResponse uploadResponse = fileStorageService.uploadImage(targetFile, "colors");
             resolvedImageUrl = uploadResponse.fileUrl();
         }
-        return createColor(new ColorRequest(colorName, resolvedImageUrl));
+
+        return createColor(new ColorRequest(request.colorName(), resolvedImageUrl));
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    @Transactional
+    public ColorResponse createColor(String colorName, MultipartFile imageFile, String imageUrl) {
+        return createColor(new ColorUploadRequest(colorName, imageFile, imageUrl));
     }
 
     /** {@inheritDoc} */
@@ -139,16 +177,53 @@ public class ColorServiceImpl implements ColorService {
     /** {@inheritDoc} */
     @Override
     @Transactional
-    public ColorResponse updateColor(Long colorId, String colorName, MultipartFile imageFile, String imageUrl) {
-        String resolvedImageUrl = imageUrl;
-        if (imageFile != null && !imageFile.isEmpty()) {
+    public ColorResponse updateColor(Long colorId, ColorUploadRequest request) {
+        if (request == null) {
+            throw new BusinessRuleException("Dữ liệu cập nhật màu sắc không được để trống.");
+        }
+
+        // Kiểm tra số lượng ảnh tối đa là 1
+        int uploadedCount = 0;
+        if (request.image() != null && !request.image().isEmpty()) {
+            uploadedCount++;
+        }
+        if (request.images() != null) {
+            uploadedCount += (int) request.images().stream()
+                    .filter(f -> f != null && !f.isEmpty())
+                    .count();
+        }
+
+        if (uploadedCount > 1) {
+            throw new BusinessRuleException("Mỗi màu sắc chỉ được phép có tối đa 1 ảnh mẫu.");
+        }
+
+        MultipartFile targetFile = null;
+        if (request.image() != null && !request.image().isEmpty()) {
+            targetFile = request.image();
+        } else if (request.images() != null && !request.images().isEmpty()) {
+            targetFile = request.images().stream()
+                    .filter(f -> f != null && !f.isEmpty())
+                    .findFirst()
+                    .orElse(null);
+        }
+
+        String resolvedImageUrl = request.imageUrl();
+        if (targetFile != null && !targetFile.isEmpty()) {
             if (fileStorageService == null) {
                 throw new BusinessRuleException("Dịch vụ lưu trữ tệp chưa sẵn sàng để xử lý ảnh tải lên.");
             }
-            FileUploadResponse uploadResponse = fileStorageService.uploadImage(imageFile, "colors");
+            FileUploadResponse uploadResponse = fileStorageService.uploadImage(targetFile, "colors");
             resolvedImageUrl = uploadResponse.fileUrl();
         }
-        return updateColor(colorId, new ColorRequest(colorName, resolvedImageUrl));
+
+        return updateColor(colorId, new ColorRequest(request.colorName(), resolvedImageUrl));
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    @Transactional
+    public ColorResponse updateColor(Long colorId, String colorName, MultipartFile imageFile, String imageUrl) {
+        return updateColor(colorId, new ColorUploadRequest(colorName, imageFile, imageUrl));
     }
 
     /** {@inheritDoc} */

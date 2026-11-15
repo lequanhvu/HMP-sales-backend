@@ -14,6 +14,7 @@ import java.util.List;
  * @param description mô tả chi tiết (tùy chọn)
  * @param brandId     ID thương hiệu (tùy chọn)
  * @param variants    danh sách biến thể khởi tạo ban đầu (tùy chọn, có thể rỗng)
+ * @param images      danh sách ảnh ban đầu dạng URL (tùy chọn, có thể rỗng)
  */
 public record ProductCreateRequest(
 
@@ -26,5 +27,20 @@ public record ProductCreateRequest(
         Long brandId,
 
         @Valid
-        List<ProductVariantRequest> variants
-) {}
+        List<ProductVariantRequest> variants,
+
+        @Valid
+        List<ProductImageUploadRequest> images
+) {
+    /**
+     * Constructor tương thích ngược cho các luồng hoặc bài kiểm thử không truyền tham số images.
+     *
+     * @param productName tên sản phẩm
+     * @param description mô tả chi tiết
+     * @param brandId     ID thương hiệu
+     * @param variants    danh sách biến thể khởi tạo ban đầu
+     */
+    public ProductCreateRequest(String productName, String description, Long brandId, List<ProductVariantRequest> variants) {
+        this(productName, description, brandId, variants, null);
+    }
+}

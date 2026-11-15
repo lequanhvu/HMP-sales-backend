@@ -5,6 +5,7 @@ import com.hmp.sales.feature.file.dto.FileUploadResponse;
 import com.hmp.sales.feature.file.service.FileStorageService;
 import com.hmp.sales.feature.product.dto.ColorRequest;
 import com.hmp.sales.feature.product.dto.ColorResponse;
+import com.hmp.sales.feature.product.dto.ColorUploadRequest;
 import com.hmp.sales.feature.product.entity.Color;
 import com.hmp.sales.feature.product.entity.ColorStatus;
 import com.hmp.sales.feature.product.repository.ColorRepository;
@@ -202,5 +203,95 @@ class ColorServiceImplTest {
         assertThat(response).isNotNull();
         assertThat(response.colorName()).isEqualTo("Xanh lá");
         assertThat(response.imageUrl()).isEqualTo("https://pub-r2.test/colors/new-color.jpg");
+    }
+
+    @Test
+    @DisplayName("updateColor - Nhận ColorUploadRequest thành công")
+    void updateColor_withDtoRequest_success() {
+        MockMultipartFile file = new MockMultipartFile("image", "new-color.jpg", "image/jpeg", "fake".getBytes());
+        FileUploadResponse uploadResponse = new FileUploadResponse(
+                "https://pub-r2.test/colors/new-color.jpg",
+                "new-color.jpg",
+                "colors/new-color.jpg",
+                "image/jpeg",
+                4L
+        );
+        when(colorRepository.findByIdAndIsDeletedFalse(1L)).thenReturn(Optional.of(color));
+        when(colorRepository.existsByColorNameAndIsDeletedFalseAndIdNot("Xanh lá", 1L)).thenReturn(false);
+        when(fileStorageService.uploadImage(file, "colors")).thenReturn(uploadResponse);
+        when(colorRepository.save(any(Color.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        ColorUploadRequest request = new ColorUploadRequest("Xanh lá", file);
+        ColorResponse response = colorService.updateColor(1L, request);
+
+        assertThat(response).isNotNull();
+        assertThat(response.colorName()).isEqualTo("Xanh lá");
+        assertThat(response.imageUrl()).isEqualTo("https://pub-r2.test/colors/new-color.jpg");
+    }
+
+    @Test
+    @DisplayName("updateColor - Khi số lượng ảnh vượt quá 1 ném BusinessRuleException")
+    void updateColor_moreThanOneImage_throwsException() {
+        MockMultipartFile file1 = new MockMultipartFile("image", "img1.jpg", "image/jpeg", "1".getBytes());
+        MockMultipartFile file2 = new MockMultipartFile("images", "img2.jpg", "image/jpeg", "2".getBytes());
+
+        ColorUploadRequest request = new ColorUploadRequest("Xanh rêu", file1, List.of(file2), null);
+
+        assertThatThrownBy(() -> colorService.updateColor(1L, request))
+                .isInstanceOf(BusinessRuleException.class)
+                .hasMessageContaining("tối đa 1 ảnh");
+    }
+
+    @Test
+    @DisplayName("updateColor - Khi danh sách images có 2 tệp ném BusinessRuleException")
+    void updateColor_imagesListHasTwoFiles_throwsException() {
+        MockMultipartFile file1 = new MockMultipartFile("images", "img1.jpg", "image/jpeg", "1".getBytes());
+        MockMultipartFile file2 = new MockMultipartFile("images", "img2.jpg", "image/jpeg", "2".getBytes());
+
+        ColorUploadRequest request = new ColorUploadRequest("Xanh rêu", null, List.of(file1, file2), null);
+
+        assertThatThrownBy(() -> colorService.updateColor(1L, request))
+                .isInstanceOf(BusinessRuleException.class)
+                .hasMessageContaining("tối đa 1 ảnh");
+    }
+
+    @Test
+    @DisplayName("createColor - Nhận ColorUploadRequest thành công")
+    void createColor_withDtoRequest_success() {
+        MockMultipartFile file = new MockMultipartFile("image", "sample.jpg", "image/jpeg", "fake".getBytes());
+        FileUploadResponse uploadResponse = new FileUploadResponse(
+                "https://pub-r2.test/colors/sample.jpg",
+                "sample.jpg",
+                "colors/sample.jpg",
+                "image/jpeg",
+                10L
+        );
+        when(fileStorageService.uploadImage(file, "colors")).thenReturn(uploadResponse);
+        when(colorRepository.existsByColorNameAndIsDeletedFalse("Xanh dương")).thenReturn(false);
+        when(colorRepository.save(any(Color.class))).thenAnswer(inv -> {
+            Color c = inv.getArgument(0);
+            c.setId(11L);
+            return c;
+        });
+
+        ColorUploadRequest request = new ColorUploadRequest("Xanh dương", file);
+        ColorResponse response = colorService.createColor(request);
+
+        assertThat(response).isNotNull();
+        assertThat(response.colorName()).isEqualTo("Xanh dương");
+        assertThat(response.imageUrl()).isEqualTo("https://pub-r2.test/colors/sample.jpg");
+    }
+
+    @Test
+    @DisplayName("createColor - Khi số lượng ảnh vượt quá 1 ném BusinessRuleException")
+    void createColor_moreThanOneImage_throwsException() {
+        MockMultipartFile file1 = new MockMultipartFile("image", "img1.jpg", "image/jpeg", "1".getBytes());
+        MockMultipartFile file2 = new MockMultipartFile("images", "img2.jpg", "image/jpeg", "2".getBytes());
+
+        ColorUploadRequest request = new ColorUploadRequest("Xanh dương", file1, List.of(file2), null);
+
+        assertThatThrownBy(() -> colorService.createColor(request))
+                .isInstanceOf(BusinessRuleException.class)
+                .hasMessageContaining("tối đa 1 ảnh");
     }
 }

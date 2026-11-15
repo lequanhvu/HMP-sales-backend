@@ -1851,28 +1851,19 @@ Requires permission `PRODUCT_CATEGORY_VIEW` (granted to `ADMIN` and `MANAGER`).
 POST /api/v1/manager/categories/{categoryId}/products
 ```
 
-A Manager chooses a category folder and then creates the product under that category.
+A Manager chooses a category folder and then creates the product under that category. Supports both JSON payload (`application/json`) and 1-step direct upload (`multipart/form-data`) with image files (`primaryImage`, `secondaryImages`) uploaded straight to Cloudflare R2.
 
-Price is represented as a map:
+### 10.1.1 1-Step creation with direct image upload (`multipart/form-data`)
 
-```text
-key   = unit
-value = price
-```
+Gửi qua DTO form-data `ProductCreateUploadRequest`:
+- `product` (nested JSON part/object, tùy chọn): Full `ProductCreateRequest` payload (product name, description, brandId, variants, images).
+- `productName` (String, tùy chọn nếu đã có trong `product`): Tên sản phẩm.
+- `description` (String, tùy chọn): Mô tả sản phẩm.
+- `brandId` (Long, tùy chọn): ID thương hiệu.
+- `primaryImage` (MultipartFile, tùy chọn): Tệp ảnh đại diện tải lên Cloudflare R2 trong thư mục `products`.
+- `secondaryImages` (List of MultipartFile, tùy chọn): Danh sách tệp ảnh phụ tải lên Cloudflare R2 trong thư mục `products`.
 
-Example:
-
-```json
-{
-  "m": 100000,
-  "tam": 150000,
-  "kg": 75000
-}
-```
-
-This allows the same product to have different prices by selling unit.
-
-### Request example
+### 10.1.2 JSON payload (`application/json`)
 
 ```json
 {
@@ -2093,16 +2084,26 @@ Business rules:
 POST /api/v1/manager/products/{productId}/images
 ```
 
-The request body may use multipart/form-data because an image file is uploaded. The API response is still JSON.
+Adds an image to a product. Supports both direct binary upload (`multipart/form-data`) uploading directly to Cloudflare R2 and JSON payload (`application/json`) with a pre-existing image URL.
 
-The product supports one main image and up to ten secondary images according to the current requirement.
+The product supports 1 primary image and up to 10 secondary images (max 11 images total).
 
-### Request example
+### 10.6.1 Direct binary upload (`multipart/form-data`)
 
+Gửi qua DTO form-data `ProductImageUploadMultipartRequest`:
+- `image` / `file` (MultipartFile, tùy chọn): Tệp ảnh nhị phân (JPEG, PNG, WEBP, GIF, tối đa 5MB). Tự động tải lên Cloudflare R2 thư mục `products`.
+- `imageUrl` (String, tùy chọn, tối đa 1000 ký tự): Đường dẫn URL trực tiếp (sử dụng khi không tải tệp).
+- `isPrimary` (Boolean, tùy chọn, mặc định: `false`): Đánh dấu ảnh đại diện.
+- `displayOrder` (Integer, tùy chọn, min: 0): Thứ tự hiển thị ảnh.
+
+### 10.6.2 JSON payload (`application/json`)
+
+#### Request body
 ```json
 {
-  "imageType": "PRIMARY",
-  "fileName": "ton-song-a.jpg"
+  "imageUrl": "https://pub-r2.dev/products/ton-song-a.jpg",
+  "isPrimary": true,
+  "displayOrder": 0
 }
 ```
 
@@ -2112,13 +2113,13 @@ The product supports one main image and up to ten secondary images according to 
 {
   "statusCode": 201,
   "data": {
-    "imageId": 501,
-    "productId": 100,
-    "imageType": "PRIMARY",
-    "url": "https://example.com/products/100/ton-song-a.jpg"
+    "id": 501,
+    "imageUrl": "https://pub-r2.dev/products/ton-song-a.jpg",
+    "isPrimary": true,
+    "displayOrder": 0
   },
-  "message": "Thành công",
-  "timestamp": "2026-10-01T10:00:00"
+  "message": "Thêm ảnh sản phẩm thành công.",
+  "timestamp": "2026-11-15T00:00:00"
 }
 ```
 
@@ -2128,8 +2129,8 @@ The product supports one main image and up to ten secondary images according to 
 {
   "statusCode": 400,
   "data": null,
-  "message": "Invalid image upload.",
-  "timestamp": "2026-10-01T10:00:00"
+  "message": "Sản phẩm đã đủ tối đa 11 ảnh.",
+  "timestamp": "2026-11-15T00:00:00"
 }
 ```
 
@@ -2139,19 +2140,27 @@ The product supports one main image and up to ten secondary images according to 
 POST /api/v1/manager/products/{productId}/images/batch
 ```
 
-Upload multiple product images at once (typically secondary images). Enforces maximum batch size and total secondary image limit (configurable via `app.product.max-secondary-images`, default 10).
+Upload multiple product images at once (typically secondary images). Supports both direct binary upload (`multipart/form-data`) to Cloudflare R2 and JSON array (`application/json`). Enforces maximum batch size and total secondary image limit (configurable via `app.product.max-secondary-images`, default 10).
 
-### Request example
+### 10.7.1 Direct binary batch upload (`multipart/form-data`)
 
+Gửi qua DTO form-data `ProductImageBatchUploadRequest`:
+- `images` / `files` (List of MultipartFile, bắt buộc): Danh sách tệp ảnh nhị phân tải lên.
+- `isPrimary` (Boolean, tùy chọn, mặc định: `false`): Đánh dấu các ảnh này có phải là ảnh đại diện hay không.
+- `startDisplayOrder` (Integer, tùy chọn): Thứ tự hiển thị bắt đầu (tự động tăng nối tiếp).
+
+### 10.7.2 JSON batch upload (`application/json`)
+
+#### Request body
 ```json
 [
   {
-    "imageUrl": "https://cdn.example.com/products/img1.jpg",
+    "imageUrl": "https://pub-r2.dev/products/img1.jpg",
     "isPrimary": false,
     "displayOrder": 1
   },
   {
-    "imageUrl": "https://cdn.example.com/products/img2.jpg",
+    "imageUrl": "https://pub-r2.dev/products/img2.jpg",
     "isPrimary": false,
     "displayOrder": 2
   }
@@ -2166,13 +2175,21 @@ Upload multiple product images at once (typically secondary images). Enforces ma
   "data": [
     {
       "id": 501,
-      "productId": 100,
-      "imageUrl": "https://cdn.example.com/products/img1.jpg",
+      "imageUrl": "https://pub-r2.dev/products/img1.jpg",
       "isPrimary": false,
       "displayOrder": 1
     },
     {
       "id": 502,
+      "imageUrl": "https://pub-r2.dev/products/img2.jpg",
+      "isPrimary": false,
+      "displayOrder": 2
+    }
+  ],
+  "message": "Tải lên danh sách ảnh sản phẩm thành công.",
+  "timestamp": "2026-11-15T00:00:00"
+}
+```
       "productId": 100,
       "imageUrl": "https://cdn.example.com/products/img2.jpg",
       "isPrimary": false,
@@ -3487,10 +3504,12 @@ POST /api/v1/admin/colors
 Hỗ trợ 2 phương thức gửi dữ liệu:
 
 ### Phương thức 1: `multipart/form-data` (Khuyến nghị cho UI / 1 bước hoàn tất)
-Tải trực tiếp tệp ảnh mẫu kèm tên màu sắc trong cùng 1 request:
+Tải trực tiếp tệp ảnh mẫu kèm tên màu sắc trong cùng 1 request qua DTO `ColorUploadRequest`:
 - `colorName` (Text, bắt buộc, tối đa 100 ký tự)
-- `image` (File, tùy chọn, định dạng JPEG/PNG/WebP, tối đa 5MB)
+- `image` (File, tùy chọn, định dạng JPEG/PNG/WebP, tối đa 5MB) hoặc `images` (List File, tối đa 1 ảnh)
 - `imageUrl` (Text, tùy chọn, nếu không tải tệp)
+
+Hệ thống sẽ kiểm tra nghiêm ngặt: nếu số lượng ảnh tải lên vượt quá 1 sẽ trả về lỗi 400 Bad Request ("Mỗi màu sắc chỉ được phép có tối đa 1 ảnh mẫu.").
 
 ```http
 POST /api/v1/admin/colors
@@ -3553,6 +3572,17 @@ Content-Type: application/json
 }
 ```
 
+### Failure response when more than 1 image is uploaded — 400
+
+```json
+{
+  "statusCode": 400,
+  "data": null,
+  "message": "Mỗi màu sắc chỉ được phép có tối đa 1 ảnh mẫu.",
+  "timestamp": "2026-10-01T10:00:00"
+}
+```
+
 ## 15.5.3 Update color
 
 ```http
@@ -3560,8 +3590,8 @@ PATCH /api/v1/admin/colors/{colorId}
 ```
 
 Hỗ trợ cả 2 định dạng:
-- `multipart/form-data`: cập nhật `colorName` kèm tệp `image` mới.
-- `application/json`: cập nhật `colorName` và `imageUrl`.
+- `multipart/form-data`: DTO `ColorUploadRequest` gồm `colorName` (bắt buộc), `image` (hoặc `images`, tùy chọn, tối đa 1 ảnh), `imageUrl` (tùy chọn). Hệ thống sẽ kiểm tra nghiêm ngặt: nếu số lượng ảnh tải lên vượt quá 1 sẽ trả về lỗi 400 Bad Request ("Mỗi màu sắc chỉ được phép có tối đa 1 ảnh mẫu.").
+- `application/json`: payload `ColorRequest` gồm `colorName` và `imageUrl`.
 
 ### Success response — 200
 
@@ -3577,6 +3607,17 @@ Hỗ trợ cả 2 định dạng:
     "updatedAt": "2026-10-01T10:30:00Z"
   },
   "message": "Cập nhật màu sắc thành công.",
+  "timestamp": "2026-10-01T10:00:00"
+}
+```
+
+### Failure response when more than 1 image is uploaded — 400
+
+```json
+{
+  "statusCode": 400,
+  "data": null,
+  "message": "Mỗi màu sắc chỉ được phép có tối đa 1 ảnh mẫu.",
   "timestamp": "2026-10-01T10:00:00"
 }
 ```

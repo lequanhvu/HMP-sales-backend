@@ -2,14 +2,32 @@ package com.hmp.sales.feature.product.controller;
 
 import com.hmp.sales.common.response.ApiSuccessResponse;
 import com.hmp.sales.common.util.SecurityUtils;
-import com.hmp.sales.feature.product.dto.*;
+import com.hmp.sales.feature.product.dto.ProductCreateRequest;
+import com.hmp.sales.feature.product.dto.ProductCreateUploadRequest;
+import com.hmp.sales.feature.product.dto.ProductDetailResponse;
+import com.hmp.sales.feature.product.dto.ProductImageBatchUploadRequest;
+import com.hmp.sales.feature.product.dto.ProductImageResponse;
+import com.hmp.sales.feature.product.dto.ProductImageUploadMultipartRequest;
+import com.hmp.sales.feature.product.dto.ProductImageUploadRequest;
+import com.hmp.sales.feature.product.dto.ProductUpdateRequest;
+import com.hmp.sales.feature.product.dto.ProductVariantRequest;
+import com.hmp.sales.feature.product.dto.ProductVariantResponse;
 import com.hmp.sales.feature.product.service.ProductService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
@@ -18,7 +36,7 @@ import java.util.List;
  * <p>
  * Cung cấp các thao tác:
  * <ul>
- *   <li>Tạo sản phẩm trực tiếp dưới một danh mục theo mô hình file-system.</li>
+ *   <li>Tạo sản phẩm trực tiếp dưới một danh mục theo mô hình file-system (hỗ trợ JSON và multipart kèm tải ảnh lên Cloudflare R2).</li>
  *   <li>Cập nhật thông tin cơ bản sản phẩm, khóa/mở khóa và xóa mềm.</li>
  *   <li>Quản lý danh sách hình ảnh (tối đa 1 ảnh chính và 10 ảnh phụ).</li>
  *   <li>Quản lý danh sách biến thể sản phẩm, màu sắc và bảng giá theo đơn vị tính.</li>
@@ -40,17 +58,36 @@ public class ManagerProductController {
     }
 
     /**
-     * Tạo mới sản phẩm trong một thư mục/danh mục cụ thể.
+     * Tạo mới sản phẩm trong một thư mục/danh mục cụ thể bằng JSON payload.
      *
      * @param categoryId ID danh mục chứa sản phẩm
      * @param request    payload thông tin sản phẩm và các biến thể ban đầu
      * @param jwt        JWT xác thực của Manager
      * @return chi tiết sản phẩm vừa tạo
      */
-    @PostMapping("/categories/{categoryId}/products")
+    @PostMapping(value = "/categories/{categoryId}/products", consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<ApiSuccessResponse<ProductDetailResponse>> createProduct(
             @PathVariable Long categoryId,
             @Valid @RequestBody ProductCreateRequest request,
+            @AuthenticationPrincipal Jwt jwt) {
+        Long managerId = SecurityUtils.extractUserId(jwt);
+        ProductDetailResponse response = productService.createProduct(categoryId, request, managerId);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiSuccessResponse.created("Tạo sản phẩm thành công.", response));
+    }
+
+    /**
+     * Tạo mới sản phẩm trong danh mục kèm tệp ảnh đại diện và ảnh phụ qua DTO request (1 bước duy nhất).
+     *
+     * @param categoryId ID danh mục chứa sản phẩm
+     * @param request    DTO chứa thông tin sản phẩm và các tệp ảnh tải lên
+     * @param jwt        JWT xác thực của Manager
+     * @return chi tiết sản phẩm vừa tạo
+     */
+    @PostMapping(value = "/categories/{categoryId}/products", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<ApiSuccessResponse<ProductDetailResponse>> createProductWithFiles(
+            @PathVariable Long categoryId,
+            @Valid @ModelAttribute ProductCreateUploadRequest request,
             @AuthenticationPrincipal Jwt jwt) {
         Long managerId = SecurityUtils.extractUserId(jwt);
         ProductDetailResponse response = productService.createProduct(categoryId, request, managerId);
@@ -115,7 +152,23 @@ public class ManagerProductController {
     }
 
     /**
-     * Thêm ảnh mới cho sản phẩm.
+     * Thêm ảnh mới cho sản phẩm bằng tệp tải lên trực tiếp qua DTO request (1 bước duy nhất).
+     *
+     * @param productId ID sản phẩm cần thêm ảnh
+     * @param request   DTO chứa thông tin ảnh tải lên và các cấu hình hiển thị
+     * @return thông tin ảnh vừa tạo
+     */
+    @PostMapping(value = "/products/{productId}/images", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<ApiSuccessResponse<ProductImageResponse>> uploadProductImageWithFile(
+            @PathVariable Long productId,
+            @Valid @ModelAttribute ProductImageUploadMultipartRequest request) {
+        ProductImageResponse response = productService.uploadProductImage(productId, request);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiSuccessResponse.created("Thêm ảnh sản phẩm thành công.", response));
+    }
+
+    /**
+     * Thêm ảnh mới cho sản phẩm bằng JSON payload chứa URL ảnh sẵn có.
      * <p>
      * Ràng buộc: Mỗi sản phẩm chỉ có tối đa 1 ảnh chính và 10 ảnh phụ (tối đa 11 ảnh).
      *
@@ -123,7 +176,7 @@ public class ManagerProductController {
      * @param request   payload ảnh
      * @return thông tin ảnh vừa tạo
      */
-    @PostMapping("/products/{productId}/images")
+    @PostMapping(value = "/products/{productId}/images", consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<ApiSuccessResponse<ProductImageResponse>> uploadProductImage(
             @PathVariable Long productId,
             @Valid @RequestBody ProductImageUploadRequest request) {
@@ -133,13 +186,29 @@ public class ManagerProductController {
     }
 
     /**
-     * Thêm hàng loạt ảnh cho sản phẩm (hỗ trợ upload nhiều ảnh phụ cùng một lúc).
+     * Thêm hàng loạt ảnh cho sản phẩm bằng danh sách tệp tải lên trực tiếp qua DTO request.
+     *
+     * @param productId ID sản phẩm cần thêm ảnh
+     * @param request   DTO chứa danh sách tệp ảnh tải lên và các cấu hình hiển thị
+     * @return danh sách chi tiết các ảnh vừa tạo
+     */
+    @PostMapping(value = "/products/{productId}/images/batch", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<ApiSuccessResponse<List<ProductImageResponse>>> uploadProductImagesBatchWithFiles(
+            @PathVariable Long productId,
+            @Valid @ModelAttribute ProductImageBatchUploadRequest request) {
+        List<ProductImageResponse> response = productService.uploadProductImages(productId, request);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiSuccessResponse.created("Tải lên danh sách ảnh sản phẩm thành công.", response));
+    }
+
+    /**
+     * Thêm hàng loạt ảnh cho sản phẩm bằng JSON payload (hỗ trợ upload nhiều ảnh phụ cùng một lúc).
      *
      * @param productId ID sản phẩm cần thêm ảnh
      * @param requests  danh sách thông tin ảnh cần tải lên (tối đa theo cấu hình app.product.max-secondary-images)
      * @return danh sách chi tiết các ảnh vừa tạo
      */
-    @PostMapping("/products/{productId}/images/batch")
+    @PostMapping(value = "/products/{productId}/images/batch", consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<ApiSuccessResponse<List<ProductImageResponse>>> uploadProductImagesBatch(
             @PathVariable Long productId,
             @Valid @RequestBody List<ProductImageUploadRequest> requests) {

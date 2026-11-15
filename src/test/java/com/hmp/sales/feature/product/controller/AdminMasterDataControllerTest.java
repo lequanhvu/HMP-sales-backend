@@ -8,6 +8,7 @@ import com.hmp.sales.feature.product.dto.UnitRequest;
 import com.hmp.sales.feature.product.dto.UnitResponse;
 import com.hmp.sales.feature.product.dto.ColorRequest;
 import com.hmp.sales.feature.product.dto.ColorResponse;
+import com.hmp.sales.feature.product.dto.ColorUploadRequest;
 import com.hmp.sales.feature.product.entity.BrandStatus;
 import com.hmp.sales.feature.product.entity.UnitStatus;
 import com.hmp.sales.feature.product.entity.ColorStatus;
@@ -204,7 +205,7 @@ class AdminMasterDataControllerTest {
     void createColorWithMultipart_returns201() throws Exception {
         MockMultipartFile file = new MockMultipartFile("image", "color.jpg", "image/jpeg", "image-content".getBytes());
         ColorResponse response = new ColorResponse(1L, "Xanh rêu", "https://r2.cdn/color.jpg", ColorStatus.ACTIVE, null, null);
-        when(colorService.createColor(eq("Xanh rêu"), any(), any())).thenReturn(response);
+        when(colorService.createColor(any(ColorUploadRequest.class))).thenReturn(response);
 
         mockMvcColor.perform(multipart("/api/v1/admin/colors")
                         .file(file)
@@ -220,7 +221,7 @@ class AdminMasterDataControllerTest {
     void updateColorWithMultipart_returns200() throws Exception {
         MockMultipartFile file = new MockMultipartFile("image", "new-color.jpg", "image/jpeg", "new-image-content".getBytes());
         ColorResponse response = new ColorResponse(1L, "Xanh lá", "https://r2.cdn/new-color.jpg", ColorStatus.ACTIVE, null, null);
-        when(colorService.updateColor(eq(1L), eq("Xanh lá"), any(), any())).thenReturn(response);
+        when(colorService.updateColor(eq(1L), any(ColorUploadRequest.class))).thenReturn(response);
 
         mockMvcColor.perform(multipart("/api/v1/admin/colors/1")
                         .file(file)

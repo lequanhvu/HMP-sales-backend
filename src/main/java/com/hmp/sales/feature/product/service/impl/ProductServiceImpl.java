@@ -8,6 +8,8 @@ import com.hmp.sales.common.util.VietnameseStringUtils;
 import com.hmp.sales.config.AppProperties;
 import com.hmp.sales.feature.category.entity.Category;
 import com.hmp.sales.feature.category.repository.CategoryRepository;
+import com.hmp.sales.feature.file.dto.FileUploadResponse;
+import com.hmp.sales.feature.file.service.FileStorageService;
 import com.hmp.sales.feature.product.dto.*;
 import com.hmp.sales.feature.product.entity.*;
 import com.hmp.sales.feature.product.repository.*;
@@ -18,6 +20,7 @@ import com.hmp.sales.feature.systemlog.service.SystemLogService;
 import com.hmp.sales.feature.user.repository.UserRepository;
 import com.hmp.sales.security.PermissionEvaluationService;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.web.multipart.MultipartFile;
 
 import jakarta.persistence.criteria.Join;
 import jakarta.persistence.criteria.JoinType;
@@ -70,6 +73,7 @@ public class ProductServiceImpl implements ProductService {
     private final PermissionEvaluationService permissionEvaluationService;
     private final AppProperties appProperties;
     private final SystemLogService systemLogService;
+    private final FileStorageService fileStorageService;
     private ApplicationEventPublisher eventPublisher;
 
     @Autowired(required = false)
@@ -88,7 +92,7 @@ public class ProductServiceImpl implements ProductService {
     }
 
     /**
-     * Khởi tạo ProductServiceImpl với tất cả dependency và cấu hình ứng dụng.
+     * Khởi tạo ProductServiceImpl với đầy đủ các dependency, lưu trữ đám mây và cấu hình ứng dụng.
      */
     @Autowired
     public ProductServiceImpl(
@@ -104,7 +108,8 @@ public class ProductServiceImpl implements ProductService {
             UserRepository userRepository,
             PermissionEvaluationService permissionEvaluationService,
             SystemLogService systemLogService,
-            @Autowired(required = false) AppProperties appProperties) {
+            @Autowired(required = false) AppProperties appProperties,
+            @Autowired(required = false) FileStorageService fileStorageService) {
         this.productRepository = productRepository;
         this.productImageRepository = productImageRepository;
         this.productVariantRepository = productVariantRepository;
@@ -118,10 +123,33 @@ public class ProductServiceImpl implements ProductService {
         this.permissionEvaluationService = permissionEvaluationService;
         this.systemLogService = systemLogService;
         this.appProperties = appProperties;
+        this.fileStorageService = fileStorageService;
     }
 
     /**
-     * Khởi tạo ProductServiceImpl không kèm AppProperties (dùng cho tests hoặc fallback).
+     * Khởi tạo ProductServiceImpl với FileStorageService phục vụ unit tests.
+     */
+    public ProductServiceImpl(
+            ProductRepository productRepository,
+            ProductImageRepository productImageRepository,
+            ProductVariantRepository productVariantRepository,
+            ProductColorRepository productColorRepository,
+            ProductPriceRepository productPriceRepository,
+            CategoryRepository categoryRepository,
+            BrandRepository brandRepository,
+            ColorRepository colorRepository,
+            UnitRepository unitRepository,
+            UserRepository userRepository,
+            PermissionEvaluationService permissionEvaluationService,
+            SystemLogService systemLogService,
+            FileStorageService fileStorageService) {
+        this(productRepository, productImageRepository, productVariantRepository, productColorRepository,
+                productPriceRepository, categoryRepository, brandRepository, colorRepository, unitRepository,
+                userRepository, permissionEvaluationService, systemLogService, null, fileStorageService);
+    }
+
+    /**
+     * Khởi tạo ProductServiceImpl không kèm AppProperties và FileStorageService (dùng cho tests hoặc fallback).
      */
     public ProductServiceImpl(
             ProductRepository productRepository,
@@ -138,7 +166,7 @@ public class ProductServiceImpl implements ProductService {
             SystemLogService systemLogService) {
         this(productRepository, productImageRepository, productVariantRepository, productColorRepository,
                 productPriceRepository, categoryRepository, brandRepository, colorRepository, unitRepository,
-                userRepository, permissionEvaluationService, systemLogService, null);
+                userRepository, permissionEvaluationService, systemLogService, null, null);
     }
 
     private int getMaxSecondaryImages() {
@@ -266,6 +294,11 @@ public class ProductServiceImpl implements ProductService {
             }
         }
 
+        // Khởi tạo ảnh có sẵn nếu có
+        if (request.images() != null && !request.images().isEmpty()) {
+            uploadProductImages(product.getId(), request.images());
+        }
+
         log.info("[ProductService] Tạo sản phẩm '{}' (ID={}) trong danh mục ID={}", product.getProductName(), product.getId(), categoryId);
         publishSearchInvalidation(product.getId(), SearchIndexInvalidationEvent.Operation.UPSERT);
         systemLogService.log(managerId, "PRODUCT_CREATED", "PRODUCT", product.getId(),
@@ -274,6 +307,44 @@ public class ProductServiceImpl implements ProductService {
         product = findActiveProduct(product.getId());
         boolean priceVisible = permissionEvaluationService.hasPermission("PRODUCT_PRICE_VIEW");
         return ProductDetailResponse.fromEntity(product, priceVisible);
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    @Transactional
+    public ProductDetailResponse createProduct(Long categoryId, ProductCreateRequest request,
+                                                MultipartFile primaryImage, List<MultipartFile> secondaryImages,
+                                                Long managerId) {
+        ProductDetailResponse created = createProduct(categoryId, request, managerId);
+        Long productId = created.id();
+
+        if (primaryImage != null && !primaryImage.isEmpty()) {
+            uploadProductImage(productId, primaryImage, null, true, 0);
+        }
+
+        if (secondaryImages != null && !secondaryImages.isEmpty()) {
+            List<MultipartFile> validSecondary = secondaryImages.stream()
+                    .filter(f -> f != null && !f.isEmpty())
+                    .toList();
+            if (!validSecondary.isEmpty()) {
+                uploadProductImages(productId, validSecondary, false, 1);
+            }
+        }
+
+        Product reloaded = findActiveProduct(productId);
+        boolean priceVisible = permissionEvaluationService.hasPermission("PRODUCT_PRICE_VIEW");
+        return ProductDetailResponse.fromEntity(reloaded, priceVisible);
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    @Transactional
+    public ProductDetailResponse createProduct(Long categoryId, ProductCreateUploadRequest request, Long managerId) {
+        if (request == null) {
+            throw new BusinessRuleException("Dữ liệu tạo sản phẩm không được để trống.");
+        }
+        ProductCreateRequest resolvedRequest = request.toProductCreateRequest();
+        return createProduct(categoryId, resolvedRequest, request.primaryImage(), request.secondaryImages(), managerId);
     }
 
     /** {@inheritDoc} */
@@ -417,6 +488,11 @@ public class ProductServiceImpl implements ProductService {
 
         List<ProductImage> savedImages = productImageRepository.saveAll(imagesToSave);
         log.info("[ProductService] Đã tải lên {} ảnh cho sản phẩm ID={}", savedImages.size(), productId);
+
+        if (primaryRequestsCount > 0) {
+            publishSearchInvalidation(productId, SearchIndexInvalidationEvent.Operation.UPSERT);
+        }
+
         Long actorId = SecurityUtils.extractCurrentUserId();
         systemLogService.log(actorId, "PRODUCT_IMAGES_UPLOADED", "PRODUCT", productId,
                 "Tải lên " + savedImages.size() + " ảnh cho sản phẩm #" + productId);
@@ -426,8 +502,135 @@ public class ProductServiceImpl implements ProductService {
     /** {@inheritDoc} */
     @Override
     @Transactional
+    public List<ProductImageResponse> uploadProductImages(Long productId, List<MultipartFile> imageFiles,
+                                                           Boolean isPrimary, Integer startDisplayOrder) {
+        if (imageFiles == null || imageFiles.isEmpty()) {
+            throw new BusinessRuleException("Danh sách tệp ảnh tải lên không được để trống.");
+        }
+
+        List<MultipartFile> validFiles = imageFiles.stream()
+                .filter(f -> f != null && !f.isEmpty())
+                .toList();
+
+        if (validFiles.isEmpty()) {
+            throw new BusinessRuleException("Danh sách tệp ảnh tải lên không được để trống.");
+        }
+
+        if (fileStorageService == null) {
+            throw new BusinessRuleException("Dịch vụ lưu trữ tệp chưa sẵn sàng để xử lý ảnh tải lên.");
+        }
+
+        findActiveProduct(productId);
+        int maxSecondary = getMaxSecondaryImages();
+        int maxPrimary = getMaxPrimaryImages();
+        int maxTotal = getMaxTotalImages();
+
+        if (validFiles.size() > maxSecondary) {
+            throw new BusinessRuleException("Số lượng ảnh tải lên một lần không được vượt quá " + maxSecondary + " ảnh.");
+        }
+
+        boolean primary = Boolean.TRUE.equals(isPrimary);
+        if (primary && validFiles.size() > maxPrimary) {
+            throw new BusinessRuleException("Không thể tải lên nhiều hơn " + maxPrimary + " ảnh đại diện trong cùng một lần.");
+        }
+
+        long existingTotal = productImageRepository.countByProductIdAndIsDeletedFalse(productId);
+        if (existingTotal + validFiles.size() > maxTotal) {
+            throw new BusinessRuleException("Sản phẩm đã đủ tối đa " + maxTotal + " ảnh.");
+        }
+
+        if (primary) {
+            long existingPrimary = productImageRepository.countByProductIdAndIsPrimaryTrueAndIsDeletedFalse(productId);
+            if (existingPrimary + validFiles.size() > maxPrimary) {
+                throw new BusinessRuleException("Sản phẩm đã có ảnh đại diện. Vui lòng xóa ảnh đại diện cũ trước.");
+            }
+        } else {
+            long existingSecondary = productImageRepository.countByProductIdAndIsPrimaryFalseAndIsDeletedFalse(productId);
+            if (existingSecondary + validFiles.size() > maxSecondary) {
+                throw new BusinessRuleException("Sản phẩm đã đủ tối đa " + maxSecondary + " ảnh phụ.");
+            }
+        }
+
+        List<ProductImageUploadRequest> requests = new ArrayList<>();
+        int currentOrder = startDisplayOrder != null ? startDisplayOrder : (int) existingTotal;
+        for (MultipartFile file : validFiles) {
+            FileUploadResponse upload = fileStorageService.uploadImage(file, "products");
+            requests.add(new ProductImageUploadRequest(upload.fileUrl(), primary, currentOrder++));
+        }
+
+        return uploadProductImages(productId, requests);
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    @Transactional
+    public List<ProductImageResponse> uploadProductImages(Long productId, ProductImageBatchUploadRequest request) {
+        if (request == null) {
+            throw new BusinessRuleException("Dữ liệu danh sách ảnh sản phẩm không được để trống.");
+        }
+        return uploadProductImages(productId, request.resolveFiles(), request.isPrimary(), request.startDisplayOrder());
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    @Transactional
     public ProductImageResponse uploadProductImage(Long productId, ProductImageUploadRequest request) {
         return uploadProductImages(productId, List.of(request)).get(0);
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    @Transactional
+    public ProductImageResponse uploadProductImage(Long productId, MultipartFile imageFile, String imageUrl,
+                                                    Boolean isPrimary, Integer displayOrder) {
+        String resolvedImageUrl = imageUrl;
+        if (imageFile != null && !imageFile.isEmpty()) {
+            if (fileStorageService == null) {
+                throw new BusinessRuleException("Dịch vụ lưu trữ tệp chưa sẵn sàng để xử lý ảnh tải lên.");
+            }
+            findActiveProduct(productId);
+            boolean primary = Boolean.TRUE.equals(isPrimary);
+            int maxSecondary = getMaxSecondaryImages();
+            int maxPrimary = getMaxPrimaryImages();
+            int maxTotal = getMaxTotalImages();
+
+            long existingTotal = productImageRepository.countByProductIdAndIsDeletedFalse(productId);
+            if (existingTotal + 1 > maxTotal) {
+                throw new BusinessRuleException("Sản phẩm đã đủ tối đa " + maxTotal + " ảnh.");
+            }
+
+            if (primary) {
+                long existingPrimary = productImageRepository.countByProductIdAndIsPrimaryTrueAndIsDeletedFalse(productId);
+                if (existingPrimary + 1 > maxPrimary) {
+                    throw new BusinessRuleException("Sản phẩm đã có ảnh đại diện. Vui lòng xóa ảnh đại diện cũ trước.");
+                }
+            } else {
+                long existingSecondary = productImageRepository.countByProductIdAndIsPrimaryFalseAndIsDeletedFalse(productId);
+                if (existingSecondary + 1 > maxSecondary) {
+                    throw new BusinessRuleException("Sản phẩm đã đủ tối đa " + maxSecondary + " ảnh phụ.");
+                }
+            }
+
+            FileUploadResponse uploadResponse = fileStorageService.uploadImage(imageFile, "products");
+            resolvedImageUrl = uploadResponse.fileUrl();
+        }
+
+        if (resolvedImageUrl == null || resolvedImageUrl.isBlank()) {
+            throw new BusinessRuleException("Vui lòng tải lên tệp ảnh hoặc cung cấp đường dẫn URL ảnh.");
+        }
+
+        int order = displayOrder != null ? displayOrder : 0;
+        return uploadProductImage(productId, new ProductImageUploadRequest(resolvedImageUrl, Boolean.TRUE.equals(isPrimary), order));
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    @Transactional
+    public ProductImageResponse uploadProductImage(Long productId, ProductImageUploadMultipartRequest request) {
+        if (request == null) {
+            throw new BusinessRuleException("Dữ liệu ảnh sản phẩm không được để trống.");
+        }
+        return uploadProductImage(productId, request.resolveFile(), request.imageUrl(), request.isPrimary(), request.displayOrder());
     }
 
     /** {@inheritDoc} */
@@ -444,7 +647,13 @@ public class ProductServiceImpl implements ProductService {
             throw new ResourceNotFoundException("Không tìm thấy ảnh hợp lệ của sản phẩm để xóa.");
         }
 
+        boolean hadPrimary = images.stream().anyMatch(img -> Boolean.TRUE.equals(img.getIsPrimary()));
         productImageRepository.softDeleteByProductIdAndIds(productId, imageIds);
+
+        if (hadPrimary) {
+            publishSearchInvalidation(productId, SearchIndexInvalidationEvent.Operation.UPSERT);
+        }
+
         Long actorId = SecurityUtils.extractCurrentUserId();
         systemLogService.log(actorId, "PRODUCT_IMAGES_DELETED", "PRODUCT", productId,
                 "Xóa " + images.size() + " ảnh của sản phẩm #" + productId);

@@ -6,17 +6,15 @@ import com.hmp.sales.common.util.PaginationUtils;
 import com.hmp.sales.config.AppProperties;
 import com.hmp.sales.feature.product.dto.ColorRequest;
 import com.hmp.sales.feature.product.dto.ColorResponse;
+import com.hmp.sales.feature.product.dto.ColorUploadRequest;
 import com.hmp.sales.feature.product.service.ColorService;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Size;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.multipart.MultipartFile;
 
 /**
  * REST Controller dành cho Admin quản lý danh mục Màu sắc sản xuất (Color).
@@ -89,20 +87,15 @@ public class AdminColorController {
     }
 
     /**
-     * Tạo mới màu sắc bằng form-data kèm tệp ảnh mẫu trực tiếp (1 bước duy nhất).
+     * Tạo mới màu sắc bằng form-data kèm tệp ảnh mẫu trực tiếp qua DTO request (1 bước duy nhất).
      *
-     * @param colorName tên màu sắc (bắt buộc, tối đa 100 ký tự)
-     * @param image     tệp ảnh tải lên từ máy tính (tùy chọn)
-     * @param imageUrl  đường dẫn URL ảnh trực tiếp (tùy chọn, dùng nếu không tải tệp)
+     * @param request payload chứa thông tin màu sắc và tệp ảnh tải lên
      * @return thông tin màu sắc vừa tạo
      */
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ApiSuccessResponse<ColorResponse>> createColorWithFile(
-            @RequestParam("colorName") @NotBlank(message = "Tên màu sắc không được để trống.")
-            @Size(max = 100, message = "Tên màu sắc không được vượt quá 100 ký tự.") String colorName,
-            @RequestParam(value = "image", required = false) MultipartFile image,
-            @RequestParam(value = "imageUrl", required = false) String imageUrl) {
-        ColorResponse response = colorService.createColor(colorName, image, imageUrl);
+            @Valid @ModelAttribute ColorUploadRequest request) {
+        ColorResponse response = colorService.createColor(request);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiSuccessResponse.created("Tạo màu sắc thành công.", response));
     }
@@ -122,22 +115,17 @@ public class AdminColorController {
     }
 
     /**
-     * Cập nhật thông tin màu sắc bằng form-data kèm tệp ảnh mẫu mới (1 bước duy nhất).
+     * Cập nhật thông tin màu sắc bằng form-data kèm tệp ảnh mẫu mới qua DTO request (1 bước duy nhất).
      *
-     * @param colorId   ID màu sắc cần cập nhật
-     * @param colorName tên màu sắc mới (bắt buộc)
-     * @param image     tệp ảnh mới tải lên từ máy tính (tùy chọn)
-     * @param imageUrl  đường dẫn URL ảnh mới (tùy chọn)
+     * @param colorId ID màu sắc cần cập nhật
+     * @param request payload chứa thông tin cập nhật và tệp ảnh tải lên
      * @return thông tin màu sắc sau cập nhật
      */
     @PatchMapping(value = "/{colorId}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ApiSuccessResponse<ColorResponse>> updateColorWithFile(
             @PathVariable Long colorId,
-            @RequestParam("colorName") @NotBlank(message = "Tên màu sắc không được để trống.")
-            @Size(max = 100, message = "Tên màu sắc không được vượt quá 100 ký tự.") String colorName,
-            @RequestParam(value = "image", required = false) MultipartFile image,
-            @RequestParam(value = "imageUrl", required = false) String imageUrl) {
-        ColorResponse response = colorService.updateColor(colorId, colorName, image, imageUrl);
+            @Valid @ModelAttribute ColorUploadRequest request) {
+        ColorResponse response = colorService.updateColor(colorId, request);
         return ResponseEntity.ok(ApiSuccessResponse.success("Cập nhật màu sắc thành công.", response));
     }
 

@@ -15,6 +15,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.core.MethodParameter;
 import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
@@ -228,5 +229,67 @@ class ManagerProductControllerTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.statusCode").value(400))
                 .andExpect(jsonPath("$.message").value("Giá trị tham số 'categoryId' không hợp lệ: abc"));
+    }
+
+    @Test
+    @DisplayName("POST /api/v1/manager/products/{id}/images - Multipart tải file trực tiếp trả về 201 Created")
+    void uploadProductImageWithFile_returns201() throws Exception {
+        ProductImageResponse img = new ProductImageResponse(501L, "https://r2.cdn.com/products/img.png", true, 0);
+        when(productService.uploadProductImage(eq(100L), any(ProductImageUploadMultipartRequest.class)))
+                .thenReturn(img);
+
+        MockMultipartFile file = new MockMultipartFile("image", "sample.png", "image/png", new byte[]{1, 2, 3});
+
+        mockMvc.perform(multipart("/api/v1/manager/products/100/images")
+                        .file(file)
+                        .param("isPrimary", "true")
+                        .param("displayOrder", "0"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.statusCode").value(201))
+                .andExpect(jsonPath("$.data.imageUrl").value("https://r2.cdn.com/products/img.png"));
+    }
+
+    @Test
+    @DisplayName("POST /api/v1/manager/products/{id}/images/batch - Multipart tải danh sách file trực tiếp trả về 201 Created")
+    void uploadProductImagesBatchWithFiles_returns201() throws Exception {
+        ProductImageResponse img1 = new ProductImageResponse(501L, "https://r2.cdn.com/products/img1.png", false, 1);
+        ProductImageResponse img2 = new ProductImageResponse(502L, "https://r2.cdn.com/products/img2.png", false, 2);
+
+        when(productService.uploadProductImages(eq(100L), any(ProductImageBatchUploadRequest.class)))
+                .thenReturn(List.of(img1, img2));
+
+        MockMultipartFile file1 = new MockMultipartFile("images", "p1.png", "image/png", new byte[]{1, 2});
+        MockMultipartFile file2 = new MockMultipartFile("images", "p2.png", "image/png", new byte[]{3, 4});
+
+        mockMvc.perform(multipart("/api/v1/manager/products/100/images/batch")
+                        .file(file1)
+                        .file(file2)
+                        .param("isPrimary", "false")
+                        .param("startDisplayOrder", "1"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.statusCode").value(201))
+                .andExpect(jsonPath("$.data.length()").value(2));
+    }
+
+    @Test
+    @DisplayName("POST /api/v1/manager/categories/{id}/products - Multipart tạo sản phẩm kèm ảnh 201 Created")
+    void createProductWithFiles_returns201() throws Exception {
+        ProductDetailResponse response = new ProductDetailResponse(
+                100L, "Tôn Hoa Sen 11 sóng", "Mô tả", ProductStatus.ACTIVE,
+                10L, "Tôn sóng vuông", 5L, "Tôn Hoa Sen", true, List.of(), List.of(), null, null);
+
+        when(productService.createProduct(eq(10L), any(ProductCreateUploadRequest.class), eq(1L)))
+                .thenReturn(response);
+
+        MockMultipartFile primaryFile = new MockMultipartFile("primaryImage", "main.png", "image/png", new byte[]{1});
+
+        mockMvc.perform(multipart("/api/v1/manager/categories/10/products")
+                        .file(primaryFile)
+                        .param("productName", "Tôn Hoa Sen 11 sóng")
+                        .param("description", "Mô tả")
+                        .param("brandId", "5"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.statusCode").value(201))
+                .andExpect(jsonPath("$.data.productName").value("Tôn Hoa Sen 11 sóng"));
     }
 }

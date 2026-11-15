@@ -168,7 +168,7 @@ public class DataInitializer implements ApplicationRunner {
             new Object[]{"PRODUCT_LOCK",              "PRODUCT",  "/api/v1/manager/products/**/lock",             "POST",   "Khóa sản phẩm"},
             new Object[]{"PRODUCT_UNLOCK",            "PRODUCT",  "/api/v1/manager/products/**/unlock",           "POST",   "Mở khóa sản phẩm"},
             new Object[]{"PRODUCT_DELETE",            "PRODUCT",  "/api/v1/manager/products/**",                  "DELETE", "Xóa mềm sản phẩm"},
-            new Object[]{"PRODUCT_IMAGE_MANAGE",      "PRODUCT",  "/api/v1/manager/products/**/images",           "POST",   "Thêm ảnh sản phẩm"},
+            new Object[]{"PRODUCT_IMAGE_MANAGE",      "PRODUCT",  "/api/v1/manager/products/**/images/**",        "POST",   "Thêm ảnh sản phẩm"},
             new Object[]{"PRODUCT_IMAGE_DELETE",      "PRODUCT",  "/api/v1/manager/products/**/images/**",        "DELETE", "Xóa ảnh sản phẩm"},
             new Object[]{"PRODUCT_VARIANT_CREATE",    "PRODUCT",  "/api/v1/manager/products/**/variants",         "POST",   "Thêm biến thể sản phẩm"},
             new Object[]{"PRODUCT_VARIANT_UPDATE",    "PRODUCT",  "/api/v1/manager/products/**/variants/**",      "PATCH",  "Cập nhật biến thể sản phẩm"},

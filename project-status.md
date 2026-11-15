@@ -1,6 +1,6 @@
 # Project Status
 
-> Last updated: 2026-11-10 | By: @antigravity | Session: #20
+> Last updated: 2026-11-15 | By: @antigravity | Session: #21
 >
 > AI: update this file at the end of every session when asked.
 > Follow this exact format. Preserve full milestone checklists and project specifications.
@@ -8,18 +8,37 @@
 ---
 
 ## Completed
+- ✅ **Tích hợp Tải Ảnh Trực tiếp lên Cloudflare R2 cho Phân hệ Sản phẩm (`/feature/product`) & Tài liệu hóa `CONTEXT.md` completed**:
+  - **Tải ảnh 1 bước lên Cloudflare R2 (Single & Batch Upload) & Chuẩn hóa DTO Request**:
+    - Nâng cấp `POST /api/v1/manager/products/{productId}/images` tiếp nhận DTO [`ProductImageUploadMultipartRequest`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/product/dto/ProductImageUploadMultipartRequest.java) (`image`/`file`, `imageUrl`, `isPrimary`, `displayOrder`) qua `@ModelAttribute`, tự động đẩy tệp lên bucket R2 (thư mục `"products"`) và lưu `ProductImage` vào PostgreSQL.
+    - Nâng cấp `POST /api/v1/manager/products/{productId}/images/batch` tiếp nhận DTO [`ProductImageBatchUploadRequest`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/product/dto/ProductImageBatchUploadRequest.java) (`images`/`files`, `isPrimary`, `startDisplayOrder`) qua `@ModelAttribute`, tự động kiểm tra số lượng và đẩy hàng loạt tệp lên R2.
+    - Nâng cấp `POST /api/v1/manager/categories/{categoryId}/products` tiếp nhận DTO [`ProductCreateUploadRequest`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/product/dto/ProductCreateUploadRequest.java) (`productName`, `description`, `brandId`, `primaryImage`, `secondaryImages`) qua `@ModelAttribute` cho phép Manager tạo sản phẩm + ảnh đại diện + ảnh phụ lên R2 chỉ trong 1 thao tác bấm Lưu, xóa bỏ danh sách `@RequestParam` rời rạc.
+    - Duy trì song song 100% các endpoint nhận `application/json` (URL có sẵn) để tương thích ngược.
+  - **Kiểm soát Nghiệp vụ & Đồng bộ Bộ nhớ RAM Search Cache**:
+    - Kiểm tra nghiêm ngặt giới hạn ảnh (tối đa 1 ảnh chính, 10 ảnh phụ, 11 ảnh tổng cộng) TRƯỚC KHI tải lên Cloudflare R2 nhằm tiết kiệm lưu trữ và hạn chế rác.
+    - Tự động kích hoạt `publishSearchInvalidation(productId, UPSERT)` khi ảnh đại diện được thêm, thay đổi hoặc xóa mềm để bộ nhớ RAM tìm kiếm tiếng Việt luôn đồng bộ ảnh bìa mới nhất.
+    - Cập nhật quyền `PRODUCT_IMAGE_MANAGE` trong `DataInitializer` thành `/api/v1/manager/products/**/images/**` hỗ trợ cả đường dẫn đơn và batch.
+  - **Tài liệu Ngữ cảnh Kiến trúc ([`CONTEXT.md`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/product/CONTEXT.md))**:
+    - Tạo tệp `feature/product/CONTEXT.md` ghi nhận toàn bộ lý do kiến trúc, quyết định kỹ thuật, các phương án bị từ chối, phụ thuộc và hạn chế đã biết theo chuẩn quy định.
+  - **Kiểm thử Toàn diện & Đồng bộ**:
+    - [`ProductServiceImplTest`](file:///d:/HMP/sales-backend/src/test/java/com/hmp/sales/feature/product/service/ProductServiceImplTest.java) bổ sung 5 unit tests mới: upload 1 file, upload batch files, chặn upload khi storage null, validate danh sách rỗng, tạo sản phẩm kèm ảnh 1 bước.
+    - [`ManagerProductControllerTest`](file:///d:/HMP/sales-backend/src/test/java/com/hmp/sales/feature/product/controller/ManagerProductControllerTest.java) bổ sung 3 MockMvc tests mới: `multipart` upload ảnh đơn (201 Created), `multipart` upload batch ảnh (201 Created), và `multipart` tạo sản phẩm kèm ảnh (201 Created).
+    - Toàn bộ **446/446 tests pass 100%**.
+    - Đồng bộ `api-spec.md` Section 10.1, 10.6, 10.7.
 - ✅ **Quy trình Tạo / Cập nhật Màu sắc 1 bước (1-Step Color Creation with Direct Image Upload) completed**:
-  - **Tối ưu trải nghiệm Admin/UI**:
-    - Nâng cấp `POST /api/v1/admin/colors` và `PATCH /api/v1/admin/colors/{colorId}` tiếp nhận `multipart/form-data` trực tiếp với các tham số: `colorName` (Text, bắt buộc), `image` (MultipartFile, tùy chọn), `imageUrl` (Text, tùy chọn).
-    - Tự động upload ảnh mẫu màu lên Cloudflare R2 trong thư mục `"colors"` và lưu trực tiếp URL vào database trong cùng 1 request duy nhất (phía UI/Postman chỉ cần 1 thao tác nhấn Tạo).
+  - **Tối ưu trải nghiệm Admin/UI & Chuẩn hóa DTO Request**:
+    - Nâng cấp `POST /api/v1/admin/colors` và `PATCH /api/v1/admin/colors/{colorId}` tiếp nhận `multipart/form-data`.
+    - Thống nhất DTO [`ColorUploadRequest`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/product/dto/ColorUploadRequest.java) (`colorName`, `image`, `images`, `imageUrl`) cho cả 2 thao tác tạo mới (`createColorWithFile`) và cập nhật (`updateColorWithFile`) qua `@Valid @ModelAttribute`.
+    - Tự động upload ảnh mẫu màu lên Cloudflare R2 trong thư mục `"colors"` và lưu trực tiếp URL vào database trong cùng 1 request duy nhất.
     - Duy trì song song endpoint nhận `application/json` đảm bảo tương thích ngược 100% cho các client có sẵn URL.
-  - **Dịch vụ Nghiệp vụ ([`ColorService`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/product/service/ColorService.java) & [`ColorServiceImpl`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/product/service/impl/ColorServiceImpl.java))**:
-    - Thêm `createColor(String colorName, MultipartFile imageFile, String imageUrl)` và `updateColor(Long colorId, String colorName, MultipartFile imageFile, String imageUrl)`.
+  - **Dịch vụ Nghiệp vụ & Kiểm tra Ràng buộc Ảnh Tối đa là 1 ([`ColorService`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/product/service/ColorService.java) & [`ColorServiceImpl`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/product/service/impl/ColorServiceImpl.java))**:
+    - Cung cấp `createColor(ColorUploadRequest request)` và `updateColor(Long colorId, ColorUploadRequest request)`.
+    - Kiểm tra số lượng ảnh mẫu: ném `BusinessRuleException` ("Mỗi màu sắc chỉ được phép có tối đa 1 ảnh mẫu.") nếu tổng số lượng ảnh tải lên (`image` + danh sách `images`) vượt quá 1 cho cả tạo mới và cập nhật.
     - Kiểm tra tính sẵn sàng của `FileStorageService`, xử lý an toàn khi dịch vụ tải tệp chưa được kích hoạt.
   - **Kiểm thử Đơn vị & MockMvc**:
-    - [`ColorServiceImplTest`](file:///d:/HMP/sales-backend/src/test/java/com/hmp/sales/feature/product/service/ColorServiceImplTest.java) bổ sung 3 tests mới: tải tệp tạo màu thành công, ném exception khi storage null, cập nhật ảnh mới thành công.
-    - [`AdminMasterDataControllerTest`](file:///d:/HMP/sales-backend/src/test/java/com/hmp/sales/feature/product/controller/AdminMasterDataControllerTest.java) bổ sung 2 tests mới: `multipart("/api/v1/admin/colors")` trả về 201 Created và `PATCH multipart` trả về 200 OK.
-    - Toàn bộ **425/425 tests pass 100%**.
+    - [`ColorServiceImplTest`](file:///d:/HMP/sales-backend/src/test/java/com/hmp/sales/feature/product/service/ColorServiceImplTest.java) bổ sung tests: tạo mới và cập nhật qua `ColorUploadRequest`, ném exception khi vượt quá 1 ảnh mẫu, ném exception khi danh sách images có 2 tệp.
+    - [`AdminMasterDataControllerTest`](file:///d:/HMP/sales-backend/src/test/java/com/hmp/sales/feature/product/controller/AdminMasterDataControllerTest.java) cập nhật MockMvc với `ColorUploadRequest` trả về 201 Created và 200 OK.
+    - Toàn bộ **443/443 tests pass 100%**.
     - Đồng bộ `api-spec.md` Section 15.5.2 và 15.5.3.
 - ✅ **Module Lưu trữ Tệp Đám mây Cloudflare R2 (S3-Compatible Object Storage) & File Upload API completed**:
   - **Tích hợp AWS S3 SDK v2 & Cấu hình Đám mây R2**:

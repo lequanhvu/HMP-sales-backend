@@ -4,6 +4,8 @@ import com.hmp.sales.common.exception.BusinessRuleException;
 import com.hmp.sales.common.exception.ResourceNotFoundException;
 import com.hmp.sales.feature.category.entity.Category;
 import com.hmp.sales.feature.category.repository.CategoryRepository;
+import com.hmp.sales.feature.file.dto.FileUploadResponse;
+import com.hmp.sales.feature.file.service.FileStorageService;
 import com.hmp.sales.feature.product.dto.*;
 import com.hmp.sales.feature.product.entity.*;
 import com.hmp.sales.feature.product.repository.*;
@@ -22,6 +24,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
+import org.springframework.mock.web.MockMultipartFile;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
@@ -78,6 +81,9 @@ class ProductServiceImplTest {
 
     @Mock
     private SystemLogService systemLogService;
+
+    @Mock
+    private FileStorageService fileStorageService;
 
     @InjectMocks
     private ProductServiceImpl productService;
@@ -325,5 +331,199 @@ class ProductServiceImplTest {
         assertThatThrownBy(() -> productService.deleteProductImages(100L, List.of()))
                 .isInstanceOf(BusinessRuleException.class)
                 .hasMessageContaining("không được để trống");
+    }
+
+    @Test
+    @DisplayName("uploadProductImage - Tải 1 tệp ảnh trực tiếp lên Cloudflare R2 thành công")
+    void uploadProductImage_withFile_success() {
+        when(productRepository.findByIdAndIsDeletedFalse(100L)).thenReturn(Optional.of(product));
+        when(productImageRepository.countByProductIdAndIsDeletedFalse(100L)).thenReturn(2L);
+        when(productImageRepository.countByProductIdAndIsPrimaryFalseAndIsDeletedFalse(100L)).thenReturn(1L);
+
+        MockMultipartFile file = new MockMultipartFile("image", "test.png", "image/png", new byte[]{1, 2, 3});
+        when(fileStorageService.uploadImage(file, "products")).thenReturn(
+                new FileUploadResponse("https://r2.cdn.com/products/test-uuid.png", "test.png", "test-uuid.png", "image/png", 3L)
+        );
+
+        when(productImageRepository.saveAll(anyList())).thenAnswer(inv -> {
+            List<ProductImage> list = inv.getArgument(0);
+            list.get(0).setId(999L);
+            return list;
+        });
+
+        ProductImageResponse response = productService.uploadProductImage(100L, file, null, false, 3);
+
+        assertThat(response).isNotNull();
+        assertThat(response.imageUrl()).isEqualTo("https://r2.cdn.com/products/test-uuid.png");
+        verify(fileStorageService).uploadImage(file, "products");
+    }
+
+    @Test
+    @DisplayName("uploadProductImage - Tải tệp ảnh khi FileStorageService chưa bật ném BusinessRuleException")
+    void uploadProductImage_withFile_serviceNull_throwsException() {
+        ProductServiceImpl serviceWithoutStorage = new ProductServiceImpl(
+                productRepository, productImageRepository, productVariantRepository,
+                productColorRepository, productPriceRepository, categoryRepository,
+                brandRepository, colorRepository, unitRepository, userRepository,
+                permissionEvaluationService, systemLogService, null, null
+        );
+
+        MockMultipartFile file = new MockMultipartFile("image", "test.png", "image/png", new byte[]{1, 2, 3});
+
+        assertThatThrownBy(() -> serviceWithoutStorage.uploadProductImage(100L, file, null, false, 0))
+                .isInstanceOf(BusinessRuleException.class)
+                .hasMessageContaining("Dịch vụ lưu trữ tệp chưa sẵn sàng");
+    }
+
+    @Test
+    @DisplayName("uploadProductImages - Tải hàng loạt tệp ảnh trực tiếp lên Cloudflare R2 thành công")
+    void uploadProductImages_withFiles_success() {
+        when(productRepository.findByIdAndIsDeletedFalse(100L)).thenReturn(Optional.of(product));
+        when(productImageRepository.countByProductIdAndIsDeletedFalse(100L)).thenReturn(1L);
+        when(productImageRepository.countByProductIdAndIsPrimaryFalseAndIsDeletedFalse(100L)).thenReturn(1L);
+
+        MockMultipartFile file1 = new MockMultipartFile("images", "p1.png", "image/png", new byte[]{1, 2});
+        MockMultipartFile file2 = new MockMultipartFile("images", "p2.png", "image/png", new byte[]{3, 4});
+
+        when(fileStorageService.uploadImage(file1, "products")).thenReturn(
+                new FileUploadResponse("https://r2.cdn.com/products/uuid1.png", "p1.png", "uuid1.png", "image/png", 2L)
+        );
+        when(fileStorageService.uploadImage(file2, "products")).thenReturn(
+                new FileUploadResponse("https://r2.cdn.com/products/uuid2.png", "p2.png", "uuid2.png", "image/png", 2L)
+        );
+
+        when(productImageRepository.saveAll(anyList())).thenAnswer(inv -> {
+            List<ProductImage> list = inv.getArgument(0);
+            long id = 600L;
+            for (ProductImage pi : list) {
+                pi.setId(id++);
+            }
+            return list;
+        });
+
+        List<ProductImageResponse> responses = productService.uploadProductImages(
+                100L, List.of(file1, file2), false, 2);
+
+        assertThat(responses).hasSize(2);
+        assertThat(responses.get(0).imageUrl()).isEqualTo("https://r2.cdn.com/products/uuid1.png");
+        assertThat(responses.get(1).imageUrl()).isEqualTo("https://r2.cdn.com/products/uuid2.png");
+    }
+
+    @Test
+    @DisplayName("uploadProductImages - Danh sách tệp ảnh rỗng ném BusinessRuleException")
+    void uploadProductImages_withFiles_emptyList_throwsException() {
+        assertThatThrownBy(() -> productService.uploadProductImages(100L, List.of(), false, 0))
+                .isInstanceOf(BusinessRuleException.class)
+                .hasMessageContaining("không được để trống");
+    }
+
+    @Test
+    @DisplayName("createProduct - Kèm tệp ảnh đại diện và ảnh phụ tạo thành công trong 1 bước")
+    void createProduct_withFiles_success() {
+        when(categoryRepository.findByIdAndIsDeletedFalse(10L)).thenReturn(Optional.of(category));
+        when(userRepository.findById(1L)).thenReturn(Optional.of(manager));
+        when(brandRepository.findByIdAndIsDeletedFalse(5L)).thenReturn(Optional.of(brand));
+        when(productRepository.save(any(Product.class))).thenReturn(product);
+        when(productRepository.findByIdAndIsDeletedFalse(100L)).thenReturn(Optional.of(product));
+        when(permissionEvaluationService.hasPermission("PRODUCT_PRICE_VIEW")).thenReturn(true);
+
+        MockMultipartFile primaryFile = new MockMultipartFile("primaryImage", "main.png", "image/png", new byte[]{1});
+        MockMultipartFile secondaryFile = new MockMultipartFile("secondaryImages", "sub.png", "image/png", new byte[]{2});
+
+        when(fileStorageService.uploadImage(primaryFile, "products")).thenReturn(
+                new FileUploadResponse("https://r2.cdn.com/products/main.png", "main.png", "uuid-main.png", "image/png", 1L)
+        );
+        when(fileStorageService.uploadImage(secondaryFile, "products")).thenReturn(
+                new FileUploadResponse("https://r2.cdn.com/products/sub.png", "sub.png", "uuid-sub.png", "image/png", 1L)
+        );
+
+        when(productImageRepository.saveAll(anyList())).thenAnswer(inv -> {
+            List<ProductImage> list = inv.getArgument(0);
+            return list;
+        });
+
+        ProductCreateRequest req = new ProductCreateRequest("Tôn Hoa Sen 11 sóng", "Mô tả", 5L, List.of(), List.of());
+        ProductDetailResponse response = productService.createProduct(
+                10L, req, primaryFile, List.of(secondaryFile), 1L);
+
+        assertThat(response).isNotNull();
+        assertThat(response.productName()).isEqualTo("Tôn Hoa Sen 11 sóng");
+        verify(fileStorageService).uploadImage(primaryFile, "products");
+        verify(fileStorageService).uploadImage(secondaryFile, "products");
+    }
+
+    @Test
+    @DisplayName("createProduct - Dùng ProductCreateUploadRequest thành công")
+    void createProduct_withUploadRequest_success() {
+        when(categoryRepository.findByIdAndIsDeletedFalse(10L)).thenReturn(Optional.of(category));
+        when(brandRepository.findByIdAndIsDeletedFalse(5L)).thenReturn(Optional.of(brand));
+        when(userRepository.findById(1L)).thenReturn(Optional.of(manager));
+        when(productRepository.save(any(Product.class))).thenReturn(product);
+        when(productRepository.findByIdAndIsDeletedFalse(100L)).thenReturn(Optional.of(product));
+        when(permissionEvaluationService.hasPermission("PRODUCT_PRICE_VIEW")).thenReturn(true);
+
+        MockMultipartFile primaryFile = new MockMultipartFile("primaryImage", "main2.png", "image/png", new byte[]{1});
+        when(fileStorageService.uploadImage(primaryFile, "products")).thenReturn(
+                new FileUploadResponse("https://r2.cdn.com/products/main2.png", "main2.png", "uuid-main2.png", "image/png", 1L)
+        );
+
+        when(productImageRepository.saveAll(anyList())).thenAnswer(inv -> inv.getArgument(0));
+
+        ProductCreateUploadRequest uploadReq = new ProductCreateUploadRequest(
+                "Tôn Hoa Sen 11 sóng", "Mô tả", 5L, primaryFile, List.of());
+        ProductDetailResponse response = productService.createProduct(10L, uploadReq, 1L);
+
+        assertThat(response).isNotNull();
+        assertThat(response.productName()).isEqualTo("Tôn Hoa Sen 11 sóng");
+        verify(fileStorageService).uploadImage(primaryFile, "products");
+    }
+
+    @Test
+    @DisplayName("uploadProductImage - Dùng ProductImageUploadMultipartRequest thành công")
+    void uploadProductImage_withMultipartRequest_success() {
+        when(productRepository.findByIdAndIsDeletedFalse(100L)).thenReturn(Optional.of(product));
+        when(productImageRepository.countByProductIdAndIsPrimaryTrueAndIsDeletedFalse(100L)).thenReturn(0L);
+        when(productImageRepository.countByProductIdAndIsDeletedFalse(100L)).thenReturn(0L);
+
+        MockMultipartFile file = new MockMultipartFile("image", "new-img.png", "image/png", new byte[]{1, 2});
+        when(fileStorageService.uploadImage(file, "products")).thenReturn(
+                new FileUploadResponse("https://r2.cdn.com/products/new-img.png", "new-img.png", "uuid-new-img.png", "image/png", 2L)
+        );
+
+        when(productImageRepository.saveAll(anyList())).thenAnswer(inv -> {
+            List<ProductImage> list = inv.getArgument(0);
+            return list;
+        });
+
+        ProductImageUploadMultipartRequest req = new ProductImageUploadMultipartRequest(file, true, 0);
+        ProductImageResponse response = productService.uploadProductImage(100L, req);
+
+        assertThat(response).isNotNull();
+        assertThat(response.imageUrl()).isEqualTo("https://r2.cdn.com/products/new-img.png");
+        assertThat(response.isPrimary()).isTrue();
+    }
+
+    @Test
+    @DisplayName("uploadProductImages - Dùng ProductImageBatchUploadRequest thành công")
+    void uploadProductImages_withBatchRequest_success() {
+        when(productRepository.findByIdAndIsDeletedFalse(100L)).thenReturn(Optional.of(product));
+        when(productImageRepository.countByProductIdAndIsPrimaryFalseAndIsDeletedFalse(100L)).thenReturn(0L);
+        when(productImageRepository.countByProductIdAndIsDeletedFalse(100L)).thenReturn(0L);
+
+        MockMultipartFile file1 = new MockMultipartFile("images", "batch1.png", "image/png", new byte[]{1});
+        when(fileStorageService.uploadImage(file1, "products")).thenReturn(
+                new FileUploadResponse("https://r2.cdn.com/products/batch1.png", "batch1.png", "uuid-batch1.png", "image/png", 1L)
+        );
+
+        when(productImageRepository.saveAll(anyList())).thenAnswer(inv -> {
+            List<ProductImage> list = inv.getArgument(0);
+            return list;
+        });
+
+        ProductImageBatchUploadRequest req = new ProductImageBatchUploadRequest(List.of(file1), false, 1);
+        List<ProductImageResponse> responses = productService.uploadProductImages(100L, req);
+
+        assertThat(responses).hasSize(1);
+        assertThat(responses.get(0).imageUrl()).isEqualTo("https://r2.cdn.com/products/batch1.png");
     }
 }
