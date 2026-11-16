@@ -1,6 +1,6 @@
 # Project Status
 
-> Last updated: 2026-11-15 | By: @antigravity | Session: #21
+> Last updated: 2026-11-16 | By: @antigravity | Session: #23
 >
 > AI: update this file at the end of every session when asked.
 > Follow this exact format. Preserve full milestone checklists and project specifications.
@@ -8,6 +8,31 @@
 ---
 
 ## Completed
+- ✅ **Bổ sung Thuộc tính Khổ Rộng (`width`) vào `ProductVariant` cho Biến thể Tôn Lợp completed**:
+  - **Mở rộng Thực thể & Cơ sở Dữ liệu (`ProductVariant`)**:
+    - Bổ sung trường [`width`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/product/entity/ProductVariant.java) (`@Column(name = "width", precision = 10, scale = 3)`) kiểu `BigDecimal` lưu trữ thông số khổ rộng tôn (chiều rộng tôn lợp, ví dụ khổ 1070mm hay 1000mm).
+    - Cập nhật Javadoc chi tiết mô tả rõ trách nhiệm của `width` bên cạnh `typeValue` và `thickness`.
+  - **Đồng bộ DTO Request & Response (`ProductVariantRequest` & `ProductVariantResponse`)**:
+    - Mở rộng DTO [`ProductVariantRequest`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/product/dto/ProductVariantRequest.java) tiếp nhận tham số `BigDecimal width` (tùy chọn) và cung cấp constructor nạp chồng giữ tương thích ngược 100%.
+    - Mở rộng DTO [`ProductVariantResponse`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/product/dto/ProductVariantResponse.java) trả về `BigDecimal width`, cập nhật `fromEntity()` lấy `variant.getWidth()`, cung cấp constructor nạp chồng tương thích ngược.
+  - **Cập nhật Dịch vụ Nghiệp vụ & Dữ liệu Khởi tạo (`ProductServiceImpl` & `DataInitializer`)**:
+    - [`ProductServiceImpl`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/product/service/impl/ProductServiceImpl.java): gán `.width(request.width())` trong hàm nội bộ `createVariantInternal` và cập nhật `width` khi gọi `updateVariant`.
+    - [`DataInitializer`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/config/DataInitializer.java): bổ sung thông số khổ rộng mẫu `.width(new BigDecimal("1070"))` cho 2 biến thể mẫu của tôn Hoa Sen 11 sóng.
+  - **Tài liệu hóa & Kiểm thử Toàn diện**:
+    - Đồng bộ [`database.md`](file:///d:/HMP/sales-backend/database.md) (bảng 13: `ProductVariant`), [`api-spec.md`](file:///d:/HMP/sales-backend/api-spec.md) (mục 10.8) và [`feature/product/CONTEXT.md`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/product/CONTEXT.md).
+    - Bổ sung 2 test cases mới trong [`ProductServiceImplTest`](file:///d:/HMP/sales-backend/src/test/java/com/hmp/sales/feature/product/service/ProductServiceImplTest.java) (`addVariant_withWidth_success`, `updateVariant_withWidth_success`) và cập nhật kiểm thử MockMvc trong [`ManagerProductControllerTest`](file:///d:/HMP/sales-backend/src/test/java/com/hmp/sales/feature/product/controller/ManagerProductControllerTest.java).
+    - Toàn bộ **459/459 tests pass 100%**.
+- ✅ **Kiểm soát Giới hạn Số lượng Tệp & Dung lượng cho Tính năng Tải Ảnh Sản phẩm (`/feature/product` & `/feature/file`) completed**:
+  - **Khắc phục triệt để lỗi Spring DataBinder bỏ qua tệp khi client chọn nhiều ảnh**:
+    - Nâng cấp [`ProductImageUploadMultipartRequest`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/product/dto/ProductImageUploadMultipartRequest.java) chuyển các trường `image`/`file` thành `List<MultipartFile>` và bổ sung các alias `images`/`files`, hàm `allUploadedFiles()`. Nhờ đó Spring MVC bắt trọn vẹn toàn bộ các tệp client đính kèm trong request thay vì chỉ lấy file đầu tiên.
+    - Cập nhật [`ProductCreateUploadRequest`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/product/dto/ProductCreateUploadRequest.java) hỗ trợ `List<MultipartFile> primaryImage` / `primaryImages` và `secondaryImages`, kiểm tra chặt chẽ tối đa 1 ảnh đại diện và tối đa 10 ảnh phụ.
+    - Nâng cấp [`ProductImageBatchUploadRequest`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/product/dto/ProductImageBatchUploadRequest.java) hỗ trợ đầy đủ các alias `image`/`images`/`file`/`files`, tự động kiểm tra số lượng và chặn vượt quá giới hạn ngay từ DTO.
+    - Bảo vệ nhiều lớp (Defense in depth): Cả Controller (`ManagerProductController`, `FileUploadController`) và Service (`ProductServiceImpl`) đều kiểm tra số lượng tệp, trả về mã lỗi `400 Bad Request` rõ ràng nếu vượt quá 1 tệp ảnh ở các endpoint đơn hoặc vượt quá giới hạn ở endpoint batch.
+  - **Xử lý ngoại lệ Kích thước Tệp Tải lên (`GlobalExceptionHandler`)**:
+    - Bắt ngoại lệ `MaxUploadSizeExceededException`, trả về HTTP 400 Bad Request đồng bộ với thông báo tiếng Việt chuẩn xác khi tệp vượt quá 5MB hoặc tổng request vượt quá 55MB.
+  - **Kiểm thử Toàn diện & Đồng bộ**:
+    - Bổ sung 8 test cases mới: `uploadProductImageWithFile_multipleFiles_returns400`, `createProductWithFiles_multiplePrimaryImages_returns400`, `uploadProductImagesBatchWithFiles_primaryWithMultipleFiles_returns400`, `uploadProductImage_withMultipartRequest_moreThanOneFile_throwsException`, `createProduct_withUploadRequest_multiplePrimaryImages_throwsException`, `createProduct_withUploadRequest_moreThan10SecondaryImages_throwsException`, `uploadProductImages_withBatchRequest_moreThan10Files_throwsException`, `uploadFile_multipleFiles_returns400`.
+    - Toàn bộ **457/457 tests pass 100%**.
 - ✅ **Tích hợp Tải Ảnh Trực tiếp lên Cloudflare R2 cho Phân hệ Sản phẩm (`/feature/product`) & Tài liệu hóa `CONTEXT.md` completed**:
   - **Tải ảnh 1 bước lên Cloudflare R2 (Single & Batch Upload) & Chuẩn hóa DTO Request**:
     - Nâng cấp `POST /api/v1/manager/products/{productId}/images` tiếp nhận DTO [`ProductImageUploadMultipartRequest`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/product/dto/ProductImageUploadMultipartRequest.java) (`image`/`file`, `imageUrl`, `isPrimary`, `displayOrder`) qua `@ModelAttribute`, tự động đẩy tệp lên bucket R2 (thư mục `"products"`) và lưu `ProductImage` vào PostgreSQL.

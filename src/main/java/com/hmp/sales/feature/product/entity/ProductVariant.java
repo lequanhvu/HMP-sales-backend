@@ -13,7 +13,7 @@ import java.util.Objects;
  * Thực thể đại diện cho biến thể sản xuất của sản phẩm tôn (ProductVariant).
  * <p>
  * Lưu trữ tại bảng {@code product_variants}.
- * Mỗi biến thể đặc trưng bởi loại sóng ({@code typeValue}) và độ dày ({@code thickness}).
+ * Mỗi biến thể đặc trưng bởi loại sóng ({@code typeValue}), độ dày ({@code thickness}) và khổ rộng tôn ({@code width}).
  * <p>
  * Lưu ý nghiệp vụ quan trọng: chiều dài/kích thước cắt do khách hàng yêu cầu khi đặt hàng
  * KHÔNG lưu tĩnh ở đây mà thuộc về snapshot của {@code OrderItem}.
@@ -65,6 +65,12 @@ public class ProductVariant {
      */
     @Column(name = "thickness", precision = 10, scale = 3)
     private BigDecimal thickness;
+
+    /**
+     * Khổ rộng tôn (chiều rộng tôn) tính theo mm hoặc mét (tùy chọn, độ chính xác DECIMAL(10,3)).
+     */
+    @Column(name = "width", precision = 10, scale = 3)
+    private BigDecimal width;
 
     /**
      * Trạng thái biến thể (ACTIVE hoặc INACTIVE).

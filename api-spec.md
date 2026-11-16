@@ -351,6 +351,8 @@ GET /api/v1/categories/{categoryId}/products
 
 Only products with `ACTIVE` status are returned to public clients.
 
+The result aggregates the products of the requested category **and all of its descendant categories** (entire subtree), sorted by product ID ascending for stable pagination. Query parameters: `page` (0-indexed), `size`.
+
 ### Request example
 
 ```json
@@ -2290,9 +2292,16 @@ DELETE /api/v1/manager/products/{productId}/variants/{variantId}
 
 ```json
 {
-  "type": "Type A",
-  "thickness": "0.40mm",
-  "color": "Xanh"
+  "variantCode": "VAR-01",
+  "variantName": "Tôn 0.40mm - 11 sóng",
+  "typeValue": "11 sóng vuông",
+  "thickness": 0.40,
+  "width": 1070.0,
+  "colorIds": [1, 2],
+  "prices": {
+    "1": 95000,
+    "2": 145000
+  }
 }
 ```
 
@@ -2302,12 +2311,18 @@ DELETE /api/v1/manager/products/{productId}/variants/{variantId}
 {
   "statusCode": 201,
   "data": {
-    "variantId": 1001,
-    "productId": 100,
-    "type": "Type A",
-    "thickness": "0.40mm",
-    "color": "Xanh",
-    "status": "ACTIVE"
+    "id": 1001,
+    "variantCode": "VAR-01",
+    "variantName": "Tôn 0.40mm - 11 sóng",
+    "typeValue": "11 sóng vuông",
+    "thickness": 0.40,
+    "width": 1070.0,
+    "status": "ACTIVE",
+    "colors": ["Xanh rêu", "Đỏ đậm"],
+    "prices": {
+      "Mét": 95000,
+      "Tấm": 145000
+    }
   },
   "message": "Thành công",
   "timestamp": "2026-10-01T10:00:00"

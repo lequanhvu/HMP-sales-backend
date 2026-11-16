@@ -26,6 +26,7 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -304,8 +305,18 @@ public class CategoryServiceImpl implements CategoryService {
     public CategoryProductsResponse getProductsByCategory(Long categoryId, Pageable pageable) {
         Category category = findActiveCategory(categoryId);
         Pageable resolvedPageable = (pageable != null) ? pageable : PageRequest.of(0, 20);
-        Page<Product> products = productRepository.findByCategoryIdAndStatusAndIsDeletedFalse(
-                categoryId, ProductStatus.ACTIVE, resolvedPageable);
+        if (resolvedPageable.getSort().isUnsorted()) {
+            // Sắp xếp ổn định theo ID để phân trang không bị lặp/sót bản ghi trên tập sản phẩm gộp nhiều danh mục
+            resolvedPageable = PageRequest.of(resolvedPageable.getPageNumber(), resolvedPageable.getPageSize(),
+                    Sort.by(Sort.Direction.ASC, "id"));
+        }
+        // Gộp sản phẩm của chính danh mục và toàn bộ danh mục con cháu
+        List<Long> categoryIds = categoryRepository.findAllDescendantIds(categoryId);
+        if (categoryIds == null || categoryIds.isEmpty()) {
+            categoryIds = List.of(categoryId);
+        }
+        Page<Product> products = productRepository.findByCategoryIdInAndStatusAndIsDeletedFalse(
+                categoryIds, ProductStatus.ACTIVE, resolvedPageable);
         boolean priceVisible = permissionEvaluationService.canViewProductPrice();
         Page<ProductSummaryResponse> productDtos = products
                 .map(p -> ProductSummaryResponse.fromEntity(p, priceVisible));

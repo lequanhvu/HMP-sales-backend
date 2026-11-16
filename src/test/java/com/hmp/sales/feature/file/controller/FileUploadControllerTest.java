@@ -71,5 +71,20 @@ class FileUploadControllerTest {
                 .andExpect(jsonPath("$.data.contentType").value("image/png"))
                 .andExpect(jsonPath("$.data.size").value(3));
     }
+
+    @Test
+    @DisplayName("POST /api/v1/files/upload - Gửi từ 2 tệp trở lên ném 400 Bad Request")
+    void uploadFile_multipleFiles_returns400() throws Exception {
+        MockMultipartFile file1 = new MockMultipartFile("file", "mau1.png", "image/png", new byte[]{1});
+        MockMultipartFile file2 = new MockMultipartFile("file", "mau2.png", "image/png", new byte[]{2});
+
+        mockMvc.perform(multipart("/api/v1/files/upload")
+                        .file(file1)
+                        .file(file2)
+                        .param("folder", "colors"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.statusCode").value(400))
+                .andExpect(jsonPath("$.message").value("Mỗi lần tải lên chỉ được phép chọn tối đa 1 tệp tin."));
+    }
 }
 

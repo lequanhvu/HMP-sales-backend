@@ -292,6 +292,7 @@ The requirements state that products, especially manufacturing products, can hav
 | VariantName | NVARCHAR(150) | No | Human-readable variant |
 | TypeValue | NVARCHAR(100) | Yes | Manufacturing type |
 | Thickness | DECIMAL(10,3) | Yes | mm; exact precision/range TBD |
+| Width | DECIMAL(10,3) | Yes | mm hoặc m; Khổ rộng (chiều rộng tôn) |
 | VariantPrice | DECIMAL(19,4) | Yes | Variant-level price when applicable |
 | Status | VARCHAR(20) | No | `ACTIVE`, `INACTIVE` |
 | CreatedAt | DATETIME2 | No | |

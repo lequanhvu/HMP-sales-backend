@@ -66,7 +66,7 @@ public interface CategoryService {
     CategoryResponse updateCategory(Long categoryId, CategoryUpdateRequest request);
 
     /**
-     * Lấy thông tin danh mục và danh sách sản phẩm ACTIVE trực thuộc có phân trang.
+     * Lấy thông tin danh mục và danh sách sản phẩm ACTIVE của chính danh mục đó cùng toàn bộ danh mục con cháu, có phân trang.
      *
      * @param categoryId ID danh mục
      * @param pageable   thông tin phân trang (nếu null, mặc định lấy trang 0 với 20 phần tử)

@@ -315,6 +315,16 @@ public class ProductServiceImpl implements ProductService {
     public ProductDetailResponse createProduct(Long categoryId, ProductCreateRequest request,
                                                 MultipartFile primaryImage, List<MultipartFile> secondaryImages,
                                                 Long managerId) {
+        if (secondaryImages != null && !secondaryImages.isEmpty()) {
+            int maxSecondary = getMaxSecondaryImages();
+            List<MultipartFile> validSecondary = secondaryImages.stream()
+                    .filter(f -> f != null && !f.isEmpty())
+                    .toList();
+            if (validSecondary.size() > maxSecondary) {
+                throw new BusinessRuleException("Số lượng ảnh phụ tải lên một lần không được vượt quá " + maxSecondary + " ảnh.");
+            }
+        }
+
         ProductDetailResponse created = createProduct(categoryId, request, managerId);
         Long productId = created.id();
 
@@ -343,8 +353,15 @@ public class ProductServiceImpl implements ProductService {
         if (request == null) {
             throw new BusinessRuleException("Dữ liệu tạo sản phẩm không được để trống.");
         }
+        if (request.allPrimaryImages().size() > getMaxPrimaryImages()) {
+            throw new BusinessRuleException("Mỗi sản phẩm chỉ được phép có tối đa 1 ảnh đại diện.");
+        }
+        int maxSecondary = getMaxSecondaryImages();
+        if (request.allSecondaryImages().size() > maxSecondary) {
+            throw new BusinessRuleException("Số lượng ảnh phụ tải lên một lần không được vượt quá " + maxSecondary + " ảnh.");
+        }
         ProductCreateRequest resolvedRequest = request.toProductCreateRequest();
-        return createProduct(categoryId, resolvedRequest, request.primaryImage(), request.secondaryImages(), managerId);
+        return createProduct(categoryId, resolvedRequest, request.resolvePrimaryImage(), request.allSecondaryImages(), managerId);
     }
 
     /** {@inheritDoc} */
@@ -568,7 +585,15 @@ public class ProductServiceImpl implements ProductService {
         if (request == null) {
             throw new BusinessRuleException("Dữ liệu danh sách ảnh sản phẩm không được để trống.");
         }
-        return uploadProductImages(productId, request.resolveFiles(), request.isPrimary(), request.startDisplayOrder());
+        List<MultipartFile> resolvedFiles = request.resolveFiles();
+        if (Boolean.TRUE.equals(request.isPrimary()) && resolvedFiles.size() > getMaxPrimaryImages()) {
+            throw new BusinessRuleException("Không thể tải lên nhiều hơn " + getMaxPrimaryImages() + " ảnh đại diện trong cùng một lần.");
+        }
+        int maxSecondary = getMaxSecondaryImages();
+        if (resolvedFiles.size() > maxSecondary) {
+            throw new BusinessRuleException("Số lượng ảnh tải lên một lần không được vượt quá " + maxSecondary + " ảnh.");
+        }
+        return uploadProductImages(productId, resolvedFiles, request.isPrimary(), request.startDisplayOrder());
     }
 
     /** {@inheritDoc} */
@@ -629,6 +654,10 @@ public class ProductServiceImpl implements ProductService {
     public ProductImageResponse uploadProductImage(Long productId, ProductImageUploadMultipartRequest request) {
         if (request == null) {
             throw new BusinessRuleException("Dữ liệu ảnh sản phẩm không được để trống.");
+        }
+        List<MultipartFile> uploadedFiles = request.allUploadedFiles();
+        if (uploadedFiles.size() > 1) {
+            throw new BusinessRuleException("Mỗi lần tải lên chỉ được phép chọn tối đa 1 tệp ảnh. Vui lòng sử dụng API tải lên hàng loạt nếu muốn tải nhiều ảnh.");
         }
         return uploadProductImage(productId, request.resolveFile(), request.imageUrl(), request.isPrimary(), request.displayOrder());
     }
@@ -693,6 +722,7 @@ public class ProductServiceImpl implements ProductService {
         if (request.variantCode() != null) variant.setVariantCode(request.variantCode());
         if (request.typeValue() != null) variant.setTypeValue(request.typeValue());
         if (request.thickness() != null) variant.setThickness(request.thickness());
+        if (request.width() != null) variant.setWidth(request.width());
 
         variant = productVariantRepository.save(variant);
 
@@ -800,6 +830,7 @@ public class ProductServiceImpl implements ProductService {
                 .variantName(request.variantName())
                 .typeValue(request.typeValue())
                 .thickness(request.thickness())
+                .width(request.width())
                 .build();
         variant = productVariantRepository.save(variant);
 

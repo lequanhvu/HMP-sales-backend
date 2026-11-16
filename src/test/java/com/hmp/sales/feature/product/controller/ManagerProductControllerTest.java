@@ -148,7 +148,7 @@ class ManagerProductControllerTest {
     @DisplayName("POST /api/v1/manager/products/{id}/variants - Thêm biến thể 201 Created")
     void addVariant_returns201() throws Exception {
         ProductVariantResponse varResp = new ProductVariantResponse(
-                200L, "VAR-01", "Tôn 0.40mm", "11 sóng vuông", new BigDecimal("0.40"),
+                200L, "VAR-01", "Tôn 0.40mm", "11 sóng vuông", new BigDecimal("0.40"), new BigDecimal("1070"),
                 VariantStatus.ACTIVE, List.of(), null);
 
         when(productService.addVariant(eq(100L), any(ProductVariantRequest.class)))
@@ -160,6 +160,7 @@ class ManagerProductControllerTest {
                     "variantName": "Tôn 0.40mm",
                     "typeValue": "11 sóng vuông",
                     "thickness": 0.40,
+                    "width": 1070.0,
                     "colorIds": [],
                     "prices": {}
                 }
@@ -170,7 +171,8 @@ class ManagerProductControllerTest {
                         .content(json))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.statusCode").value(201))
-                .andExpect(jsonPath("$.data.variantCode").value("VAR-01"));
+                .andExpect(jsonPath("$.data.variantCode").value("VAR-01"))
+                .andExpect(jsonPath("$.data.width").value(1070));
     }
 
     @Test
@@ -291,5 +293,51 @@ class ManagerProductControllerTest {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.statusCode").value(201))
                 .andExpect(jsonPath("$.data.productName").value("Tôn Hoa Sen 11 sóng"));
+    }
+
+    @Test
+    @DisplayName("POST /api/v1/manager/products/{id}/images - Gửi từ 2 file ảnh trở lên ném 400 Bad Request")
+    void uploadProductImageWithFile_multipleFiles_returns400() throws Exception {
+        MockMultipartFile file1 = new MockMultipartFile("image", "sample1.png", "image/png", new byte[]{1, 2});
+        MockMultipartFile file2 = new MockMultipartFile("image", "sample2.png", "image/png", new byte[]{3, 4});
+
+        mockMvc.perform(multipart("/api/v1/manager/products/100/images")
+                        .file(file1)
+                        .file(file2)
+                        .param("isPrimary", "false")
+                        .param("displayOrder", "0"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.statusCode").value(400))
+                .andExpect(jsonPath("$.message").value("Mỗi lần tải lên chỉ được phép chọn tối đa 1 tệp ảnh. Vui lòng sử dụng API tải lên hàng loạt nếu muốn tải nhiều ảnh."));
+    }
+
+    @Test
+    @DisplayName("POST /api/v1/manager/categories/{id}/products - Gửi nhiều hơn 1 ảnh đại diện ném 400 Bad Request")
+    void createProductWithFiles_multiplePrimaryImages_returns400() throws Exception {
+        MockMultipartFile primary1 = new MockMultipartFile("primaryImage", "main1.png", "image/png", new byte[]{1});
+        MockMultipartFile primary2 = new MockMultipartFile("primaryImage", "main2.png", "image/png", new byte[]{2});
+
+        mockMvc.perform(multipart("/api/v1/manager/categories/10/products")
+                        .file(primary1)
+                        .file(primary2)
+                        .param("productName", "Tôn Hoa Sen 11 sóng"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.statusCode").value(400))
+                .andExpect(jsonPath("$.message").value("Mỗi sản phẩm chỉ được phép có tối đa 1 ảnh đại diện."));
+    }
+
+    @Test
+    @DisplayName("POST /api/v1/manager/products/{id}/images/batch - Tải lên ảnh chính với nhiều hơn 1 file ném 400 Bad Request")
+    void uploadProductImagesBatchWithFiles_primaryWithMultipleFiles_returns400() throws Exception {
+        MockMultipartFile file1 = new MockMultipartFile("images", "p1.png", "image/png", new byte[]{1});
+        MockMultipartFile file2 = new MockMultipartFile("images", "p2.png", "image/png", new byte[]{2});
+
+        mockMvc.perform(multipart("/api/v1/manager/products/100/images/batch")
+                        .file(file1)
+                        .file(file2)
+                        .param("isPrimary", "true"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.statusCode").value(400))
+                .andExpect(jsonPath("$.message").value("Không thể tải lên nhiều hơn 1 ảnh đại diện trong cùng một lần."));
     }
 }

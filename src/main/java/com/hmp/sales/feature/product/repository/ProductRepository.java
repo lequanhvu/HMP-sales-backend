@@ -48,6 +48,16 @@ public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpec
     Page<Product> findByCategoryIdAndStatusAndIsDeletedFalse(Long categoryId, ProductStatus status, Pageable pageable);
 
     /**
+     * Lấy danh sách sản phẩm theo trạng thái thuộc tập danh mục (danh mục gốc và toàn bộ danh mục con cháu) có phân trang.
+     *
+     * @param categoryIds danh sách ID danh mục (bao gồm cả cây con)
+     * @param status      trạng thái sản phẩm (ACTIVE)
+     * @param pageable    thông tin phân trang
+     * @return trang danh sách sản phẩm thuộc tập danh mục
+     */
+    Page<Product> findByCategoryIdInAndStatusAndIsDeletedFalse(List<Long> categoryIds, ProductStatus status, Pageable pageable);
+
+    /**
      * Lấy danh sách tất cả sản phẩm ACTIVE chưa bị xóa kèm ảnh và danh mục để nạp chỉ mục tìm kiếm vào RAM.
      * Dùng LEFT JOIN FETCH để tránh LazyInitializationException khi open-in-view = false.
      *

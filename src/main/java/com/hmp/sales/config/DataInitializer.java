@@ -590,6 +590,7 @@ public class DataInitializer implements ApplicationRunner {
                 .variantName("Tôn Hoa Sen 11 sóng - 0.40mm")
                 .typeValue("11 sóng vuông")
                 .thickness(new BigDecimal("0.40"))
+                .width(new BigDecimal("1070"))
                 .status(VariantStatus.ACTIVE)
                 .isDeleted(false)
                 .build();
@@ -620,6 +621,7 @@ public class DataInitializer implements ApplicationRunner {
                 .variantName("Tôn Hoa Sen 11 sóng - 0.45mm")
                 .typeValue("11 sóng vuông")
                 .thickness(new BigDecimal("0.45"))
+                .width(new BigDecimal("1070"))
                 .status(VariantStatus.ACTIVE)
                 .isDeleted(false)
                 .build();

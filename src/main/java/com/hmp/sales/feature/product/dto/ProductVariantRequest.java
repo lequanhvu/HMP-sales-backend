@@ -14,6 +14,7 @@ import java.util.Map;
  * @param variantName tên biến thể hiển thị (bắt buộc, tối đa 150 ký tự)
  * @param typeValue   loại sóng/loại tôn (tùy chọn)
  * @param thickness   độ dày tôn tính theo mm (tùy chọn)
+ * @param width       khổ rộng tôn tính theo mm hoặc mét (tùy chọn)
  * @param colorIds    danh sách ID màu sắc liên kết (tùy chọn)
  * @param prices      bảng giá theo đơn vị tính: Map từ unitId → price (VND integer)
  */
@@ -29,9 +30,27 @@ public record ProductVariantRequest(
         String typeValue,
 
         // độ dày
-        BigDecimal thickness, 
+        BigDecimal thickness,
+
+        // khổ rộng tôn
+        BigDecimal width,
 
         List<Long> colorIds,
 
         Map<Long, Integer> prices
-) {}
+) {
+    /**
+     * Constructor tương thích ngược cho các bài kiểm thử hoặc luồng không truyền tham số width.
+     *
+     * @param variantCode mã biến thể nội bộ
+     * @param variantName tên biến thể hiển thị
+     * @param typeValue   loại sóng/loại tôn
+     * @param thickness   độ dày tôn tính theo mm
+     * @param colorIds    danh sách ID màu sắc liên kết
+     * @param prices      bảng giá theo đơn vị tính
+     */
+    public ProductVariantRequest(String variantCode, String variantName, String typeValue,
+                                 BigDecimal thickness, List<Long> colorIds, Map<Long, Integer> prices) {
+        this(variantCode, variantName, typeValue, thickness, null, colorIds, prices);
+    }
+}

@@ -5,6 +5,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.Size;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -14,7 +15,8 @@ import java.util.List;
  * @param productName     tên sản phẩm (tùy chọn nếu đã có trong product, tối đa 250 ký tự)
  * @param description     mô tả chi tiết sản phẩm (tùy chọn)
  * @param brandId         ID thương hiệu (tùy chọn)
- * @param primaryImage    tệp ảnh đại diện tải lên trực tiếp (tùy chọn)
+ * @param primaryImage    danh sách tệp ảnh đại diện (alias primaryImage)
+ * @param primaryImages   danh sách tệp ảnh đại diện (alias primaryImages)
  * @param secondaryImages danh sách tệp ảnh phụ tải lên trực tiếp (tùy chọn)
  */
 public record ProductCreateUploadRequest(
@@ -28,12 +30,25 @@ public record ProductCreateUploadRequest(
 
         Long brandId,
 
-        MultipartFile primaryImage,
+        List<MultipartFile> primaryImage,
+
+        List<MultipartFile> primaryImages,
 
         List<MultipartFile> secondaryImages
 ) {
     /**
-     * Constructor thuận tiện khi tạo sản phẩm bằng form fields và file ảnh.
+     * Constructor tương thích khi truyền 1 ảnh đại diện đơn lẻ.
+     */
+    public ProductCreateUploadRequest(ProductCreateRequest product, String productName, String description, Long brandId,
+                                      MultipartFile primaryImage, List<MultipartFile> secondaryImages) {
+        this(product, productName, description, brandId,
+                primaryImage != null ? List.of(primaryImage) : null,
+                null,
+                secondaryImages);
+    }
+
+    /**
+     * Constructor thuận tiện khi tạo sản phẩm bằng form fields và file ảnh đơn lẻ.
      *
      * @param productName     tên sản phẩm
      * @param description     mô tả chi tiết
@@ -44,6 +59,49 @@ public record ProductCreateUploadRequest(
     public ProductCreateUploadRequest(String productName, String description, Long brandId,
                                       MultipartFile primaryImage, List<MultipartFile> secondaryImages) {
         this(null, productName, description, brandId, primaryImage, secondaryImages);
+    }
+
+    /**
+     * Thu thập danh sách các tệp ảnh đại diện hợp lệ không rỗng.
+     *
+     * @return danh sách MultipartFile ảnh đại diện
+     */
+    public List<MultipartFile> allPrimaryImages() {
+        List<MultipartFile> result = new ArrayList<>();
+        collectNonEmpty(result, primaryImage);
+        collectNonEmpty(result, primaryImages);
+        return result;
+    }
+
+    /**
+     * Lấy tệp ảnh đại diện mục tiêu (ưu tiên tệp đầu tiên).
+     *
+     * @return MultipartFile hoặc null nếu không có
+     */
+    public MultipartFile resolvePrimaryImage() {
+        List<MultipartFile> all = allPrimaryImages();
+        return all.isEmpty() ? null : all.get(0);
+    }
+
+    /**
+     * Thu thập danh sách các tệp ảnh phụ hợp lệ không rỗng.
+     *
+     * @return danh sách MultipartFile ảnh phụ
+     */
+    public List<MultipartFile> allSecondaryImages() {
+        List<MultipartFile> result = new ArrayList<>();
+        collectNonEmpty(result, secondaryImages);
+        return result;
+    }
+
+    private static void collectNonEmpty(List<MultipartFile> target, List<MultipartFile> source) {
+        if (source != null) {
+            for (MultipartFile f : source) {
+                if (f != null && !f.isEmpty()) {
+                    target.add(f);
+                }
+            }
+        }
     }
 
     /**
@@ -62,4 +120,3 @@ public record ProductCreateUploadRequest(
         return new ProductCreateRequest(productName.trim(), description, brandId, List.of(), List.of());
     }
 }
-

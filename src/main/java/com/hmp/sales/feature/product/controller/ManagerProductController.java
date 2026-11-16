@@ -1,5 +1,6 @@
 package com.hmp.sales.feature.product.controller;
 
+import com.hmp.sales.common.exception.BusinessRuleException;
 import com.hmp.sales.common.response.ApiSuccessResponse;
 import com.hmp.sales.common.util.SecurityUtils;
 import com.hmp.sales.feature.product.dto.ProductCreateRequest;
@@ -13,6 +14,7 @@ import com.hmp.sales.feature.product.dto.ProductUpdateRequest;
 import com.hmp.sales.feature.product.dto.ProductVariantRequest;
 import com.hmp.sales.feature.product.dto.ProductVariantResponse;
 import com.hmp.sales.feature.product.service.ProductService;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -28,6 +30,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.multipart.MultipartHttpServletRequest;
 
 import java.util.List;
 
@@ -88,7 +92,9 @@ public class ManagerProductController {
     public ResponseEntity<ApiSuccessResponse<ProductDetailResponse>> createProductWithFiles(
             @PathVariable Long categoryId,
             @Valid @ModelAttribute ProductCreateUploadRequest request,
-            @AuthenticationPrincipal Jwt jwt) {
+            @AuthenticationPrincipal Jwt jwt,
+            HttpServletRequest servletRequest) {
+        validateProductCreateUpload(request, servletRequest);
         Long managerId = SecurityUtils.extractUserId(jwt);
         ProductDetailResponse response = productService.createProduct(categoryId, request, managerId);
         return ResponseEntity.status(HttpStatus.CREATED)
@@ -161,7 +167,9 @@ public class ManagerProductController {
     @PostMapping(value = "/products/{productId}/images", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ApiSuccessResponse<ProductImageResponse>> uploadProductImageWithFile(
             @PathVariable Long productId,
-            @Valid @ModelAttribute ProductImageUploadMultipartRequest request) {
+            @Valid @ModelAttribute ProductImageUploadMultipartRequest request,
+            HttpServletRequest servletRequest) {
+        validateSingleProductImageUpload(request, servletRequest);
         ProductImageResponse response = productService.uploadProductImage(productId, request);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiSuccessResponse.created("Thêm ảnh sản phẩm thành công.", response));
@@ -195,7 +203,9 @@ public class ManagerProductController {
     @PostMapping(value = "/products/{productId}/images/batch", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ApiSuccessResponse<List<ProductImageResponse>>> uploadProductImagesBatchWithFiles(
             @PathVariable Long productId,
-            @Valid @ModelAttribute ProductImageBatchUploadRequest request) {
+            @Valid @ModelAttribute ProductImageBatchUploadRequest request,
+            HttpServletRequest servletRequest) {
+        validateProductImageBatchUpload(request, servletRequest);
         List<ProductImageResponse> response = productService.uploadProductImages(productId, request);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiSuccessResponse.created("Tải lên danh sách ảnh sản phẩm thành công.", response));
@@ -326,5 +336,91 @@ public class ManagerProductController {
             @PathVariable Long variantId) {
         productService.deleteVariant(productId, variantId);
         return ResponseEntity.ok(ApiSuccessResponse.success("Xóa biến thể thành công.", null));
+    }
+
+    /**
+     * Xác thực số lượng tệp tải lên khi tạo sản phẩm kèm ảnh (tối đa 1 ảnh đại diện, 10 ảnh phụ).
+     */
+    private void validateProductCreateUpload(ProductCreateUploadRequest request, HttpServletRequest servletRequest) {
+        if (request != null) {
+            if (request.allPrimaryImages().size() > 1) {
+                throw new BusinessRuleException("Mỗi sản phẩm chỉ được phép có tối đa 1 ảnh đại diện.");
+            }
+            if (request.allSecondaryImages().size() > 10) {
+                throw new BusinessRuleException("Số lượng ảnh phụ tải lên một lần không được vượt quá 10 ảnh.");
+            }
+        }
+        if (servletRequest instanceof MultipartHttpServletRequest multipartRequest) {
+            int primaryCount = countFiles(multipartRequest.getFiles("primaryImage"))
+                    + countFiles(multipartRequest.getFiles("primaryImages"));
+            if (primaryCount > 1) {
+                throw new BusinessRuleException("Mỗi sản phẩm chỉ được phép có tối đa 1 ảnh đại diện.");
+            }
+            int secondaryCount = countFiles(multipartRequest.getFiles("secondaryImages"));
+            if (secondaryCount > 10) {
+                throw new BusinessRuleException("Số lượng ảnh phụ tải lên một lần không được vượt quá 10 ảnh.");
+            }
+        }
+    }
+
+    /**
+     * Xác thực chỉ tải lên tối đa 1 tệp ảnh cho API thêm ảnh đơn của sản phẩm.
+     */
+    private void validateSingleProductImageUpload(ProductImageUploadMultipartRequest request, HttpServletRequest servletRequest) {
+        if (request != null && request.allUploadedFiles().size() > 1) {
+            throw new BusinessRuleException("Mỗi lần tải lên chỉ được phép chọn tối đa 1 tệp ảnh. Vui lòng sử dụng API tải lên hàng loạt nếu muốn tải nhiều ảnh.");
+        }
+        if (servletRequest instanceof MultipartHttpServletRequest multipartRequest) {
+            int count = 0;
+            for (List<MultipartFile> files : multipartRequest.getMultiFileMap().values()) {
+                count += countFiles(files);
+            }
+            if (count > 1) {
+                throw new BusinessRuleException("Mỗi lần tải lên chỉ được phép chọn tối đa 1 tệp ảnh. Vui lòng sử dụng API tải lên hàng loạt nếu muốn tải nhiều ảnh.");
+            }
+        }
+    }
+
+    /**
+     * Xác thực số lượng tệp ảnh khi tải lên danh sách ảnh hàng loạt cho sản phẩm.
+     */
+    private void validateProductImageBatchUpload(ProductImageBatchUploadRequest request, HttpServletRequest servletRequest) {
+        if (request != null) {
+            List<MultipartFile> files = request.resolveFiles();
+            if (Boolean.TRUE.equals(request.isPrimary()) && files.size() > 1) {
+                throw new BusinessRuleException("Không thể tải lên nhiều hơn 1 ảnh đại diện trong cùng một lần.");
+            }
+            if (files.size() > 10) {
+                throw new BusinessRuleException("Số lượng ảnh tải lên một lần không được vượt quá 10 ảnh.");
+            }
+        }
+        if (servletRequest instanceof MultipartHttpServletRequest multipartRequest) {
+            int total = 0;
+            for (List<MultipartFile> files : multipartRequest.getMultiFileMap().values()) {
+                total += countFiles(files);
+            }
+            if (request != null && Boolean.TRUE.equals(request.isPrimary()) && total > 1) {
+                throw new BusinessRuleException("Không thể tải lên nhiều hơn 1 ảnh đại diện trong cùng một lần.");
+            }
+            if (total > 10) {
+                throw new BusinessRuleException("Số lượng ảnh tải lên một lần không được vượt quá 10 ảnh.");
+            }
+        }
+    }
+
+    /**
+     * Đếm số lượng tệp thực sự có dữ liệu (không rỗng) trong danh sách.
+     */
+    private int countFiles(List<MultipartFile> files) {
+        if (files == null) {
+            return 0;
+        }
+        int count = 0;
+        for (MultipartFile file : files) {
+            if (file != null && !file.isEmpty()) {
+                count++;
+            }
+        }
+        return count;
     }
 }

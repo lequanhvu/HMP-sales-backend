@@ -17,6 +17,7 @@ import java.util.stream.Collectors;
  * @param variantName tên biến thể hiển thị
  * @param typeValue   loại sóng/loại sản phẩm
  * @param thickness   độ dày tôn (mm)
+ * @param width       khổ rộng tôn (mm hoặc m)
  * @param status      trạng thái biến thể
  * @param colors      danh sách tên màu sắc liên kết
  * @param prices      bảng giá theo đơn vị tính (null khi thiếu quyền PRODUCT_PRICE_VIEW)
@@ -27,10 +28,29 @@ public record ProductVariantResponse(
         String variantName,
         String typeValue,
         BigDecimal thickness,
+        BigDecimal width,
         VariantStatus status,
         List<String> colors,
         Map<String, Integer> prices
 ) {
+
+    /**
+     * Constructor tương thích ngược cho các bài kiểm thử hoặc luồng không truyền tham số width.
+     *
+     * @param id          ID biến thể
+     * @param variantCode mã biến thể nội bộ
+     * @param variantName tên biến thể hiển thị
+     * @param typeValue   loại sóng/loại sản phẩm
+     * @param thickness   độ dày tôn (mm)
+     * @param status      trạng thái biến thể
+     * @param colors      danh sách tên màu sắc liên kết
+     * @param prices      bảng giá theo đơn vị tính
+     */
+    public ProductVariantResponse(Long id, String variantCode, String variantName, String typeValue,
+                                  BigDecimal thickness, VariantStatus status, List<String> colors,
+                                  Map<String, Integer> prices) {
+        this(id, variantCode, variantName, typeValue, thickness, null, status, colors, prices);
+    }
 
     /**
      * Chuyển đổi từ entity {@link ProductVariant} sang DTO với giá đã được kiểm soát quyền.
@@ -61,6 +81,7 @@ public record ProductVariantResponse(
                 variant.getVariantName(),
                 variant.getTypeValue(),
                 variant.getThickness(),
+                variant.getWidth(),
                 variant.getStatus(),
                 colorNames,
                 priceMap

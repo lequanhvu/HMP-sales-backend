@@ -7,7 +7,7 @@ The Product module manages roofing sheet manufacturing products (`Tôn sóng vu�
 ## Technical Decisions
 - **File-system Category Hierarchy**: Implemented folder-like category navigation where Managers can create either child categories or products under any category node.
 - **Permission-driven Price Masking (`PRODUCT_PRICE_VIEW`)**: Evaluated dynamically via `PermissionEvaluationService`; price fields are stripped (null) and sorting by price (`sortBy=price`) is blocked when callers lack permission to prevent indirect price leakage.
-- **Decoupled Pricing & Variant Model**: Manufacturing dimensions (such as sheet length) belong to customer orders (`OrderItem`), while static variants (`ProductVariant`) define thickness and wave type, bound to multi-unit pricing (`ProductPrice`) and color swatches (`ProductColor`).
+- **Decoupled Pricing & Variant Model**: Manufacturing dimensions (such as sheet length) belong to customer orders (`OrderItem`), while static variants (`ProductVariant`) define thickness, wave type, and sheet width (`width`), bound to multi-unit pricing (`ProductPrice`) and color swatches (`ProductColor`).
 - **Direct Cloudflare R2 Uploads for Imagery**: Integrated S3-compatible Cloudflare R2 with automatic UUID naming, folder sanitization, MIME verification, and 1-step multipart endpoints for single/batch images and product creation with images.
 - **Search Invalidation Event Wiring**: Any status change, product creation, or primary image alteration fires `SearchIndexInvalidationEvent` to keep the in-memory Vietnamese search cache synchronized in real-time.
 - **Soft-delete Cascading with Incomplete Order Protection**: Soft-deleting a product cascades to variants and images, but is rejected with HTTP 409 Conflict if active incomplete orders (`PENDING`, `CONFIRMED`, `PROCESSING`, `SHIPPING`) reference the product.
@@ -35,6 +35,17 @@ The Product module manages roofing sheet manufacturing products (`Tôn sóng vu�
 - ⚠️ Image dimensions/crop processing: Backend verifies file size (<= 5MB) and MIME type, but does not perform server-side image resizing or cropping.
 
 ## Refactor Log
+
+### 2026-11-16 | @antigravity
+- Added `width` attribute (khổ rộng tôn, `DECIMAL(10,3)`) to `ProductVariant` entity and related DTOs (`ProductVariantRequest`, `ProductVariantResponse`):
+  - Allows Managers to persist standard sheet widths (e.g. 1070mm) for manufacturing roofing variants.
+  - Updated `ProductServiceImpl` to set and update `width` during variant creation and editing.
+  - Maintained backward compatibility via overloaded DTO constructors.
+- Enforced strict file count validation on multipart requests across all Product image endpoints:
+  - `ProductImageUploadMultipartRequest`: converted scalar `MultipartFile` bindings to `List<MultipartFile>` to prevent Spring DataBinder from silently discarding excess files when clients select multiple files in Postman or send duplicate keys (`image`, `file`, `images`, `files`).
+  - Added double-layer validation in both `ManagerProductController` and `ProductServiceImpl` enforcing at most 1 file for single upload, at most 1 primary image in product creation, and at most 10 secondary images in product creation and batch upload.
+  - Rejection with HTTP 400 `BusinessRuleException` on exceeding file limits.
+- Handled `MaxUploadSizeExceededException` globally in `GlobalExceptionHandler` returning HTTP 400 Bad Request with a clear Vietnamese error message when uploaded files exceed the 5MB single file or 55MB request limit.
 
 ### 2026-11-15 | @antigravity
 - Added direct Cloudflare R2 image upload capabilities (`MultipartFile`) for single and batch product images, alongside 1-step product creation with primary and secondary images.

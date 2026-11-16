@@ -343,7 +343,8 @@ class CategoryServiceImplTest {
                 .isDeleted(false)
                 .build();
 
-        when(productRepository.findByCategoryIdAndStatusAndIsDeletedFalse(eq(10L), eq(ProductStatus.ACTIVE), any(Pageable.class)))
+        when(categoryRepository.findAllDescendantIds(10L)).thenReturn(List.of(10L, 11L, 12L));
+        when(productRepository.findByCategoryIdInAndStatusAndIsDeletedFalse(eq(List.of(10L, 11L, 12L)), eq(ProductStatus.ACTIVE), any(Pageable.class)))
                 .thenReturn(new PageImpl<>(List.of(activeProduct)));
         when(permissionEvaluationService.canViewProductPrice()).thenReturn(false);
 

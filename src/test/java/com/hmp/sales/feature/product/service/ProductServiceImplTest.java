@@ -25,10 +25,12 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -525,5 +527,124 @@ class ProductServiceImplTest {
 
         assertThat(responses).hasSize(1);
         assertThat(responses.get(0).imageUrl()).isEqualTo("https://r2.cdn.com/products/batch1.png");
+    }
+
+    @Test
+    @DisplayName("uploadProductImage - ProductImageUploadMultipartRequest có từ 2 ảnh trở lên ném BusinessRuleException")
+    void uploadProductImage_withMultipartRequest_moreThanOneFile_throwsException() {
+        MockMultipartFile file1 = new MockMultipartFile("image", "img1.png", "image/png", new byte[]{1});
+        MockMultipartFile file2 = new MockMultipartFile("image", "img2.png", "image/png", new byte[]{2});
+
+        ProductImageUploadMultipartRequest req = new ProductImageUploadMultipartRequest(
+                List.of(file1, file2), null, null, null, null, false, 0);
+
+        assertThatThrownBy(() -> productService.uploadProductImage(100L, req))
+                .isInstanceOf(BusinessRuleException.class)
+                .hasMessage("Mỗi lần tải lên chỉ được phép chọn tối đa 1 tệp ảnh. Vui lòng sử dụng API tải lên hàng loạt nếu muốn tải nhiều ảnh.");
+    }
+
+    @Test
+    @DisplayName("createProduct - ProductCreateUploadRequest có nhiều hơn 1 ảnh đại diện ném BusinessRuleException")
+    void createProduct_withUploadRequest_multiplePrimaryImages_throwsException() {
+        MockMultipartFile primary1 = new MockMultipartFile("primaryImage", "main1.png", "image/png", new byte[]{1});
+        MockMultipartFile primary2 = new MockMultipartFile("primaryImage", "main2.png", "image/png", new byte[]{2});
+
+        ProductCreateUploadRequest req = new ProductCreateUploadRequest(
+                null, "Sản phẩm", "Mô tả", 5L,
+                List.of(primary1, primary2), null, List.of());
+
+        assertThatThrownBy(() -> productService.createProduct(10L, req, 1L))
+                .isInstanceOf(BusinessRuleException.class)
+                .hasMessage("Mỗi sản phẩm chỉ được phép có tối đa 1 ảnh đại diện.");
+    }
+
+    @Test
+    @DisplayName("createProduct - ProductCreateUploadRequest có nhiều hơn 10 ảnh phụ ném BusinessRuleException")
+    void createProduct_withUploadRequest_moreThan10SecondaryImages_throwsException() {
+        MockMultipartFile primary = new MockMultipartFile("primaryImage", "main.png", "image/png", new byte[]{1});
+        List<MultipartFile> secondaryList = new ArrayList<>();
+        for (int i = 0; i < 11; i++) {
+            secondaryList.add(new MockMultipartFile("secondaryImages", "sub" + i + ".png", "image/png", new byte[]{1}));
+        }
+
+        ProductCreateUploadRequest req = new ProductCreateUploadRequest(
+                null, "Sản phẩm", "Mô tả", 5L,
+                List.of(primary), null, secondaryList);
+
+        assertThatThrownBy(() -> productService.createProduct(10L, req, 1L))
+                .isInstanceOf(BusinessRuleException.class)
+                .hasMessage("Số lượng ảnh phụ tải lên một lần không được vượt quá 10 ảnh.");
+    }
+
+    @Test
+    @DisplayName("uploadProductImages - ProductImageBatchUploadRequest có nhiều hơn 10 ảnh ném BusinessRuleException")
+    void uploadProductImages_withBatchRequest_moreThan10Files_throwsException() {
+        List<MultipartFile> files = new ArrayList<>();
+        for (int i = 0; i < 11; i++) {
+            files.add(new MockMultipartFile("images", "batch" + i + ".png", "image/png", new byte[]{1}));
+        }
+
+        ProductImageBatchUploadRequest req = new ProductImageBatchUploadRequest(
+                files, null, null, null, false, 0);
+
+        assertThatThrownBy(() -> productService.uploadProductImages(100L, req))
+                .isInstanceOf(BusinessRuleException.class)
+                .hasMessage("Số lượng ảnh tải lên một lần không được vượt quá 10 ảnh.");
+    }
+
+    @Test
+    @DisplayName("addVariant - Lưu biến thể thành công kèm khổ rộng (width)")
+    void addVariant_withWidth_success() {
+        when(productRepository.findByIdAndIsDeletedFalse(100L)).thenReturn(Optional.of(product));
+        when(productVariantRepository.save(any(ProductVariant.class))).thenAnswer(inv -> {
+            ProductVariant pv = inv.getArgument(0);
+            pv.setId(500L);
+            return pv;
+        });
+        when(permissionEvaluationService.hasPermission("PRODUCT_PRICE_VIEW")).thenReturn(true);
+
+        ProductVariantRequest req = new ProductVariantRequest(
+                "VAR-W1", "Tôn 11 sóng khổ 1070", "11 sóng vuông",
+                new BigDecimal("0.45"), new BigDecimal("1070.000"), List.of(), Map.of());
+
+        ProductVariantResponse resp = productService.addVariant(100L, req);
+
+        assertThat(resp).isNotNull();
+        assertThat(resp.variantName()).isEqualTo("Tôn 11 sóng khổ 1070");
+        assertThat(resp.thickness()).isEqualTo(new BigDecimal("0.45"));
+        assertThat(resp.width()).isEqualTo(new BigDecimal("1070.000"));
+        verify(productVariantRepository).save(any(ProductVariant.class));
+    }
+
+    @Test
+    @DisplayName("updateVariant - Cập nhật khổ rộng (width) của biến thể thành công")
+    void updateVariant_withWidth_success() {
+        when(productRepository.findByIdAndIsDeletedFalse(100L)).thenReturn(Optional.of(product));
+        ProductVariant existing = ProductVariant.builder()
+                .id(500L)
+                .product(product)
+                .variantCode("VAR-OLD")
+                .variantName("Biến thể cũ")
+                .thickness(new BigDecimal("0.40"))
+                .width(new BigDecimal("1000"))
+                .status(VariantStatus.ACTIVE)
+                .isDeleted(false)
+                .colors(new ArrayList<>())
+                .prices(new ArrayList<>())
+                .build();
+
+        when(productVariantRepository.findByIdAndIsDeletedFalse(500L)).thenReturn(Optional.of(existing));
+        when(productVariantRepository.save(any(ProductVariant.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(permissionEvaluationService.hasPermission("PRODUCT_PRICE_VIEW")).thenReturn(true);
+
+        ProductVariantRequest req = new ProductVariantRequest(
+                "VAR-NEW", "Biến thể mới", "9 sóng vuông",
+                new BigDecimal("0.50"), new BigDecimal("1070.500"), null, null);
+
+        ProductVariantResponse resp = productService.updateVariant(100L, 500L, req);
+
+        assertThat(resp.width()).isEqualTo(new BigDecimal("1070.500"));
+        assertThat(resp.thickness()).isEqualTo(new BigDecimal("0.50"));
+        assertThat(resp.typeValue()).isEqualTo("9 sóng vuông");
     }
 }
