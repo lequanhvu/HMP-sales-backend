@@ -11,6 +11,7 @@ The Product module manages roofing sheet manufacturing products (`Tôn sóng vu�
 - **Direct Cloudflare R2 Uploads for Imagery**: Integrated S3-compatible Cloudflare R2 with automatic UUID naming, folder sanitization, MIME verification, and 1-step multipart endpoints for single/batch images and product creation with images.
 - **Search Invalidation Event Wiring**: Any status change, product creation, or primary image alteration fires `SearchIndexInvalidationEvent` to keep the in-memory Vietnamese search cache synchronized in real-time.
 - **Soft-delete Cascading with Incomplete Order Protection**: Soft-deleting a product cascades to variants and images, but is rejected with HTTP 409 Conflict if active incomplete orders (`PENDING`, `CONFIRMED`, `PROCESSING`, `SHIPPING`) reference the product.
+- **Dedicated Featured Products Module (`featured_products`)**: Decoupled showcase/featured product selection from the primary `products` table into a dedicated entity `FeaturedProduct`. Enables Managers to curate homepage showcase items, define custom ordering (`displayOrder`), and toggle display status (`ACTIVE`/`INACTIVE`) without modifying original product schemas. Soft-deleting a product automatically cascades to its featured product entry.
 
 ## Considered and Rejected
 - **Storing images as Base64 in PostgreSQL**: Rejected because large binary payloads degrade database performance, increase backup sizes, and prevent CDN caching.
@@ -37,6 +38,23 @@ The Product module manages roofing sheet manufacturing products (`Tôn sóng vu�
 ## Refactor Log
 
 ### 2026-11-16 | @antigravity
+- Implemented Dedicated Featured Products Module (`featured_products`):
+  - Created entity `FeaturedProduct` (`featured_id`, `product_id`, `display_order`, `status`, `created_by`, `created_at`, `updated_at`, `is_deleted`).
+  - Added enum `FeaturedProductStatus` (`ACTIVE`, `INACTIVE`) and repository `FeaturedProductRepository`.
+  - Added DTO records `FeaturedProductCreateRequest`, `FeaturedProductUpdateRequest`, and `FeaturedProductResponse`.
+  - Implemented service layer `FeaturedProductService` & `FeaturedProductServiceImpl` enforcing:
+    - Only `ACTIVE` and non-deleted products can be featured.
+    - Strict product uniqueness among active featured entries (`existsByProductIdAndIsDeletedFalse`).
+    - Dynamic price visibility enforcement via `PermissionEvaluationService` (`PRODUCT_PRICE_VIEW`).
+    - Audit logging via `SystemLogService` (`FEATURED_PRODUCT_ADDED`, `FEATURED_PRODUCT_UPDATED`, `FEATURED_PRODUCT_DELETED`).
+    - Automatic cascade soft-delete in `ProductServiceImpl.deleteProduct` cleaning up orphaned featured records.
+  - Implemented REST controllers:
+    - `PublicFeaturedProductController`: `GET /api/v1/featured-products` for homepage/public client access.
+    - `ManagerFeaturedProductController`: full CRUD (`GET`, `POST`, `PUT`, `DELETE`) under `/api/v1/manager/featured-products`.
+  - Integrated permissions into `DataInitializer` (`FEATURED_PRODUCT_VIEW_ALL`, `FEATURED_PRODUCT_MANAGE`, `FEATURED_PRODUCT_UPDATE`, `FEATURED_PRODUCT_DELETE`) mapped to Admin and Manager roles.
+  - Whitelisted `GET /api/v1/featured-products/**` in `SecurityConfig`.
+  - Comprehensive unit and controller test suites created (19/19 tests passing).
+
 - Added `width` attribute (khổ rộng tôn, `DECIMAL(10,3)`) to `ProductVariant` entity and related DTOs (`ProductVariantRequest`, `ProductVariantResponse`):
   - Allows Managers to persist standard sheet widths (e.g. 1070mm) for manufacturing roofing variants.
   - Updated `ProductServiceImpl` to set and update `width` during variant creation and editing.

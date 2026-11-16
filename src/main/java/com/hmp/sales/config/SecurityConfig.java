@@ -57,6 +57,7 @@ public class SecurityConfig {
     public static final String[] PUBLIC_GET_WHITELIST = {
             "/api/v1/categories/**",
             "/api/v1/products/**",
+            "/api/v1/featured-products/**",
             "/api/v1/brands/**",
             "/api/v1/units/**",
             "/api/v1/colors/**",

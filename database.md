@@ -35,6 +35,7 @@ Brand ──< Product
 
 Product ──< OrderItem >── Order
 Order ──< OrderStatusHistory
+Product ──< FeaturedProduct
 
 SystemSetting
 ```
@@ -502,7 +503,29 @@ ORDER_UNDO_CANCEL_WINDOW_MINUTES
 
 Additional settings should be added only when an explicit requirement exists.
 
-## 24. Relationships
+## 24. Table: FeaturedProduct
+
+Purpose: Curated showcase products displayed prominently on the homepage and promotional sliders/grids.
+
+| Column | PostgreSQL | Null | Notes |
+|---|---|---:|---|
+| FeaturedID | BIGINT IDENTITY | No | PK (`featured_id`) |
+| ProductID | BIGINT | No | FK Product (`product_id`) |
+| DisplayOrder | INT | No | Priority sort order (ascending, default 0) |
+| Status | VARCHAR(20) | No | `ACTIVE`, `INACTIVE` (default `ACTIVE`) |
+| CreatedBy | BIGINT | Yes | FK User (`created_by`) |
+| CreatedAt | DATETIME2 | No | Timestamp of creation |
+| UpdatedAt | DATETIME2 | Yes | Timestamp of latest update |
+| IsDeleted | BOOLEAN | No | Default false; soft delete flag |
+
+Application/service rules:
+- Only products with `Status = ACTIVE` and `IsDeleted = false` can be added to featured products.
+- Each product can only appear at most once in active/non-deleted featured products (`existsByProductIdAndIsDeletedFalse`).
+- When a `Product` is soft deleted, any associated `FeaturedProduct` record is automatically cascade soft deleted (`is_deleted = true`).
+- Display ordering: sorted by `DisplayOrder ASC`, followed by `CreatedAt DESC`.
+- Price visibility inside responses adheres dynamically to `PRODUCT_PRICE_VIEW` authorization.
+
+## 25. Relationships
 
 ```text
 Role 1---N User
@@ -513,6 +536,7 @@ User 1---N RefreshToken
 User 1---N Order
 User 1---N Notification
 User 1---N SystemLog
+User 1---N FeaturedProduct
 
 Category 1---N Category
 Category 1---N Product
@@ -521,6 +545,7 @@ Product 1---N ProductVariant
 Unit 1---N ProductPrice N---1 ProductVariant 
 Color 1---N ProductColor N---1 ProductVariant
 Product 1---N ProductImage
+Product 1---N FeaturedProduct
 
 
 Order 1---N OrderItem
@@ -529,43 +554,46 @@ ProductVariant 1---N OrderItem
 Order 1---N OrderStatusHistory
 ```
 
-## 25. Key indexes
+## 26. Key indexes
 
 Recommended starting indexes:
 
 ```text
-User:          UX_User_Email
-User:          UX_User_Provider
-RefreshToken:  UX_RefreshToken_Hash
-RefreshToken:  IX_RefreshToken_User_ExpiresAt
-RefreshToken:  IX_RefreshToken_Family
-Category:      IX_Category_Parent_Status
-Product:       IX_Product_Category_Status
-Product:       IX_Product_Status
-Product:       IX_Product_Name (or full-text strategy later)
-Variant:       IX_ProductVariant_Product_Status
-Order:         IX_Order_Customer_CreatedAt
-Order:         IX_Order_Status_CreatedAt
-OrderItem:     IX_OrderItem_Order
-History:       IX_OrderStatusHistory_Order_CreatedAt
-Notification:  IX_Notification_User_IsRead_CreatedAt
-SystemLog:     IX_SystemLog_User_CreatedAt
-SystemLog:     IX_SystemLog_Entity
-Setting:       UX_SystemSetting_Key
+User:            UX_User_Email
+User:            UX_User_Provider
+RefreshToken:    UX_RefreshToken_Hash
+RefreshToken:    IX_RefreshToken_User_ExpiresAt
+RefreshToken:    IX_RefreshToken_Family
+Category:        IX_Category_Parent_Status
+Product:         IX_Product_Category_Status
+Product:         IX_Product_Status
+Product:         IX_Product_Name (or full-text strategy later)
+Variant:         IX_ProductVariant_Product_Status
+FeaturedProduct: IX_FeaturedProduct_Status_Order (status, is_deleted, display_order, created_at)
+FeaturedProduct: UX_FeaturedProduct_Product (product_id, is_deleted)
+Order:           IX_Order_Customer_CreatedAt
+Order:           IX_Order_Status_CreatedAt
+OrderItem:       IX_OrderItem_Order
+History:         IX_OrderStatusHistory_Order_CreatedAt
+Notification:    IX_Notification_User_IsRead_CreatedAt
+SystemLog:       IX_SystemLog_User_CreatedAt
+SystemLog:       IX_SystemLog_Entity
+Setting:         UX_SystemSetting_Key
 ```
 
 Exact index strategy should be confirmed from query plans after implementation rather than creating every possible index upfront.
 
-## 26. Delete/update policy
+## 27. Delete/update policy
 
-- Soft delete: all durable tables include IsDeleted (BOOLEAN, default alse) for soft-deletion without breaking foreign key references or audit history.
+- Soft delete: all durable tables include IsDeleted (BOOLEAN, default false) for soft-deletion without breaking foreign key references or audit history.
 - Product: prefer status change over physical delete when referenced.
 - Category: do not delete a non-empty category without a defined child/product migration policy.
+- FeaturedProduct: soft-deleted on removal (IsDeleted = true) and automatically cascade soft-deleted when its parent Product is soft-deleted.
 - User: Admin can soft-delete a user by setting `IsDeleted = true`. Physical deletion is never performed. Historical order records remain intact and readable. Active access tokens (Redis) and all refresh tokens (PostgreSQL) for the deleted user are revoked at deletion time.
 - Order: never hard-delete ordinary business orders from normal admin flows.
 - OrderItem snapshots protect historical information.
 
-## 27. Redis data design
+## 28. Redis data design
 
 Redis keys should be namespaced.
 

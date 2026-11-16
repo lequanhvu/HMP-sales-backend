@@ -1,6 +1,6 @@
 # Project Status
 
-> Last updated: 2026-11-16 | By: @antigravity | Session: #23
+> Last updated: 2026-11-16 | By: @antigravity | Session: #24
 >
 > AI: update this file at the end of every session when asked.
 > Follow this exact format. Preserve full milestone checklists and project specifications.
@@ -8,6 +8,41 @@
 ---
 
 ## Completed
+- ✅ **Phân hệ Sản phẩm Nổi bật (Featured Products) & Quản trị CRUD hoàn tất**:
+  - **Mô hình Dữ liệu & Thực thể (`FeaturedProduct`)**:
+    - Tạo mới thực thể [`FeaturedProduct`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/product/entity/FeaturedProduct.java) ánh xạ bảng `featured_products` với các thuộc tính: `id` (PK, `featured_id`), `product` (FK `products`), `displayOrder` (thứ tự ưu tiên hiển thị), `status` ([`FeaturedProductStatus`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/product/entity/FeaturedProductStatus.java): `ACTIVE`/`INACTIVE`), `createdBy` (FK `users`), `createdAt`, `updatedAt`, `isDeleted`.
+    - Tạo repository [`FeaturedProductRepository`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/product/repository/FeaturedProductRepository.java) với các truy vấn chuyên biệt: `findByStatusAndIsDeletedFalseOrderByDisplayOrderAscCreatedAtDesc`, `findByIsDeletedFalseOrderByDisplayOrderAscCreatedAtDesc`, `existsByProductIdAndIsDeletedFalse`, `findByProductIdAndIsDeletedFalse`, `softDeleteByProductId`.
+  - **DTO Chuẩn hóa (Request & Response Records)**:
+    - [`FeaturedProductCreateRequest`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/product/dto/FeaturedProductCreateRequest.java): tiếp nhận `productId` (bắt buộc), `displayOrder`, `status`.
+    - [`FeaturedProductUpdateRequest`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/product/dto/FeaturedProductUpdateRequest.java): tiếp nhận `displayOrder`, `status`.
+    - [`FeaturedProductResponse`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/product/dto/FeaturedProductResponse.java): trả về toàn bộ thông tin sản phẩm nổi bật kèm thông tin tóm tắt sản phẩm (tên, danh mục, thương hiệu, ảnh đại diện, cờ `priceVisible`).
+  - **Tầng Dịch vụ Nghiệp vụ & Ràng buộc Tính toàn vẹn (`FeaturedProductService` & `FeaturedProductServiceImpl`)**:
+    - Kiểm tra tính hợp lệ: chỉ cho phép thêm sản phẩm có trạng thái `ACTIVE` và chưa bị xóa mềm; chặn thêm trùng lặp cùng 1 sản phẩm vào danh sách nổi bật chưa xóa mềm (`existsByProductIdAndIsDeletedFalse`).
+    - Phân quyền giá động: tích hợp `PermissionEvaluationService` để kiểm tra quyền `PRODUCT_PRICE_VIEW` khi trả về cờ `priceVisible`.
+    - Nhật ký kiểm toán: ghi vết đầy đủ các hành vi `FEATURED_PRODUCT_ADDED`, `FEATURED_PRODUCT_UPDATED`, `FEATURED_PRODUCT_DELETED` qua `SystemLogService`.
+    - Cascade soft-delete: đồng bộ với `ProductServiceImpl.deleteProduct` tự động xóa mềm các bản ghi `FeaturedProduct` liên kết khi sản phẩm cha bị xóa mềm.
+  - **REST Controllers (Public & Manager)**:
+    - [`PublicFeaturedProductController`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/product/controller/PublicFeaturedProductController.java): cung cấp `GET /api/v1/featured-products` cho khách vãng lai và trang chủ, được whitelist trong `SecurityConfig`.
+    - [`ManagerFeaturedProductController`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/product/controller/ManagerFeaturedProductController.java): cung cấp đầy đủ các endpoint quản trị:
+      - `GET /api/v1/manager/featured-products`: xem toàn bộ danh sách (cả ACTIVE và INACTIVE).
+      - `GET /api/v1/manager/featured-products/{id}`: xem chi tiết bản ghi.
+      - `POST /api/v1/manager/featured-products`: thêm sản phẩm vào danh sách nổi bật (201 Created).
+      - `PUT /api/v1/manager/featured-products/{id}`: cập nhật thứ tự, trạng thái (200 OK).
+      - `DELETE /api/v1/manager/featured-products/{id}`: xóa mềm khỏi danh sách nổi bật (200 OK).
+  - **Phân quyền & Khởi tạo Dữ liệu (`DataInitializer` & `SecurityConfig`)**:
+    - Khởi tạo 4 quyền hạn mới: `FEATURED_PRODUCT_VIEW_ALL`, `FEATURED_PRODUCT_MANAGE`, `FEATURED_PRODUCT_UPDATE`, `FEATURED_PRODUCT_DELETE` gán cho cả `ADMIN` và `MANAGER`.
+    - Tự động seed sản phẩm nổi bật mẫu ban đầu từ sản phẩm mẫu có sẵn.
+  - **Tài liệu Hợp đồng & Kiểm thử Toàn diện**:
+    - Cập nhật [`database.md`](file:///d:/HMP/sales-backend/database.md) (Bảng 24: `FeaturedProduct`, Sơ đồ quan hệ, Index & Soft delete policy).
+    - Cập nhật [`api-spec.md`](file:///d:/HMP/sales-backend/api-spec.md) (Mục 5.3: Public Featured Products, Mục 10.10: Manage Featured Products).
+    - Cập nhật [`feature/product/CONTEXT.md`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/product/CONTEXT.md).
+    - Viết mới 19 test cases trong [`FeaturedProductServiceImplTest`](file:///d:/HMP/sales-backend/src/test/java/com/hmp/sales/feature/product/service/FeaturedProductServiceImplTest.java), [`ManagerFeaturedProductControllerTest`](file:///d:/HMP/sales-backend/src/test/java/com/hmp/sales/feature/product/controller/ManagerFeaturedProductControllerTest.java), và [`PublicFeaturedProductControllerTest`](file:///d:/HMP/sales-backend/src/test/java/com/hmp/sales/feature/product/controller/PublicFeaturedProductControllerTest.java).
+    - Toàn bộ **478/478 tests pass 100%**.
+- ✅ **Mở rộng Truy vấn Sản phẩm theo Toàn bộ Cây Danh mục Con (`getProductsByCategory`) completed**:
+  - **Truy vấn Bao trùm Toàn bộ Cây Con (Subtree Aggregation)**:
+    - Bổ sung phương thức [`findByCategoryIdInAndStatusAndIsDeletedFalse`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/product/repository/ProductRepository.java) trong `ProductRepository` nhận danh sách `List<Long> categoryIds`.
+    - Cập nhật [`CategoryServiceImpl.getProductsByCategory`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/category/service/impl/CategoryServiceImpl.java) kết hợp truy vấn đệ quy `categoryRepository.findAllDescendantIds(categoryId)` để khi người dùng chọn bất kỳ danh mục gốc hoặc danh mục cha nào (`GET /api/v1/categories/{categoryId}/products`), hệ thống tự động lấy đầy đủ sản phẩm `ACTIVE` của danh mục đó cùng toàn bộ các danh mục con cháu nhiều cấp bên dưới, kèm sắp xếp ổn định mặc định theo `id ASC`.
+    - Đồng bộ Javadoc trong [`CategoryService`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/category/service/CategoryService.java), tài liệu [`api-spec.md`](file:///d:/HMP/sales-backend/api-spec.md) (mục 9.2) và kiểm thử đơn vị [`CategoryServiceImplTest`](file:///d:/HMP/sales-backend/src/test/java/com/hmp/sales/feature/category/service/CategoryServiceImplTest.java).
 - ✅ **Bổ sung Thuộc tính Khổ Rộng (`width`) vào `ProductVariant` cho Biến thể Tôn Lợp completed**:
   - **Mở rộng Thực thể & Cơ sở Dữ liệu (`ProductVariant`)**:
     - Bổ sung trường [`width`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/product/entity/ProductVariant.java) (`@Column(name = "width", precision = 10, scale = 3)`) kiểu `BigDecimal` lưu trữ thông số khổ rộng tôn (chiều rộng tôn lợp, ví dụ khổ 1070mm hay 1000mm).

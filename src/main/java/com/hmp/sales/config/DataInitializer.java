@@ -20,6 +20,7 @@ import com.hmp.sales.feature.user.repository.RoleRepository;
 import com.hmp.sales.feature.user.repository.UserRepository;
 import com.hmp.sales.security.PermissionAuthorizationManager;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.stereotype.Component;
@@ -56,6 +57,7 @@ public class DataInitializer implements ApplicationRunner {
     private final ProductImageRepository productImageRepository;
     private final ProductColorRepository productColorRepository;
     private final ProductPriceRepository productPriceRepository;
+    private final FeaturedProductRepository featuredProductRepository;
     private final SystemSettingRepository systemSettingRepository;
     private final PermissionAuthorizationManager permissionAuthorizationManager;
 
@@ -92,6 +94,7 @@ public class DataInitializer implements ApplicationRunner {
             ProductImageRepository productImageRepository,
             ProductColorRepository productColorRepository,
             ProductPriceRepository productPriceRepository,
+            @Autowired(required = false) FeaturedProductRepository featuredProductRepository,
             SystemSettingRepository systemSettingRepository,
             PermissionAuthorizationManager permissionAuthorizationManager) {
         this.roleRepository = roleRepository;
@@ -107,6 +110,7 @@ public class DataInitializer implements ApplicationRunner {
         this.productImageRepository = productImageRepository;
         this.productColorRepository = productColorRepository;
         this.productPriceRepository = productPriceRepository;
+        this.featuredProductRepository = featuredProductRepository;
         this.systemSettingRepository = systemSettingRepository;
         this.permissionAuthorizationManager = permissionAuthorizationManager;
     }
@@ -122,6 +126,7 @@ public class DataInitializer implements ApplicationRunner {
         seedMasterData();
         seedCategories();
         seedProducts();
+        seedFeaturedProducts();
         seedSystemSettings();
 
         // Nạp dữ liệu vừa seed vào bộ nhớ đệm RAM của PermissionAuthorizationManager
@@ -175,6 +180,11 @@ public class DataInitializer implements ApplicationRunner {
             new Object[]{"PRODUCT_VARIANT_LOCK",      "PRODUCT",  "/api/v1/manager/products/**/variants/**/lock", "POST",   "Khóa biến thể sản phẩm"},
             new Object[]{"PRODUCT_VARIANT_UNLOCK",    "PRODUCT",  "/api/v1/manager/products/**/variants/**/unlock", "POST", "Mở khóa biến thể sản phẩm"},
             new Object[]{"PRODUCT_VARIANT_DELETE",    "PRODUCT",  "/api/v1/manager/products/**/variants/**",      "DELETE", "Xóa biến thể sản phẩm"},
+            // --- FEATURED PRODUCT module ---
+            new Object[]{"FEATURED_PRODUCT_VIEW_ALL", "PRODUCT",  "/api/v1/manager/featured-products/**",         "GET",    "Xem danh sách sản phẩm nổi bật quản lý"},
+            new Object[]{"FEATURED_PRODUCT_MANAGE",   "PRODUCT",  "/api/v1/manager/featured-products/**",         "POST",   "Thêm sản phẩm vào danh sách nổi bật"},
+            new Object[]{"FEATURED_PRODUCT_UPDATE",   "PRODUCT",  "/api/v1/manager/featured-products/**",         "PUT",    "Cập nhật sản phẩm nổi bật"},
+            new Object[]{"FEATURED_PRODUCT_DELETE",   "PRODUCT",  "/api/v1/manager/featured-products/**",         "DELETE", "Xóa sản phẩm khỏi danh sách nổi bật"},
             // --- CATEGORY module ---
             new Object[]{"PRODUCT_CATEGORY_VIEW",     "CATEGORY", "/api/v1/manager/categories/**",                "GET",    "Xem danh mục và sản phẩm quản lý"},
             new Object[]{"PRODUCT_CATEGORY_CREATE",   "CATEGORY", "/api/v1/manager/categories/**",                "POST",   "Tạo danh mục sản phẩm"},
@@ -302,6 +312,7 @@ public class DataInitializer implements ApplicationRunner {
             "PRODUCT_CREATE", "PRODUCT_UPDATE", "PRODUCT_LOCK", "PRODUCT_UNLOCK", "PRODUCT_DELETE",
             "PRODUCT_IMAGE_MANAGE", "PRODUCT_IMAGE_DELETE",
             "PRODUCT_VARIANT_CREATE", "PRODUCT_VARIANT_UPDATE", "PRODUCT_VARIANT_LOCK", "PRODUCT_VARIANT_UNLOCK", "PRODUCT_VARIANT_DELETE",
+            "FEATURED_PRODUCT_VIEW_ALL", "FEATURED_PRODUCT_MANAGE", "FEATURED_PRODUCT_UPDATE", "FEATURED_PRODUCT_DELETE",
             "BRAND_VIEW_ALL", "BRAND_CREATE", "BRAND_UPDATE", "BRAND_LOCK", "BRAND_UNLOCK", "BRAND_DELETE",
             "UNIT_VIEW_ALL", "UNIT_CREATE", "UNIT_UPDATE", "UNIT_LOCK", "UNIT_UNLOCK", "UNIT_DELETE",
             "COLOR_VIEW_ALL", "COLOR_CREATE", "COLOR_UPDATE", "COLOR_LOCK", "COLOR_UNLOCK", "COLOR_DELETE",
@@ -320,6 +331,7 @@ public class DataInitializer implements ApplicationRunner {
             "PRODUCT_CREATE", "PRODUCT_UPDATE", "PRODUCT_LOCK", "PRODUCT_UNLOCK", "PRODUCT_DELETE",
             "PRODUCT_IMAGE_MANAGE", "PRODUCT_IMAGE_DELETE",
             "PRODUCT_VARIANT_CREATE", "PRODUCT_VARIANT_UPDATE", "PRODUCT_VARIANT_LOCK", "PRODUCT_VARIANT_UNLOCK", "PRODUCT_VARIANT_DELETE",
+            "FEATURED_PRODUCT_VIEW_ALL", "FEATURED_PRODUCT_MANAGE", "FEATURED_PRODUCT_UPDATE", "FEATURED_PRODUCT_DELETE",
             "PRODUCT_CATEGORY_VIEW", "PRODUCT_CATEGORY_CREATE", "PRODUCT_CATEGORY_UPDATE", "PRODUCT_CATEGORY_LOCK", "PRODUCT_CATEGORY_UNLOCK", "PRODUCT_CATEGORY_DELETE",
             "ORDER_VIEW_ALL", "ORDER_CALCULATE", "ORDER_CONFIRM", "ORDER_CANCEL_ANY", "ORDER_STATUS_UPDATE",
             "ORDER_CREATE", "ORDER_VIEW_OWN", "ORDER_CANCEL_OWN", "ORDER_UNDO_CANCEL_OWN", "ORDER_UNDO_CANCEL_ANY",
@@ -683,5 +695,28 @@ public class DataInitializer implements ApplicationRunner {
                             log.info("[DataInitializer] Khởi tạo SystemSetting mặc định '{}' = 60", setting.getSettingKey());
                         }
                 );
+    }
+
+    private void seedFeaturedProducts() {
+        if (featuredProductRepository == null) return;
+        if (featuredProductRepository.count() > 0) return;
+
+        Product sampleProduct = productRepository.findAll().stream()
+                .filter(p -> !Boolean.TRUE.equals(p.getIsDeleted()) && p.getStatus() == ProductStatus.ACTIVE)
+                .findFirst()
+                .orElse(null);
+        if (sampleProduct == null) return;
+
+        User manager = userRepository.findByEmailAndIsDeletedFalse("manager1@hmp.vn").orElse(null);
+
+        FeaturedProduct fp = FeaturedProduct.builder()
+                .product(sampleProduct)
+                .displayOrder(1)
+                .status(FeaturedProductStatus.ACTIVE)
+                .createdBy(manager)
+                .isDeleted(false)
+                .build();
+        featuredProductRepository.save(fp);
+        log.info("[DataInitializer] Đã tạo sản phẩm nổi bật mẫu cho: {}", sampleProduct.getProductName());
     }
 }

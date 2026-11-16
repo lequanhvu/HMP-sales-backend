@@ -741,6 +741,54 @@ Price fields must not be leaked through search, category listing, detail, varian
 
 ---
 
+## 5.3 Public featured products
+
+Lấy danh sách các sản phẩm nổi bật đang kích hoạt (`ACTIVE`) để hiển thị trên trang chủ (Showcase / Carousel / Grid đề xuất).
+
+```http
+GET /api/v1/featured-products
+```
+
+Không yêu cầu xác thực (`PUBLIC_GET_WHITELIST`).
+Sắp xếp mặc định: `displayOrder ASC`, sau đó `createdAt DESC`.
+Chỉ trả về các sản phẩm nổi bật `ACTIVE` có sản phẩm gốc `ACTIVE` và chưa bị xóa mềm.
+
+### Request example
+
+```http
+GET /api/v1/featured-products
+```
+
+### Success response — 200
+
+```json
+{
+  "statusCode": 200,
+  "message": "Lấy danh sách sản phẩm nổi bật thành công.",
+  "data": [
+    {
+      "id": 1,
+      "productId": 100,
+      "productName": "Tôn Hoa Sen 11 sóng vuông",
+      "productStatus": "ACTIVE",
+      "categoryId": 10,
+      "categoryName": "Tôn sóng vuông",
+      "brandId": 1,
+      "brandName": "Tôn Hoa Sen",
+      "primaryImageUrl": "https://pub-r2.dev/products/ton-hoa-sen-11-song.jpg",
+      "displayOrder": 1,
+      "status": "ACTIVE",
+      "createdAt": "2026-11-16T00:00:00Z",
+      "updatedAt": "2026-11-16T00:00:00Z",
+      "priceVisible": false
+    }
+  ],
+  "timestamp": "2026-11-16T10:00:00"
+}
+```
+
+---
+
 # 6. Customer profile and address APIs
 
 ## 6.1 Get profile list 
@@ -2363,6 +2411,203 @@ DELETE /api/v1/manager/products/{productId}/variants/{variantId}
 ```
 
 Locking a variant is reversible; deleting it is permanent.
+
+---
+
+## 10.10 Manage featured products
+
+Nhóm API dành riêng cho Quản lý (Manager/Admin) điều hành danh sách sản phẩm nổi bật phục vụ trưng bày trang chủ.
+
+Yêu cầu quyền hạn:
+- `FEATURED_PRODUCT_VIEW_ALL`: Xem danh sách và chi tiết cấu hình sản phẩm nổi bật.
+- `FEATURED_PRODUCT_MANAGE`: Thêm sản phẩm vào danh sách nổi bật.
+- `FEATURED_PRODUCT_UPDATE`: Cập nhật thứ tự hiển thị hoặc trạng thái.
+- `FEATURED_PRODUCT_DELETE`: Xóa mềm khỏi danh sách nổi bật.
+
+### 10.10.1 List all featured products (Manager)
+
+```http
+GET /api/v1/manager/featured-products
+```
+
+Trả về toàn bộ danh sách sản phẩm nổi bật trong hệ thống (bao gồm cả `ACTIVE` và `INACTIVE`), sắp xếp theo `displayOrder ASC, createdAt DESC`.
+
+#### Success response — 200
+
+```json
+{
+  "statusCode": 200,
+  "message": "Lấy danh sách sản phẩm nổi bật quản lý thành công.",
+  "data": [
+    {
+      "id": 1,
+      "productId": 100,
+      "productName": "Tôn Hoa Sen 11 sóng vuông",
+      "productStatus": "ACTIVE",
+      "categoryId": 10,
+      "categoryName": "Tôn sóng vuông",
+      "brandId": 1,
+      "brandName": "Tôn Hoa Sen",
+      "primaryImageUrl": "https://pub-r2.dev/products/ton-hoa-sen-11-song.jpg",
+      "displayOrder": 1,
+      "status": "ACTIVE",
+      "createdAt": "2026-11-16T00:00:00Z",
+      "updatedAt": "2026-11-16T00:00:00Z",
+      "priceVisible": true
+    }
+  ],
+  "timestamp": "2026-11-16T10:00:00"
+}
+```
+
+### 10.10.2 Get featured product detail
+
+```http
+GET /api/v1/manager/featured-products/{id}
+```
+
+#### Success response — 200
+
+```json
+{
+  "statusCode": 200,
+  "message": "Lấy thông tin sản phẩm nổi bật thành công.",
+  "data": {
+    "id": 1,
+    "productId": 100,
+    "productName": "Tôn Hoa Sen 11 sóng vuông",
+    "productStatus": "ACTIVE",
+    "categoryId": 10,
+    "categoryName": "Tôn sóng vuông",
+    "brandId": 1,
+    "brandName": "Tôn Hoa Sen",
+    "primaryImageUrl": "https://pub-r2.dev/products/ton-hoa-sen-11-song.jpg",
+    "displayOrder": 1,
+    "status": "ACTIVE",
+    "createdAt": "2026-11-16T00:00:00Z",
+    "updatedAt": "2026-11-16T00:00:00Z",
+    "priceVisible": true
+  },
+  "timestamp": "2026-11-16T10:00:00"
+}
+```
+
+### 10.10.3 Add product to featured products
+
+```http
+POST /api/v1/manager/featured-products
+```
+
+Chỉ cho phép thêm sản phẩm đang ở trạng thái `ACTIVE` và chưa tồn tại trong danh sách nổi bật chưa bị xóa mềm.
+
+#### Request body
+
+```json
+{
+  "productId": 100,
+  "displayOrder": 1,
+  "status": "ACTIVE"
+}
+```
+
+#### Success response — 201
+
+```json
+{
+  "statusCode": 201,
+  "message": "Thêm sản phẩm nổi bật thành công.",
+  "data": {
+    "id": 1,
+    "productId": 100,
+    "productName": "Tôn Hoa Sen 11 sóng vuông",
+    "productStatus": "ACTIVE",
+    "categoryId": 10,
+    "categoryName": "Tôn sóng vuông",
+    "brandId": 1,
+    "brandName": "Tôn Hoa Sen",
+    "primaryImageUrl": "https://pub-r2.dev/products/ton-hoa-sen-11-song.jpg",
+    "displayOrder": 1,
+    "status": "ACTIVE",
+    "createdAt": "2026-11-16T10:00:00Z",
+    "updatedAt": null,
+    "priceVisible": true
+  },
+  "timestamp": "2026-11-16T10:00:00"
+}
+```
+
+#### Failure response — 400 (Sản phẩm đã tồn tại trong danh sách nổi bật)
+
+```json
+{
+  "statusCode": 400,
+  "message": "Sản phẩm 'Tôn Hoa Sen 11 sóng vuông' đã tồn tại trong danh sách nổi bật.",
+  "data": null,
+  "timestamp": "2026-11-16T10:00:00"
+}
+```
+
+### 10.10.4 Update featured product configuration
+
+```http
+PUT /api/v1/manager/featured-products/{id}
+```
+
+Cập nhật thứ tự hiển thị hoặc bật/tắt trạng thái (`ACTIVE` / `INACTIVE`).
+
+#### Request body
+
+```json
+{
+  "displayOrder": 2,
+  "status": "ACTIVE"
+}
+```
+
+#### Success response — 200
+
+```json
+{
+  "statusCode": 200,
+  "message": "Cập nhật sản phẩm nổi bật thành công.",
+  "data": {
+    "id": 1,
+    "productId": 100,
+    "productName": "Tôn Hoa Sen 11 sóng vuông",
+    "productStatus": "ACTIVE",
+    "categoryId": 10,
+    "categoryName": "Tôn sóng vuông",
+    "brandId": 1,
+    "brandName": "Tôn Hoa Sen",
+    "primaryImageUrl": "https://pub-r2.dev/products/ton-hoa-sen-11-song.jpg",
+    "displayOrder": 2,
+    "status": "ACTIVE",
+    "createdAt": "2026-11-16T10:00:00Z",
+    "updatedAt": "2026-11-16T10:05:00Z",
+    "priceVisible": true
+  },
+  "timestamp": "2026-11-16T10:05:00"
+}
+```
+
+### 10.10.5 Delete featured product (Soft Delete)
+
+```http
+DELETE /api/v1/manager/featured-products/{id}
+```
+
+Đánh dấu `isDeleted = true`, đưa sản phẩm ra khỏi danh sách nổi bật mà không xóa dữ liệu sản phẩm gốc.
+
+#### Success response — 200
+
+```json
+{
+  "statusCode": 200,
+  "message": "Xóa sản phẩm nổi bật thành công.",
+  "data": null,
+  "timestamp": "2026-11-16T10:00:00"
+}
+```
 
 ---
 

@@ -75,10 +75,16 @@ public class ProductServiceImpl implements ProductService {
     private final SystemLogService systemLogService;
     private final FileStorageService fileStorageService;
     private ApplicationEventPublisher eventPublisher;
+    private FeaturedProductRepository featuredProductRepository;
 
     @Autowired(required = false)
     public void setEventPublisher(ApplicationEventPublisher eventPublisher) {
         this.eventPublisher = eventPublisher;
+    }
+
+    @Autowired(required = false)
+    public void setFeaturedProductRepository(FeaturedProductRepository featuredProductRepository) {
+        this.featuredProductRepository = featuredProductRepository;
     }
 
     private void publishSearchInvalidation(Long targetId, SearchIndexInvalidationEvent.Operation op) {
@@ -445,6 +451,9 @@ public class ProductServiceImpl implements ProductService {
         // Cascade soft-delete sang images và variants
         productImageRepository.softDeleteByProductId(productId);
         productVariantRepository.softDeleteByProductId(productId);
+        if (featuredProductRepository != null) {
+            featuredProductRepository.softDeleteByProductId(productId);
+        }
         product.setIsDeleted(true);
         productRepository.save(product);
         publishSearchInvalidation(productId, SearchIndexInvalidationEvent.Operation.DELETE);
