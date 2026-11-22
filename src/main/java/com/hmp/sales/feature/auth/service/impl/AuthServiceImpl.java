@@ -141,6 +141,9 @@ public class AuthServiceImpl implements AuthService {
         // Cấp Access Token mới với đúng newAccessJti đã lưu trong PostgreSQL và đăng ký Redis
         String accessToken = jwtTokenService.generateAccessToken(user, newAccessJti);
 
+        int accessMaxAge = (int) (appProperties.jwt().expirationMinutes() * 60L);
+        CookieUtils.setAccessTokenCookie(httpResponse, accessToken, accessMaxAge);
+
         int maxAge = (int) (appProperties.jwt().refreshExpirationDays() * 86400L);
         CookieUtils.setRefreshTokenCookie(httpResponse, pair.rawToken(), maxAge);
 
@@ -153,9 +156,15 @@ public class AuthServiceImpl implements AuthService {
     @Override
     @Transactional
     public void logout(String authorizationHeader, HttpServletRequest httpRequest, HttpServletResponse httpResponse) {
-        // Thu hồi Access Token trên Redis
+        // Thu hồi Access Token trên Redis (hỗ trợ cả header Bearer và cookie HttpOnly access_token)
+        String rawJwt = null;
         if (authorizationHeader != null && authorizationHeader.startsWith("Bearer ")) {
-            String rawJwt = authorizationHeader.substring(7);
+            rawJwt = authorizationHeader.substring(7);
+        } else {
+            rawJwt = CookieUtils.getAccessTokenFromCookie(httpRequest).orElse(null);
+        }
+
+        if (rawJwt != null) {
             try {
                 UUID jti = jwtTokenService.extractJti(rawJwt);
                 jwtTokenService.revokeAccessToken(jti);
@@ -173,7 +182,8 @@ public class AuthServiceImpl implements AuthService {
             }
         });
 
-        // Xóa cookie
+        // Xóa cả 2 cookie Access Token và Refresh Token
+        CookieUtils.clearAccessTokenCookie(httpResponse);
         CookieUtils.clearRefreshTokenCookie(httpResponse);
     }
 
@@ -217,6 +227,9 @@ public class AuthServiceImpl implements AuthService {
         UUID accessJti = jwtTokenService.extractJti(accessToken);
 
         RefreshTokenPair pair = refreshTokenService.createRefreshToken(user, accessJti);
+
+        int accessMaxAge = (int) (appProperties.jwt().expirationMinutes() * 60L);
+        CookieUtils.setAccessTokenCookie(httpResponse, accessToken, accessMaxAge);
 
         int maxAge = (int) (appProperties.jwt().refreshExpirationDays() * 86400L);
         CookieUtils.setRefreshTokenCookie(httpResponse, pair.rawToken(), maxAge);

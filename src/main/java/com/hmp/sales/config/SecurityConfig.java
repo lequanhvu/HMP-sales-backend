@@ -15,8 +15,11 @@ import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
+import org.springframework.security.oauth2.server.resource.web.BearerTokenResolver;
+import org.springframework.security.oauth2.server.resource.web.DefaultBearerTokenResolver;
 import org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter;
 import org.springframework.security.web.SecurityFilterChain;
+import com.hmp.sales.feature.auth.util.CookieUtils;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -137,7 +140,9 @@ public class SecurityConfig {
                         // Tất cả các request còn lại được kiểm tra quyền động qua PermissionAuthorizationManager
                         .anyRequest().access(permissionAuthorizationManager))
                 // Cấu hình Spring Security đóng vai trò OAuth2 Resource Server nhận Bearer Token (JWT)
+                // Hỗ trợ cả Header "Authorization: Bearer <JWT>" và Cookie HttpOnly "access_token"
                 .oauth2ResourceServer(oauth2 -> oauth2
+                        .bearerTokenResolver(bearerTokenResolver())
                         .jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter()))
                         .authenticationEntryPoint(authenticationEntryPoint)
                         .accessDeniedHandler(accessDeniedHandler))
@@ -180,6 +185,25 @@ public class SecurityConfig {
         byte[] secretBytes = appProperties.jwt().secret().getBytes(StandardCharsets.UTF_8);
         SecretKey secretKey = new SecretKeySpec(secretBytes, "HmacSHA256");
         return NimbusJwtDecoder.withSecretKey(secretKey).build();
+    }
+
+    /**
+     * Tùy biến bộ phân giải token {@link BearerTokenResolver}:
+     * 1. Ưu tiên đọc từ Header {@code Authorization: Bearer <JWT>} (hỗ trợ Postman, Mobile, Swagger).
+     * 2. Nếu không có header, tự động bóc tách từ Cookie HttpOnly {@code access_token} (hỗ trợ Web Frontend).
+     *
+     * @return đối tượng {@link BearerTokenResolver} giải quyết token linh hoạt
+     */
+    @Bean
+    public BearerTokenResolver bearerTokenResolver() {
+        DefaultBearerTokenResolver defaultResolver = new DefaultBearerTokenResolver();
+        return request -> {
+            String token = defaultResolver.resolve(request);
+            if (token != null && !token.isBlank()) {
+                return token;
+            }
+            return CookieUtils.getAccessTokenFromCookie(request).orElse(null);
+        };
     }
 
     /**
