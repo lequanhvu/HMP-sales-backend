@@ -16,8 +16,16 @@ public record UserProfileResponse(
         String fullName,
         String email,
         String phone,
-        String status
+        String status,
+        String role
 ) {
+    /**
+     * Constructor tương thích ngược cho 5 tham số.
+     */
+    public UserProfileResponse(Long userId, String fullName, String email, String phone, String status) {
+        this(userId, fullName, email, phone, status, null);
+    }
+
     /**
      * Chuyển đổi từ thực thể {@link User} sang DTO {@link UserProfileResponse}.
      *
@@ -33,7 +41,8 @@ public record UserProfileResponse(
                 user.getFullName(),
                 user.getEmail(),
                 user.getPhone(),
-                user.getStatus() != null ? user.getStatus().name() : null
+                user.getStatus() != null ? user.getStatus().name() : null,
+                user.getRole() != null && user.getRole().getRoleCode() != null ? user.getRole().getRoleCode().name() : null
         );
     }
 }

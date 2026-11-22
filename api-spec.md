@@ -855,7 +855,8 @@ GET /api/v1/me
     "fullName": "Nguyen Van A",
     "email": "user@example.com",
     "phone": "0987654321",
-    "status": "ACTIVE"
+    "status": "ACTIVE",
+    "role": "CUSTOMER"
   },
   "message": "Thành công",
   "timestamp": "2026-10-01T10:00:00"
