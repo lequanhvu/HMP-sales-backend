@@ -13,8 +13,9 @@ import java.math.BigDecimal;
  * @param variantId ID biến thể sản phẩm (nếu có)
  * @param colorId   mã ID màu sắc khách hàng chọn (phải thuộc biến thể của sản phẩm)
  * @param unitId    mã ID đơn vị tính khách hàng chọn (phải thuộc bảng giá của biến thể)
- * @param quantity  số lượng đặt mua (phải lớn hơn 0)
- * @param size      kích thước/chiều dài sản xuất (mét, phải lớn hơn 0 nếu có)
+ * @param quantity   số lượng đặt mua (phải lớn hơn 0)
+ * @param size       kích thước/chiều dài sản xuất (mét, phải lớn hơn 0 nếu có)
+ * @param dimensions kích thước quy cách mặt cắt chi tiết (nếu có)
  */
 public record OrderItemRequest(
         @NotNull(message = "ID sản phẩm không được để trống")
@@ -33,5 +34,14 @@ public record OrderItemRequest(
         BigDecimal quantity,
 
         @DecimalMin(value = "0.0001", message = "Kích thước/chiều dài phải lớn hơn 0")
-        BigDecimal size
-) {}
+        BigDecimal size,
+
+        String dimensions
+) {
+    /**
+     * Constructor tương thích ngược không có dimensions.
+     */
+    public OrderItemRequest(Long productId, Long variantId, Long colorId, Long unitId, BigDecimal quantity, BigDecimal size) {
+        this(productId, variantId, colorId, unitId, quantity, size, null);
+    }
+}

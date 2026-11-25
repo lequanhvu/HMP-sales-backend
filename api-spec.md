@@ -1224,7 +1224,8 @@ Manufacturing item in V1 (tôn sóng): type + color + size/length + quantity.
       "colorId": 1,
       "unitId": 2,
       "quantity": 10,
-      "size": 5
+      "size": 5,
+      "dimensions": "Thành 15cm x Đáy 20cm x Mép 1.5cm"
     }
   ]
 }
@@ -1249,6 +1250,7 @@ The authenticated user's ID must be taken from the JWT subject/server-side authe
         "variantName": "Tôn 0.35mm - 5 sóng",
         "quantity": 10,
         "size": 5,
+        "dimensions": "Thành 15cm x Đáy 20cm x Mép 1.5cm",
         "unit": "m",
         "unitPrice": null,
         "totalPrice": null
@@ -4261,6 +4263,189 @@ POST /api/v1/files/upload
   "data": null,
   "message": "Không có quyền thực hiện thao tác này.",
   "timestamp": "2026-11-10T00:30:00"
+}
+```
+
+---
+
+# 17.6 Customer Cart APIs
+
+Tất cả các endpoint giỏ hàng yêu cầu xác thực (`ROLE_CUSTOMER`, `ROLE_MANAGER`, hoặc `ROLE_ADMIN`). Mỗi khách hàng có duy nhất 1 giỏ hàng gắn với `userId`. Danh sách sản phẩm trong giỏ luôn được sắp xếp theo `updated_at DESC`.
+
+## 17.6.1 Get Cart
+
+```http
+GET /api/v1/cart
+Authorization: Bearer <customer_jwt>
+```
+
+### Success response — 200
+
+```json
+{
+  "statusCode": 200,
+  "data": {
+    "cartId": 50,
+    "totalItems": 2,
+    "items": [
+      {
+        "cartItemId": 12,
+        "productId": 100,
+        "productName": "Máng xối Inox 304",
+        "primaryImageUrl": "https://pub-xxx.r2.dev/products/mang-xoi.png",
+        "productType": {
+          "id": 2,
+          "code": "GUTTER",
+          "name": "Máng xối",
+          "note": "Chiều cao thành ngoài × Chiều rộng đáy × Chiều cao thành trong × Mép gập nép"
+        },
+        "variantId": 1001,
+        "variantName": "Inox dày 0.4mm",
+        "colorId": 1,
+        "colorName": "Trắng inox",
+        "unitId": 2,
+        "unitName": "cây",
+        "size": 2.4,
+        "dimensions": "Thành 15cm x Đáy 20cm x Thành 20cm, móc 1.5cm",
+        "quantity": 5,
+        "unitPrice": 120000,
+        "totalPrice": 1440000,
+        "priceVisible": true,
+        "productStatus": "ACTIVE",
+        "isAvailable": true,
+        "createdAt": "2026-11-25T10:00:00",
+        "updatedAt": "2026-11-25T10:30:00"
+      }
+    ]
+  },
+  "message": "Lấy thông tin giỏ hàng thành công.",
+  "timestamp": "2026-11-25T10:30:00"
+}
+```
+
+## 17.6.2 Get Cart Item Count (Badge)
+
+```http
+GET /api/v1/cart/count
+Authorization: Bearer <customer_jwt>
+```
+
+### Success response — 200
+
+```json
+{
+  "statusCode": 200,
+  "data": {
+    "totalCount": 5
+  },
+  "message": "Lấy số lượng món trong giỏ hàng thành công.",
+  "timestamp": "2026-11-25T10:30:00"
+}
+```
+
+## 17.6.3 Add Item to Cart
+
+```http
+POST /api/v1/cart/items
+Authorization: Bearer <customer_jwt>
+Content-Type: application/json
+```
+
+```json
+{
+  "productId": 100,
+  "variantId": 1001,
+  "colorId": 1,
+  "unitId": 2,
+  "size": 2.4,
+  "dimensions": "Thành 15cm x Đáy 20cm x Thành 20cm, móc 1.5cm",
+  "quantity": 5
+}
+```
+
+*Quy tắc gộp dòng (Deduplication):* Nếu sản phẩm đã tồn tại trong giỏ với cùng `productId`, `variantId`, `colorId`, `unitId`, `size` và `dimensions`, hệ thống sẽ tự động cộng dồn `quantity` thay vì thêm dòng mới.
+
+### Success response — 201
+
+```json
+{
+  "statusCode": 201,
+  "data": {
+    "cartItemId": 12,
+    "quantity": 5,
+    "size": 2.4,
+    "dimensions": "Thành 15cm x Đáy 20cm x Thành 20cm, móc 1.5cm"
+  },
+  "message": "Thêm sản phẩm vào giỏ hàng thành công.",
+  "timestamp": "2026-11-25T10:30:00"
+}
+```
+
+## 17.6.4 Update Cart Item
+
+```http
+PATCH /api/v1/cart/items/{cartItemId}
+Authorization: Bearer <customer_jwt>
+Content-Type: application/json
+```
+
+```json
+{
+  "quantity": 10,
+  "size": 2.4,
+  "dimensions": "Thành 15cm x Đáy 20cm x Thành 20cm, móc 1.5cm"
+}
+```
+
+### Success response — 200
+
+```json
+{
+  "statusCode": 200,
+  "data": {
+    "cartItemId": 12,
+    "quantity": 10,
+    "size": 2.4,
+    "dimensions": "Thành 15cm x Đáy 20cm x Thành 20cm, móc 1.5cm"
+  },
+  "message": "Cập nhật sản phẩm trong giỏ hàng thành công.",
+  "timestamp": "2026-11-25T10:35:00"
+}
+```
+
+## 17.6.5 Remove Cart Item
+
+```http
+DELETE /api/v1/cart/items/{cartItemId}
+Authorization: Bearer <customer_jwt>
+```
+
+### Success response — 200
+
+```json
+{
+  "statusCode": 200,
+  "data": null,
+  "message": "Xóa sản phẩm khỏi giỏ hàng thành công.",
+  "timestamp": "2026-11-25T10:40:00"
+}
+```
+
+## 17.6.6 Clear All Cart Items
+
+```http
+DELETE /api/v1/cart/clear
+Authorization: Bearer <customer_jwt>
+```
+
+### Success response — 200
+
+```json
+{
+  "statusCode": 200,
+  "data": null,
+  "message": "Đã làm trống giỏ hàng.",
+  "timestamp": "2026-11-25T10:40:00"
 }
 ```
 

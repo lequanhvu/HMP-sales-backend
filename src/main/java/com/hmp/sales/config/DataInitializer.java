@@ -58,6 +58,7 @@ public class DataInitializer implements ApplicationRunner {
     private final ProductColorRepository productColorRepository;
     private final ProductPriceRepository productPriceRepository;
     private final FeaturedProductRepository featuredProductRepository;
+    private final ProductTypeRepository productTypeRepository;
     private final SystemSettingRepository systemSettingRepository;
     private final PermissionAuthorizationManager permissionAuthorizationManager;
 
@@ -95,6 +96,7 @@ public class DataInitializer implements ApplicationRunner {
             ProductColorRepository productColorRepository,
             ProductPriceRepository productPriceRepository,
             @Autowired(required = false) FeaturedProductRepository featuredProductRepository,
+            @Autowired(required = false) ProductTypeRepository productTypeRepository,
             SystemSettingRepository systemSettingRepository,
             PermissionAuthorizationManager permissionAuthorizationManager) {
         this.roleRepository = roleRepository;
@@ -111,6 +113,7 @@ public class DataInitializer implements ApplicationRunner {
         this.productColorRepository = productColorRepository;
         this.productPriceRepository = productPriceRepository;
         this.featuredProductRepository = featuredProductRepository;
+        this.productTypeRepository = productTypeRepository;
         this.systemSettingRepository = systemSettingRepository;
         this.permissionAuthorizationManager = permissionAuthorizationManager;
     }
@@ -123,6 +126,7 @@ public class DataInitializer implements ApplicationRunner {
         seedPermissions();
         seedRolePermissions();
         seedUsers();
+        seedProductTypes();
         seedMasterData();
         seedCategories();
         seedProducts();
@@ -252,7 +256,12 @@ public class DataInitializer implements ApplicationRunner {
             new Object[]{"NOTIFICATION_MARK_READ",    "NOTIFICATION", "/api/v1/notifications/**/read",            "POST",   "Đánh dấu thông báo đã đọc"},
             new Object[]{"NOTIFICATION_MARK_ALL_READ", "NOTIFICATION", "/api/v1/notifications/read-all",          "POST",   "Đánh dấu toàn bộ thông báo đã đọc"},
             // --- FILE module ---
-            new Object[]{"FILE_UPLOAD",               "FILE",     "/api/v1/files/upload",                         "POST",   "Tải tệp hình ảnh lên máy chủ lưu trữ"}
+            new Object[]{"FILE_UPLOAD",               "FILE",     "/api/v1/files/upload",                         "POST",   "Tải tệp hình ảnh lên máy chủ lưu trữ"},
+            // --- CART module ---
+            new Object[]{"CART_VIEW",                 "CART",     "/api/v1/cart/**",                              "GET",    "Xem giỏ hàng và đếm số lượng món"},
+            new Object[]{"CART_ADD",                  "CART",     "/api/v1/cart/items",                           "POST",   "Thêm sản phẩm vào giỏ hàng"},
+            new Object[]{"CART_UPDATE",               "CART",     "/api/v1/cart/items/**",                        "PATCH",  "Cập nhật số lượng và quy cách trong giỏ hàng"},
+            new Object[]{"CART_DELETE",               "CART",     "/api/v1/cart/**",                              "DELETE", "Xóa sản phẩm hoặc làm trống giỏ hàng"}
     );
 
     private void seedPermissions() {
@@ -323,7 +332,8 @@ public class DataInitializer implements ApplicationRunner {
             "NOTIFICATION_VIEW_OWN", "NOTIFICATION_MARK_READ", "NOTIFICATION_MARK_ALL_READ",
             "SYSTEM_LOG_VIEW", "SYSTEM_SETTING_VIEW", "SYSTEM_SETTING_UPDATE",
             "ROLE_PERMISSION_VIEW", "ROLE_PERMISSION_UPDATE",
-            "FILE_UPLOAD"
+            "FILE_UPLOAD",
+            "CART_VIEW", "CART_ADD", "CART_UPDATE", "CART_DELETE"
     );
 
     private static final Set<String> MANAGER_PERMISSIONS = Set.of(
@@ -337,7 +347,8 @@ public class DataInitializer implements ApplicationRunner {
             "ORDER_CREATE", "ORDER_VIEW_OWN", "ORDER_CANCEL_OWN", "ORDER_UNDO_CANCEL_OWN", "ORDER_UNDO_CANCEL_ANY",
             "ME_PROFILE_VIEW", "ME_PROFILE_UPDATE", "ME_ADDRESS_VIEW", "ME_ADDRESS_CREATE", "ME_ADDRESS_UPDATE", "ME_ADDRESS_DELETE",
             "NOTIFICATION_VIEW_OWN", "NOTIFICATION_MARK_READ", "NOTIFICATION_MARK_ALL_READ",
-            "FILE_UPLOAD"
+            "FILE_UPLOAD",
+            "CART_VIEW", "CART_ADD", "CART_UPDATE", "CART_DELETE"
     );
 
     private static final Set<String> CUSTOMER_PERMISSIONS = Set.of(
@@ -346,7 +357,8 @@ public class DataInitializer implements ApplicationRunner {
             "ORDER_OTP_REQUEST", "ORDER_OTP_VERIFY",
             "ME_OTP_REQUEST", "ME_OTP_VERIFY",
             "ME_PROFILE_VIEW", "ME_PROFILE_UPDATE", "ME_ADDRESS_VIEW", "ME_ADDRESS_CREATE", "ME_ADDRESS_UPDATE", "ME_ADDRESS_DELETE",
-            "NOTIFICATION_VIEW_OWN", "NOTIFICATION_MARK_READ", "NOTIFICATION_MARK_ALL_READ"
+            "NOTIFICATION_VIEW_OWN", "NOTIFICATION_MARK_READ", "NOTIFICATION_MARK_ALL_READ",
+            "CART_VIEW", "CART_ADD", "CART_UPDATE", "CART_DELETE"
     );
 
     private void seedRolePermissions() {
@@ -463,16 +475,14 @@ public class DataInitializer implements ApplicationRunner {
             }
         }
 
-        // Colors
+        // Colors (Sử dụng URL ảnh mẫu thực tế từ Cloudflare R2, tránh domain giả định example.com)
         Map<String, String> colors = Map.of(
-                "Xanh ngọc", "https://cdn.example.com/colors/xanh-ngoc.png",
-                "Đỏ đậm", "https://cdn.example.com/colors/do-dam.png",
-                "Xanh rêu", "https://cdn.example.com/colors/xanh-reu.png",
-                "Xám lông chuột", "https://cdn.example.com/colors/xam-long-chuot.png",
-                "Trắng sữa", "https://cdn.example.com/colors/trang-sua.png"
+                "Xanh ngọc", "https://pub-bfe744e964c247d7b2604c2136385d1f.r2.dev/colors/03069d46-82e8-4ef7-9802-5679fd99eb98.png",
+                "Đỏ đậm", "https://pub-bfe744e964c247d7b2604c2136385d1f.r2.dev/colors/a03fce64-6167-43aa-a8dc-09529fb1d5b9.png"
         );
         for (Map.Entry<String, String> entry : colors.entrySet()) {
-            if (!colorRepository.existsByColorNameAndIsDeletedFalse(entry.getKey())) {
+            Color existing = colorRepository.findByColorNameAndIsDeletedFalse(entry.getKey()).orElse(null);
+            if (existing == null) {
                 colorRepository.save(Color.builder()
                         .colorName(entry.getKey())
                         .imageUrl(entry.getValue())
@@ -480,6 +490,10 @@ public class DataInitializer implements ApplicationRunner {
                         .isDeleted(false)
                         .build());
                 log.info("[DataInitializer] Đã tạo màu sắc: {}", entry.getKey());
+            } else if (existing.getImageUrl() != null && existing.getImageUrl().contains("example.com")) {
+                existing.setImageUrl(entry.getValue());
+                colorRepository.save(existing);
+                log.info("[DataInitializer] Đã cập nhật ảnh mẫu màu sắc {} sang URL R2 hợp lệ", entry.getKey());
             }
         }
     }
@@ -574,12 +588,14 @@ public class DataInitializer implements ApplicationRunner {
         }
 
         // Tạo Product
+        ProductType roofingType = productTypeRepository != null ? productTypeRepository.findByCode("ROOFING_SHEET").orElse(null) : null;
         Product product = Product.builder()
                 .productName(sampleProductName)
                 .description("Tôn lợp mái 11 sóng vuông công nghệ mạ kẽm phủ màu cao cấp Hoa Sen.")
                 .status(ProductStatus.ACTIVE)
                 .category(subCategory)
                 .brand(brand)
+                .productType(roofingType)
                 .createdBy(manager)
                 .isDeleted(false)
                 .build();
@@ -695,6 +711,33 @@ public class DataInitializer implements ApplicationRunner {
                             log.info("[DataInitializer] Khởi tạo SystemSetting mặc định '{}' = 60", setting.getSettingKey());
                         }
                 );
+    }
+
+    private void seedProductTypes() {
+        if (productTypeRepository == null) {
+            return;
+        }
+        Map<String, String[]> types = Map.of(
+                "ROOFING_SHEET", new String[]{"Tôn lợp mái", "Chiều dài (mét) × Số lượng (tấm)"},
+                "GUTTER", new String[]{"Máng xối", "Chiều cao thành ngoài × Chiều rộng đáy × Chiều cao thành trong × Mép gập nép"},
+                "GABLE_FLASHING", new String[]{"Diềm sườn / Diềm hồi", "Cánh phủ tôn × Cánh rủ xà gồ × Mép móc"},
+                "RIDGE_CAP", new String[]{"Úp nóc", "Cánh trái × Cánh phải × Góc dốc mái"},
+                "RETAIL", new String[]{"Mặt hàng bán lẻ", "Bán theo đơn vị tính rời (cái, bịch, hộp, chai), không có kích thước gia công"},
+                "UNKNOWN", new String[]{"Chưa thể xác định", "Cho phép nhập tự do tất cả các thông số"}
+        );
+
+        for (Map.Entry<String, String[]> entry : types.entrySet()) {
+            String code = entry.getKey();
+            if (!productTypeRepository.existsByCode(code)) {
+                ProductType pt = ProductType.builder()
+                        .code(code)
+                        .name(entry.getValue()[0])
+                        .note(entry.getValue()[1])
+                        .build();
+                productTypeRepository.save(pt);
+                log.info("[DataInitializer] Đã tạo loại sản phẩm: {} - {}", code, entry.getValue()[0]);
+            }
+        }
     }
 
     private void seedFeaturedProducts() {

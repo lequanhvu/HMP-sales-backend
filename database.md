@@ -27,11 +27,17 @@ Category
       
 Category
  └──< Product
+       ├──< ProductType
        ├──< ProductImage
        ├──< ProductVariant ──< ProductPrice >── Unit
                      └──< ProductColor >── Color
 
 Brand ──< Product
+
+User ──< Cart ──< CartItem >── Product
+CartItem ──< ProductVariant
+CartItem ──< Color
+CartItem ──< Unit
 
 Product ──< OrderItem >── Order
 Order ──< OrderStatusHistory
@@ -226,6 +232,7 @@ Rules:
 | ProductID | BIGINT IDENTITY | No | PK |
 | CategoryID | BIGINT | No | FK Category |
 | BrandID | BIGINT | Yes | FK Brand |
+| ProductTypeID | BIGINT | Yes | FK ProductType (`product_type_id`, default UNKNOWN) |
 | ProductName | NVARCHAR(250) | No | Product name |
 | ProductNameUnaccent | VARCHAR(250) | Yes | Normalized lowercase unaccented name for accent-insensitive search |
 | Description | NVARCHAR(MAX) | Yes | Product description |
@@ -404,7 +411,8 @@ The order is the durable business record. Orders are persisted and managed direc
 | VariantID | BIGINT | Yes | FK ProductVariant |
 | UnitID | BIGINT | Yes | FK Unit |
 | Quantity | DECIMAL(18,4) | No | For future unit flexibility; integer-only enforcement may be business-specific |
-| Size | DECIMAL(18,4) | Yes | Customer-entered length/size for size-based products |
+| Size | DECIMAL(18,4) | Yes | Customer-entered length/size/multiplier (m, m2, kg) |
+| Dimensions | NVARCHAR(MAX) | Yes | Complex shape / bent profile specifications (e.g. 15x20x15cm, mép 1.5cm) |
 | UnitPrice | INT | Yes | Price snapshot after Manager calculation |
 | DiscountAmount | BIGINT | No | Default 0; line item discount |
 | TotalPrice | BIGINT | Yes | Calculated line total |
@@ -525,7 +533,58 @@ Application/service rules:
 - Display ordering: sorted by `DisplayOrder ASC`, followed by `CreatedAt DESC`.
 - Price visibility inside responses adheres dynamically to `PRODUCT_PRICE_VIEW` authorization.
 
-## 25. Relationships
+## 25. Table: ProductType
+
+Purpose: Internal technical product classification to control which parameter fields appear on the ordering interface.
+
+| Column | PostgreSQL | Null | Notes |
+|---|---|---:|---|
+| ProductTypeID | BIGINT IDENTITY | No | PK (`product_type_id`) |
+| Code | VARCHAR(50) | No | Unique type code: `ROOFING_SHEET`, `GUTTER`, `GABLE_FLASHING`, `RIDGE_CAP`, `RETAIL`, `UNKNOWN` |
+| Name | NVARCHAR(150) | No | Vietnamese display name |
+| Note | NVARCHAR(MAX) | Yes | Parameter formula / guide description |
+| CreatedAt | DATETIME2 | No | Creation timestamp |
+| UpdatedAt | DATETIME2 | Yes | Update timestamp |
+
+Rules:
+- Static master data; managed internally via Repository/Service, no external CRUD controller.
+- Embedded into `ProductResponse` to inform client UI rendering.
+
+## 26. Table: Cart
+
+Purpose: Persistent customer shopping cart (1 User <-> 1 Cart).
+
+| Column | PostgreSQL | Null | Notes |
+|---|---|---:|---|
+| CartID | BIGINT IDENTITY | No | PK (`cart_id`) |
+| UserID | BIGINT | No | FK User (`user_id`), UNIQUE |
+| CreatedAt | DATETIME2 | No | Timestamp |
+| UpdatedAt | DATETIME2 | Yes | Timestamp |
+
+## 27. Table: CartItem
+
+Purpose: Line items inside a customer's persistent shopping cart.
+
+| Column | PostgreSQL | Null | Notes |
+|---|---|---:|---|
+| CartItemID | BIGINT IDENTITY | No | PK (`cart_item_id`) |
+| CartID | BIGINT | No | FK Cart (`cart_id`) |
+| ProductID | BIGINT | No | FK Product (`product_id`) |
+| VariantID | BIGINT | Yes | FK ProductVariant (`variant_id`) |
+| ColorID | BIGINT | Yes | FK Color (`color_id`) |
+| UnitID | BIGINT | Yes | FK Unit (`unit_id`) |
+| Size | DECIMAL(18,4) | Yes | Size/length/quantity multiplier |
+| Dimensions | NVARCHAR(MAX) | Yes | Detailed geometry / custom bent specifications |
+| Quantity | DECIMAL(18,4) | No | Item quantity |
+| CreatedAt | DATETIME2 | No | Timestamp |
+| UpdatedAt | DATETIME2 | Yes | Timestamp |
+
+Rules:
+- Deduplication: When adding an item with identical `(product_id, variant_id, color_id, unit_id, size, dimensions)`, merge by adding `quantity` instead of creating duplicate row.
+- Ordering: Always ordered by `updated_at DESC`.
+- Retention: Items remain in Cart after order placement (for easy re-ordering), not auto-deleted.
+
+## 28. Relationships
 
 ```text
 Role 1---N User
@@ -537,7 +596,10 @@ User 1---N Order
 User 1---N Notification
 User 1---N SystemLog
 User 1---N FeaturedProduct
+User 1---1 Cart
+Cart 1---N CartItem
 
+ProductType 1---N Product
 Category 1---N Category
 Category 1---N Product
 Brand 1---N Product
@@ -546,7 +608,7 @@ Unit 1---N ProductPrice N---1 ProductVariant
 Color 1---N ProductColor N---1 ProductVariant
 Product 1---N ProductImage
 Product 1---N FeaturedProduct
-
+Product 1---N CartItem
 
 Order 1---N OrderItem
 Product 1---N OrderItem
@@ -554,7 +616,7 @@ ProductVariant 1---N OrderItem
 Order 1---N OrderStatusHistory
 ```
 
-## 26. Key indexes
+## 29. Key indexes
 
 Recommended starting indexes:
 

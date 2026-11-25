@@ -19,6 +19,7 @@ import java.util.stream.Collectors;
  * @param categoryName tên danh mục
  * @param brandId      ID thương hiệu
  * @param brandName    tên thương hiệu
+ * @param productType  loại sản phẩm kỹ thuật
  * @param priceVisible true nếu caller có quyền PRODUCT_PRICE_VIEW
  * @param images       danh sách ảnh sản phẩm
  * @param variants     danh sách biến thể kèm giá (có thể null nếu thiếu quyền)
@@ -34,12 +35,34 @@ public record ProductDetailResponse(
         String categoryName,
         Long brandId,
         String brandName,
+        ProductTypeResponse productType,
         boolean priceVisible,
         List<ProductImageResponse> images,
         List<ProductVariantResponse> variants,
         Instant createdAt,
         Instant updatedAt
 ) {
+
+    /**
+     * Constructor tương thích ngược không có productType.
+     */
+    public ProductDetailResponse(
+            Long id,
+            String productName,
+            String description,
+            ProductStatus status,
+            Long categoryId,
+            String categoryName,
+            Long brandId,
+            String brandName,
+            boolean priceVisible,
+            List<ProductImageResponse> images,
+            List<ProductVariantResponse> variants,
+            Instant createdAt,
+            Instant updatedAt
+    ) {
+        this(id, productName, description, status, categoryId, categoryName, brandId, brandName, null, priceVisible, images, variants, createdAt, updatedAt);
+    }
 
     /**
      * Chuyển đổi từ entity {@link Product} sang DTO chi tiết đầy đủ.
@@ -68,6 +91,7 @@ public record ProductDetailResponse(
                 product.getCategory() != null ? product.getCategory().getCategoryName() : null,
                 product.getBrand() != null ? product.getBrand().getId() : null,
                 product.getBrand() != null ? product.getBrand().getBrandName() : null,
+                ProductTypeResponse.fromEntity(product.getProductType()),
                 priceVisible,
                 images,
                 variants,

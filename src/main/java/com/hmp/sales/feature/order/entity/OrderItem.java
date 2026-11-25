@@ -87,6 +87,12 @@ public class OrderItem {
     private BigDecimal size;
 
     /**
+     * Kích thước cấu hình mặt cắt / quy cách chi tiết (ví dụ: Thành 15cm x Đáy 20cm x Thành 20cm, móc 1.5cm).
+     */
+    @Column(name = "dimensions", columnDefinition = "TEXT")
+    private String dimensions;
+
+    /**
      * Snapshot đơn giá tại thời điểm Quản lý tính toán (VND, số nguyên).
      */
     @Column(name = "unit_price")

@@ -56,6 +56,13 @@ public class Product {
     private Brand brand;
 
     /**
+     * Loại sản phẩm kỹ thuật quyết định các thông số đặt hàng (tôn lợp mái, máng xối, diềm sườn, bán lẻ...).
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "product_type_id")
+    private ProductType productType;
+
+    /**
      * Tên sản phẩm (bắt buộc, tối đa 250 ký tự).
      */
     @Column(name = "product_name", nullable = false, length = 250)

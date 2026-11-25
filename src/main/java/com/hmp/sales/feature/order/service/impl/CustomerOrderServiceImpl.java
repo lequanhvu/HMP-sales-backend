@@ -488,6 +488,24 @@ public class CustomerOrderServiceImpl implements CustomerOrderService {
                 if (!productPriceRepository.existsByVariantIdAndUnitId(variant.getId(), unit.getId())) {
                     throw new BusinessRuleException("Đơn vị tính '" + unit.getUnitName() + "' không thuộc biến thể ID " + variant.getId() + " của sản phẩm '" + product.getProductName() + "'.");
                 }
+            } else if (variant != null && variant.getPrices() != null && !variant.getPrices().isEmpty()) {
+                ProductPrice autoPp = null;
+                if (req.size() != null && req.size().compareTo(BigDecimal.ZERO) > 0) {
+                    autoPp = variant.getPrices().stream()
+                            .filter(p -> !Boolean.TRUE.equals(p.getIsDeleted()) && p.getUnit() != null)
+                            .filter(p -> p.getUnit().getUnitName() != null && (p.getUnit().getUnitName().trim().equalsIgnoreCase("m") || p.getUnit().getUnitName().trim().equalsIgnoreCase("mét")))
+                            .findFirst()
+                            .orElse(null);
+                }
+                if (autoPp == null) {
+                    autoPp = variant.getPrices().stream()
+                            .filter(p -> !Boolean.TRUE.equals(p.getIsDeleted()) && p.getUnit() != null && p.getPrice() != null)
+                            .findFirst()
+                            .orElse(null);
+                }
+                if (autoPp != null) {
+                    unit = autoPp.getUnit();
+                }
             }
 
             Integer unitPrice = null;
@@ -516,6 +534,7 @@ public class CustomerOrderServiceImpl implements CustomerOrderService {
                     .unitNameSnapshot(unit != null ? unit.getUnitName() : null)
                     .quantity(req.quantity())
                     .size(req.size())
+                    .dimensions(req.dimensions())
                     .unitPrice(unitPrice)
                     .discountAmount(itemDiscount)
                     .totalPrice(totalPrice)

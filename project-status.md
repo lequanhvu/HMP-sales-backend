@@ -1,6 +1,6 @@
 # Project Status
 
-> Last updated: 2026-11-16 | By: @antigravity | Session: #24
+> Last updated: 2026-11-25 | By: @antigravity | Session: #25
 >
 > AI: update this file at the end of every session when asked.
 > Follow this exact format. Preserve full milestone checklists and project specifications.
@@ -8,6 +8,24 @@
 ---
 
 ## Completed
+- ✅ **Phân loại Kỹ thuật Sản phẩm (ProductType) & Phân hệ Giỏ hàng Bền vững (Persistent Cart) completed (Session #25)**:
+  * **Mô hình Phân loại Kỹ thuật (`ProductType`)**:
+    * Tạo thực thể [`ProductType`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/product/entity/ProductType.java) (bảng `product_types`): `id`, `code`, `name`, `note`, `createdAt`, `updatedAt`.
+    * Repository [`ProductTypeRepository`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/product/repository/ProductTypeRepository.java) và Dịch vụ [`ProductTypeService`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/product/service/ProductTypeService.java).
+    * Khởi tạo tự động 6 loại kỹ thuật trong [`DataInitializer`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/config/DataInitializer.java): `ROOFING_SHEET` (Tôn lợp mái), `GUTTER` (Máng xối), `GABLE_FLASHING` (Diềm sườn), `RIDGE_CAP` (Úp nóc), `RETAIL` (Hàng bán lẻ), `UNKNOWN` (Chưa thể xác định).
+    * Mở rộng thực thể [`Product`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/product/entity/Product.java) liên kết `productType` và nhúng DTO [`ProductTypeResponse`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/product/dto/ProductTypeResponse.java) vào `ProductDetailResponse` và `ProductSummaryResponse`.
+  * **Mở rộng Thuộc tính Kích thước Hình học trong Đơn hàng (`OrderItem`)**:
+    * Bổ sung cột `dimensions` (`TEXT`) trong [`OrderItem`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/order/entity/OrderItem.java) lưu trữ kích thước hình học chi tiết/bẻ chấn, bảo toàn nguyên vẹn cột `size` (`NUMERIC(18, 4)`) dùng làm hệ số nhân tính tiền.
+    * Mở rộng các DTO [`OrderItemRequest`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/order/dto/OrderItemRequest.java) và [`OrderItemResponse`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/order/dto/OrderItemResponse.java), cập nhật [`CustomerOrderServiceImpl`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/order/service/impl/CustomerOrderServiceImpl.java).
+  * **Phân hệ Giỏ hàng Bền vững (`Cart` & `CartItem`)**:
+    * Tạo thực thể [`Cart`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/cart/entity/Cart.java) (`user_id UNIQUE`, 1:1 với `User`) và [`CartItem`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/cart/entity/CartItem.java) (liên kết `Product`, `Variant`, `Color`, `Unit`, hỗ trợ `size`, `dimensions`, `quantity`).
+    * Dịch vụ [`CartServiceImpl`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/cart/service/impl/CartServiceImpl.java): Xử lý logic gộp dòng (deduplication) thông minh khi trùng khớp quy cách, sắp xếp danh sách theo `updatedAt DESC`, kiểm soát quyền xem giá động qua `PermissionEvaluationService`.
+    * Controller [`CustomerCartController`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/cart/controller/CustomerCartController.java): Cung cấp đầy đủ các API `GET /api/v1/cart`, `GET /api/v1/cart/count`, `POST /api/v1/cart/items`, `PATCH /api/v1/cart/items/{id}`, `DELETE /api/v1/cart/items/{id}`, `DELETE /api/v1/cart/clear`.
+    * Khởi tạo 4 quyền bảo mật mới: `CART_VIEW`, `CART_ADD`, `CART_UPDATE`, `CART_DELETE` gán cho `ADMIN`, `MANAGER` và `CUSTOMER`.
+  * **Kiểm thử Toàn diện & Đồng bộ**:
+    * Cập nhật [`database.md`](file:///d:/HMP/sales-backend/database.md) (Bảng 25, 26, 27) và [`api-spec.md`](file:///d:/HMP/sales-backend/api-spec.md) (Section 17.6).
+    * Viết mới 14 test cases trong [`CartServiceImplTest`](file:///d:/HMP/sales-backend/src/test/java/com/hmp/sales/feature/cart/service/CartServiceImplTest.java) và [`CustomerCartControllerTest`](file:///d:/HMP/sales-backend/src/test/java/com/hmp/sales/feature/cart/controller/CustomerCartControllerTest.java).
+    * Toàn bộ **492/492 tests pass 100%**.
 - ✅ **Phân hệ Sản phẩm Nổi bật (Featured Products) & Quản trị CRUD hoàn tất**:
   - **Mô hình Dữ liệu & Thực thể (`FeaturedProduct`)**:
     - Tạo mới thực thể [`FeaturedProduct`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/product/entity/FeaturedProduct.java) ánh xạ bảng `featured_products` với các thuộc tính: `id` (PK, `featured_id`), `product` (FK `products`), `displayOrder` (thứ tự ưu tiên hiển thị), `status` ([`FeaturedProductStatus`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/product/entity/FeaturedProductStatus.java): `ACTIVE`/`INACTIVE`), `createdBy` (FK `users`), `createdAt`, `updatedAt`, `isDeleted`.

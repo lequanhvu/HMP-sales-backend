@@ -15,6 +15,7 @@ import com.hmp.sales.feature.product.entity.ProductStatus;
  * @param categoryName   tên danh mục
  * @param brandId        ID thương hiệu (null nếu chưa gán)
  * @param brandName      tên thương hiệu (null nếu chưa gán)
+ * @param productType    loại sản phẩm kỹ thuật
  * @param primaryImageUrl URL ảnh đại diện (null nếu chưa có ảnh)
  * @param priceVisible   true nếu caller có quyền PRODUCT_PRICE_VIEW
  */
@@ -26,9 +27,27 @@ public record ProductSummaryResponse(
         String categoryName,
         Long brandId,
         String brandName,
+        ProductTypeResponse productType,
         String primaryImageUrl,
         boolean priceVisible
 ) {
+
+    /**
+     * Constructor tương thích ngược không có productType.
+     */
+    public ProductSummaryResponse(
+            Long id,
+            String productName,
+            ProductStatus status,
+            Long categoryId,
+            String categoryName,
+            Long brandId,
+            String brandName,
+            String primaryImageUrl,
+            boolean priceVisible
+    ) {
+        this(id, productName, status, categoryId, categoryName, brandId, brandName, null, primaryImageUrl, priceVisible);
+    }
 
     /**
      * Chuyển đổi từ entity {@link Product} sang DTO tóm tắt.
@@ -52,6 +71,7 @@ public record ProductSummaryResponse(
                 product.getCategory() != null ? product.getCategory().getCategoryName() : null,
                 product.getBrand() != null ? product.getBrand().getId() : null,
                 product.getBrand() != null ? product.getBrand().getBrandName() : null,
+                ProductTypeResponse.fromEntity(product.getProductType()),
                 primaryImageUrl,
                 priceVisible
         );

@@ -15,8 +15,9 @@ import java.math.BigDecimal;
  * @param variantName tên biến thể sản phẩm (snapshot)
  * @param color       màu sắc đã chọn (snapshot)
  * @param unit        đơn vị tính (snapshot)
- * @param quantity    số lượng đặt mua
+ * @param quantity       số lượng đặt mua
  * @param size           kích thước/chiều dài sản xuất
+ * @param dimensions     kích thước quy cách mặt cắt chi tiết
  * @param unitPrice      đơn giá snapshot được tính (null khi chưa tính giá)
  * @param discountAmount số tiền giảm giá dòng sản phẩm
  * @param totalPrice     thành tiền dòng sản phẩm (null khi chưa tính giá)
@@ -32,10 +33,31 @@ public record OrderItemResponse(
         String unit,
         BigDecimal quantity,
         BigDecimal size,
+        String dimensions,
         Integer unitPrice,
         Long discountAmount,
         Long totalPrice
 ) {
+
+    /**
+     * Constructor tương thích ngược không có dimensions.
+     */
+    public OrderItemResponse(
+            Long orderItemId,
+            Long productId,
+            String productName,
+            Long variantId,
+            String variantName,
+            String color,
+            String unit,
+            BigDecimal quantity,
+            BigDecimal size,
+            Integer unitPrice,
+            Long discountAmount,
+            Long totalPrice
+    ) {
+        this(orderItemId, productId, productName, variantId, variantName, color, unit, quantity, size, null, unitPrice, discountAmount, totalPrice);
+    }
 
     /**
      * Chuyển đổi từ entity {@link OrderItem} sang DTO {@link OrderItemResponse}.
@@ -68,6 +90,7 @@ public record OrderItemResponse(
                 item.getUnitNameSnapshot(),
                 item.getQuantity(),
                 item.getSize(),
+                item.getDimensions(),
                 hidePrice ? null : item.getUnitPrice(),
                 hidePrice ? null : item.getDiscountAmount(),
                 hidePrice ? null : item.getTotalPrice()
