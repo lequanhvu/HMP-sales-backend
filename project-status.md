@@ -1,6 +1,6 @@
 # Project Status
 
-> Last updated: 2026-11-25 | By: @antigravity | Session: #25
+> Last updated: 2026-11-27 | By: @antigravity | Session: #26
 >
 > AI: update this file at the end of every session when asked.
 > Follow this exact format. Preserve full milestone checklists and project specifications.
@@ -8,6 +8,18 @@
 ---
 
 ## Completed
+- ✅ **Phân hệ Cổng gửi SMS OTP Thực tế (Production SMS Gateway & Chống SMS Bombing) completed (Session #26)**:
+  * **Trừu tượng hóa & Đa hình Bộ gửi OTP (`OtpSender`)**:
+    * Định nghĩa interface [`OtpSender`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/otp/sender/OtpSender.java) chịu trách nhiệm gửi OTP qua viễn thông.
+    * Triển khai [`NoOpOtpSender`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/otp/sender/NoOpOtpSender.java): kích hoạt khi `app.sms.enabled=false` (mặc định), giả lập gửi OTP và log an toàn tại console cho môi trường Local / Dev / Test.
+    * Triển khai [`EsmsOtpSender`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/otp/sender/EsmsOtpSender.java): kích hoạt khi `app.sms.enabled=true` qua `@ConditionalOnProperty`, giao tiếp qua `RestClient` với eSMS.vn JSON Gateway, hỗ trợ cả tin Brandname (`SmsType = 2`) và đầu số cố định OTP (`SmsType = 8`), tự động che số điện thoại trong log qua `AuditValueUtils.maskPhone`.
+  * **Phòng vệ Ngân sách & Chống SMS Bombing (Production Protection)**:
+    * Mở rộng [`AppProperties`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/config/AppProperties.java) và `application.yaml` với cấu hình `app.sms` (`enabled`, `provider`, `api-key`, `secret-key`, `brandname`, `max-daily-per-phone`).
+    * Bổ sung cơ chế giới hạn hạn mức gửi trong ngày (Daily Cap Rate Limiting) trên Redis `otp:daily:{phone}` với TTL 24 giờ (86400s) trong [`PhoneOtpServiceImpl`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/otp/service/impl/PhoneOtpServiceImpl.java). Chặn triệt để việc spam OTP làm cạn kiệt số dư tài khoản viễn thông.
+  * **Kiểm thử Toàn diện & Đồng bộ**:
+    * Viết mới 6 test cases trong [`EsmsOtpSenderTest`](file:///d:/HMP/sales-backend/src/test/java/com/hmp/sales/feature/otp/sender/EsmsOtpSenderTest.java) (kiểm thử Brandname, đầu số cố định, thiếu API key, lỗi gateway, lỗi mạng).
+    * Cập nhật [`PhoneOtpServiceImplTest`](file:///d:/HMP/sales-backend/src/test/java/com/hmp/sales/feature/otp/service/PhoneOtpServiceImplTest.java) kiểm thử rate limit theo ngày và ủy quyền gửi OTP.
+    * Toàn bộ **499/499 tests pass 100%**.
 - ✅ **Phân loại Kỹ thuật Sản phẩm (ProductType) & Phân hệ Giỏ hàng Bền vững (Persistent Cart) completed (Session #25)**:
   * **Mô hình Phân loại Kỹ thuật (`ProductType`)**:
     * Tạo thực thể [`ProductType`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/product/entity/ProductType.java) (bảng `product_types`): `id`, `code`, `name`, `note`, `createdAt`, `updatedAt`.

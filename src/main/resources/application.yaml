@@ -49,6 +49,21 @@ app:
     # Khoảng cách tối thiểu giữa 2 lần yêu cầu gửi lại OTP (giới hạn tần suất gọi - rate limiting)
     resend-interval-seconds: 60
 
+  # Cấu hình cổng gửi tin nhắn SMS / OTP (eSMS hoặc NoOp giả lập)
+  sms:
+    # Bật/tắt gửi SMS thật (mặc định false - sử dụng NoOp giả lập trong dev/local)
+    enabled: ${SMS_ENABLED:false}
+    # Nhà cung cấp SMS: esms (eSMS.vn)
+    provider: ${SMS_PROVIDER:esms}
+    # API Key xác thực (cung cấp bởi nhà mạng/gateway)
+    api-key: ${SMS_API_KEY:}
+    # Secret Key xác thực (dành cho eSMS)
+    secret-key: ${SMS_SECRET_KEY:}
+    # Tên định danh thương hiệu (Brandname) được duyệt (hoặc để trống nếu dùng đầu số mặc định eSMS)
+    brandname: ${SMS_BRANDNAME:}
+    # Giới hạn số lần nhận OTP tối đa trong 1 ngày cho 1 số điện thoại (chống SMS bombing)
+    max-daily-per-phone: ${SMS_MAX_DAILY_PER_PHONE:5}
+
   # Cấu hình đơn hàng
   order:
     # Giá trị mặc định ban đầu cho thời gian khách được phép hủy đơn (tính bằng phút).

@@ -15,7 +15,8 @@ public record AppProperties(
     PaginationProperties pagination,
     ProductProperties product,
     NotificationProperties notification,
-    StorageProperties storage
+    StorageProperties storage,
+    SmsProperties sms
 ) {
     @ConstructorBinding
     public AppProperties {
@@ -34,6 +35,9 @@ public record AppProperties(
         if (storage == null) {
             storage = new StorageProperties(new R2Properties(false, "", "", "", "", ""));
         }
+        if (sms == null) {
+            sms = new SmsProperties(false, "esms", "", "", "", 5);
+        }
     }
 
     public AppProperties(
@@ -44,7 +48,7 @@ public record AppProperties(
         PaginationProperties pagination,
         ProductProperties product
     ) {
-        this(jwt, otp, order, cors, pagination, product, null, null);
+        this(jwt, otp, order, cors, pagination, product, null, null, null);
     }
 
     public AppProperties(
@@ -56,7 +60,20 @@ public record AppProperties(
         ProductProperties product,
         NotificationProperties notification
     ) {
-        this(jwt, otp, order, cors, pagination, product, notification, null);
+        this(jwt, otp, order, cors, pagination, product, notification, null, null);
+    }
+
+    public AppProperties(
+        JwtProperties jwt,
+        OtpProperties otp,
+        OrderProperties order,
+        CorsProperties cors,
+        PaginationProperties pagination,
+        ProductProperties product,
+        NotificationProperties notification,
+        StorageProperties storage
+    ) {
+        this(jwt, otp, order, cors, pagination, product, notification, storage, null);
     }
 
     public record JwtProperties(
@@ -172,4 +189,22 @@ public record AppProperties(
         String bucketName,
         String publicDomain
     ) {}
+
+    public record SmsProperties(
+        boolean enabled,
+        String provider,
+        String apiKey,
+        String secretKey,
+        String brandname,
+        int maxDailyPerPhone
+    ) {
+        public SmsProperties {
+            if (provider == null || provider.isBlank()) {
+                provider = "esms";
+            }
+            if (maxDailyPerPhone <= 0) {
+                maxDailyPerPhone = 5;
+            }
+        }
+    }
 }
