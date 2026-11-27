@@ -22,6 +22,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -104,6 +105,32 @@ public class Order {
      */
     @Column(name = "shipping_address", nullable = false, length = 1000)
     private String shippingAddress;
+
+    /**
+     * Hình thức nhận hàng (SHIPPING: giao tận nơi, PICKUP: nhận tại xưởng).
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "delivery_method", length = 30)
+    @Builder.Default
+    private DeliveryMethod deliveryMethod = DeliveryMethod.SHIPPING;
+
+    /**
+     * Vĩ độ (latitude) ghim vị trí nhận hàng trên bản đồ.
+     */
+    @Column(name = "delivery_latitude", precision = 10, scale = 8)
+    private BigDecimal deliveryLatitude;
+
+    /**
+     * Kinh độ (longitude) ghim vị trí nhận hàng trên bản đồ.
+     */
+    @Column(name = "delivery_longitude", precision = 11, scale = 8)
+    private BigDecimal deliveryLongitude;
+
+    /**
+     * Khoảng cách thực tế (km) tính từ xưởng đến điểm nhận hàng.
+     */
+    @Column(name = "delivery_distance_km", precision = 6, scale = 2)
+    private BigDecimal deliveryDistanceKm;
 
     /**
      * Ghi chú của khách hàng khi đặt đơn.

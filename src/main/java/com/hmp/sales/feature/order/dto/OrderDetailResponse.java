@@ -1,9 +1,11 @@
 package com.hmp.sales.feature.order.dto;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.hmp.sales.feature.order.entity.DeliveryMethod;
 import com.hmp.sales.feature.order.entity.Order;
 import com.hmp.sales.feature.order.entity.OrderStatus;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
 
@@ -25,6 +27,10 @@ import java.util.List;
  * @param confirmedAt        thời điểm Quản lý chốt giá
  * @param items              danh sách các dòng sản phẩm trong đơn
  * @param statusHistory      lịch sử các lần chuyển trạng thái đơn hàng
+ * @param deliveryMethod     hình thức nhận hàng (SHIPPING hoặc PICKUP)
+ * @param deliveryDistanceKm khoảng cách giao hàng thực tế (km)
+ * @param deliveryLatitude   vĩ độ ghim vị trí nhận hàng
+ * @param deliveryLongitude  kinh độ ghim vị trí nhận hàng
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record OrderDetailResponse(
@@ -42,8 +48,55 @@ public record OrderDetailResponse(
         Instant createdAt,
         Instant confirmedAt,
         List<OrderItemResponse> items,
-        List<OrderStatusHistoryResponse> statusHistory
+        List<OrderStatusHistoryResponse> statusHistory,
+        DeliveryMethod deliveryMethod,
+        BigDecimal deliveryDistanceKm,
+        BigDecimal deliveryLatitude,
+        BigDecimal deliveryLongitude
 ) {
+
+    /**
+     * Constructor tương thích ngược 15 tham số cũ.
+     */
+    public OrderDetailResponse(
+            Long orderId,
+            OrderStatus status,
+            Long subtotalAmount,
+            Long discountAmount,
+            Long totalAmount,
+            String receiverName,
+            String receiverPhone,
+            String shippingAddress,
+            String note,
+            String noteForDiscount,
+            String cancellationReason,
+            Instant createdAt,
+            Instant confirmedAt,
+            List<OrderItemResponse> items,
+            List<OrderStatusHistoryResponse> statusHistory
+    ) {
+        this(
+                orderId,
+                status,
+                subtotalAmount,
+                discountAmount,
+                totalAmount,
+                receiverName,
+                receiverPhone,
+                shippingAddress,
+                note,
+                noteForDiscount,
+                cancellationReason,
+                createdAt,
+                confirmedAt,
+                items,
+                statusHistory,
+                DeliveryMethod.SHIPPING,
+                null,
+                null,
+                null
+        );
+    }
 
     /**
      * Constructor tương thích ngược không có noteForDiscount (mặc định null).
@@ -132,7 +185,11 @@ public record OrderDetailResponse(
                 order.getCreatedAt(),
                 order.getConfirmedAt(),
                 items,
-                history
+                history,
+                order.getDeliveryMethod(),
+                order.getDeliveryDistanceKm(),
+                order.getDeliveryLatitude(),
+                order.getDeliveryLongitude()
         );
     }
 }

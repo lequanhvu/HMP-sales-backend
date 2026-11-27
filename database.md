@@ -339,6 +339,11 @@ Saved addresses selectable during ordering.
 | AddressID | BIGINT IDENTITY | No | PK |
 | CustomerID | BIGINT | No | FK User |
 | AddressLine | NVARCHAR(500) | No | Full address |
+| Province | VARCHAR(100) | Yes | Tỉnh / Thành phố trực thuộc trung ương |
+| District | VARCHAR(100) | Yes | Quận / Huyện / Thị xã / Thành phố thuộc tỉnh |
+| Ward | VARCHAR(100) | Yes | Xã / Phường / Thị trấn |
+| Latitude | NUMERIC(10,8) | Yes | GPS latitude pinned on map |
+| Longitude | NUMERIC(11,8) | Yes | GPS longitude pinned on map |
 | IsDefault | BOOLEAN | No | Default selection |
 | Status | VARCHAR(20) | No | `ACTIVE`, `INACTIVE` |
 | CreatedAt | DATETIME2 | No | |
@@ -380,6 +385,10 @@ Avoid the SQL keyword `Order` as an unquoted physical table name if the project 
 | OrderID | BIGINT IDENTITY | No | PK |
 | CustomerID | BIGINT | No | FK User |
 | Status | VARCHAR(30) | No | `PENDING`, `CONFIRMED`, `PROCESSING`, `SHIPPING`, `COMPLETED`, `CANCELLED` |
+| DeliveryMethod | VARCHAR(20) | No | Default `SHIPPING` (`SHIPPING`: giao tận nơi trong bán kính; `PICKUP`: khách tự bốc tôn tại xưởng) |
+| DeliveryLatitude | NUMERIC(10,8) | Yes | Pinned delivery latitude for `SHIPPING` orders |
+| DeliveryLongitude | NUMERIC(11,8) | Yes | Pinned delivery longitude for `SHIPPING` orders |
+| DeliveryDistanceKm | NUMERIC(6,2) | Yes | Calculated geodesic distance from store in kilometers |
 | TotalAmount | BIGINT | Yes | Null until price calculation is complete when applicable |
 | SubtotalAmount | BIGINT | Yes | Total before order-level discount; sum of OrderItem TotalPrice |
 | DiscountAmount | BIGINT | No | Default 0; whole-order discount |

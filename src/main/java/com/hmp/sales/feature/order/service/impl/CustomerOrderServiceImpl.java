@@ -6,6 +6,8 @@ import com.hmp.sales.common.exception.OtpVerificationException;
 import com.hmp.sales.common.exception.ResourceNotFoundException;
 import com.hmp.sales.common.response.PageResponse;
 import com.hmp.sales.common.util.DateUtils;
+import com.hmp.sales.feature.delivery.service.DeliveryService;
+import com.hmp.sales.feature.notification.event.OrderStatusChangedEvent;
 import com.hmp.sales.feature.order.dto.CancelOrderRequest;
 import com.hmp.sales.feature.order.dto.CreateOrderRequest;
 import com.hmp.sales.feature.order.dto.OrderDetailResponse;
@@ -14,6 +16,7 @@ import com.hmp.sales.feature.order.dto.OrderItemRequest;
 import com.hmp.sales.feature.order.dto.OrderItemResponse;
 import com.hmp.sales.feature.order.dto.OrderStatusHistoryResponse;
 import com.hmp.sales.feature.order.dto.OrderSummaryResponse;
+import com.hmp.sales.feature.order.entity.DeliveryMethod;
 import com.hmp.sales.feature.order.entity.Order;
 import com.hmp.sales.feature.order.entity.OrderItem;
 import com.hmp.sales.feature.order.entity.OrderStatus;
@@ -47,9 +50,12 @@ import com.hmp.sales.feature.user.repository.CustomerAddressRepository;
 import com.hmp.sales.feature.user.repository.UserRepository;
 import com.hmp.sales.security.PermissionEvaluationService;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+
+import java.math.BigDecimal;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -83,25 +89,49 @@ public class CustomerOrderServiceImpl implements CustomerOrderService {
     private final CustomerAddressRepository customerAddressRepository;
     private final PermissionEvaluationService permissionEvaluationService;
     private final ApplicationEventPublisher eventPublisher;
+    private final DeliveryService deliveryService;
 
     /**
-     * Khởi tạo service với các repositories và services phụ thuộc.
-     *
-     * @param orderRepository              repository quản lý đơn hàng
-     * @param orderItemRepository          repository quản lý chi tiết dòng đơn hàng
-     * @param orderStatusHistoryRepository repository quản lý lịch sử trạng thái đơn hàng
-     * @param userRepository               repository quản lý người dùng
-     * @param productRepository            repository quản lý sản phẩm
-     * @param productVariantRepository     repository quản lý biến thể sản phẩm
-     * @param colorRepository              repository quản lý màu sắc
-     * @param unitRepository               repository quản lý đơn vị tính
-     * @param productColorRepository       repository quản lý liên kết màu sắc của biến thể
-     * @param productPriceRepository       repository quản lý bảng giá theo đơn vị tính của biến thể
-     * @param phoneOtpService              service xác thực mã OTP số điện thoại
-     * @param systemSettingService         service cấu hình hệ thống động
-     * @param customerAddressRepository    repository quản lý sổ địa chỉ khách hàng
-     * @param permissionEvaluationService  service đánh giá quyền hạn động của người dùng
-     * @param eventPublisher               bộ điều phối phát sinh sự kiện ứng dụng
+     * Khởi tạo service với đầy đủ dependencies bao gồm DeliveryService.
+     */
+    @Autowired
+    public CustomerOrderServiceImpl(
+            OrderRepository orderRepository,
+            OrderItemRepository orderItemRepository,
+            OrderStatusHistoryRepository orderStatusHistoryRepository,
+            UserRepository userRepository,
+            ProductRepository productRepository,
+            ProductVariantRepository productVariantRepository,
+            ColorRepository colorRepository,
+            UnitRepository unitRepository,
+            ProductColorRepository productColorRepository,
+            ProductPriceRepository productPriceRepository,
+            PhoneOtpService phoneOtpService,
+            SystemSettingService systemSettingService,
+            CustomerAddressRepository customerAddressRepository,
+            PermissionEvaluationService permissionEvaluationService,
+            ApplicationEventPublisher eventPublisher,
+            DeliveryService deliveryService) {
+        this.orderRepository = orderRepository;
+        this.orderItemRepository = orderItemRepository;
+        this.orderStatusHistoryRepository = orderStatusHistoryRepository;
+        this.userRepository = userRepository;
+        this.productRepository = productRepository;
+        this.productVariantRepository = productVariantRepository;
+        this.colorRepository = colorRepository;
+        this.unitRepository = unitRepository;
+        this.productColorRepository = productColorRepository;
+        this.productPriceRepository = productPriceRepository;
+        this.phoneOtpService = phoneOtpService;
+        this.systemSettingService = systemSettingService;
+        this.customerAddressRepository = customerAddressRepository;
+        this.permissionEvaluationService = permissionEvaluationService;
+        this.eventPublisher = eventPublisher;
+        this.deliveryService = deliveryService;
+    }
+
+    /**
+     * Constructor tương thích ngược 15 tham số cho các bài test cũ.
      */
     public CustomerOrderServiceImpl(
             OrderRepository orderRepository,
@@ -119,21 +149,10 @@ public class CustomerOrderServiceImpl implements CustomerOrderService {
             CustomerAddressRepository customerAddressRepository,
             PermissionEvaluationService permissionEvaluationService,
             ApplicationEventPublisher eventPublisher) {
-        this.orderRepository = orderRepository;
-        this.orderItemRepository = orderItemRepository;
-        this.orderStatusHistoryRepository = orderStatusHistoryRepository;
-        this.userRepository = userRepository;
-        this.productRepository = productRepository;
-        this.productVariantRepository = productVariantRepository;
-        this.colorRepository = colorRepository;
-        this.unitRepository = unitRepository;
-        this.productColorRepository = productColorRepository;
-        this.productPriceRepository = productPriceRepository;
-        this.phoneOtpService = phoneOtpService;
-        this.systemSettingService = systemSettingService;
-        this.customerAddressRepository = customerAddressRepository;
-        this.permissionEvaluationService = permissionEvaluationService;
-        this.eventPublisher = eventPublisher;
+        this(orderRepository, orderItemRepository, orderStatusHistoryRepository, userRepository,
+                productRepository, productVariantRepository, colorRepository, unitRepository,
+                productColorRepository, productPriceRepository, phoneOtpService, systemSettingService,
+                customerAddressRepository, permissionEvaluationService, eventPublisher, null);
     }
 
     /**
@@ -147,7 +166,20 @@ public class CustomerOrderServiceImpl implements CustomerOrderService {
 
         validatePhoneOtp(customer, request.receiverPhone());
 
-        String shippingAddress = resolveShippingAddress(customer.getId(), request.addressId());
+        CustomerAddress address = resolveCustomerAddress(customer.getId(), request.addressId());
+        String shippingAddress = address.getAddressLine().trim();
+
+        DeliveryMethod deliveryMethod = request.deliveryMethod() != null ? request.deliveryMethod() : DeliveryMethod.SHIPPING;
+        BigDecimal distanceKm = null;
+
+        if (deliveryMethod == DeliveryMethod.SHIPPING && deliveryService != null) {
+            if (address.getLatitude() == null || address.getLongitude() == null) {
+                throw new BusinessRuleException(
+                        "Địa chỉ nhận hàng chưa có tọa độ vị trí ghim trên bản đồ. "
+                        + "Vui lòng cập nhật vị trí bản đồ cho địa chỉ này để xưởng tính toán phạm vi phục vụ.");
+            }
+            distanceKm = deliveryService.validateDeliveryLocation(address.getLatitude(), address.getLongitude());
+        }
 
         OrderStatus previousStatus = null;
 
@@ -157,6 +189,10 @@ public class CustomerOrderServiceImpl implements CustomerOrderService {
                 .receiverName(request.receiverName().trim())
                 .receiverPhone(request.receiverPhone().trim())
                 .shippingAddress(shippingAddress)
+                .deliveryMethod(deliveryMethod)
+                .deliveryLatitude(address.getLatitude())
+                .deliveryLongitude(address.getLongitude())
+                .deliveryDistanceKm(distanceKm)
                 .note(request.note() != null ? request.note().trim() : null)
                 .discountAmount(0L)
                 .build();
@@ -408,7 +444,7 @@ public class CustomerOrderServiceImpl implements CustomerOrderService {
         }
     }
 
-    private String resolveShippingAddress(Long customerId, Long addressId) {
+    private CustomerAddress resolveCustomerAddress(Long customerId, Long addressId) {
         if (addressId == null) {
             throw new BusinessRuleException("Địa chỉ nhận hàng không được để trống.");
         }
@@ -424,7 +460,7 @@ public class CustomerOrderServiceImpl implements CustomerOrderService {
             log.info("[Order] Đã tự động cập nhật địa chỉ ID: {} thành địa chỉ mặc định cho khách hàng ID: {}", savedAddress.getId(), customerId);
         }
 
-        return savedAddress.getAddressLine().trim();
+        return savedAddress;
     }
 
     private List<OrderItem> buildAndSaveOrderItems(Order order, List<OrderItemRequest> itemRequests, boolean canViewPrice) {

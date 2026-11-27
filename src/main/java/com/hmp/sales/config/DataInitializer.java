@@ -678,37 +678,78 @@ public class DataInitializer implements ApplicationRunner {
             return;
         }
 
-        systemSettingRepository.findBySettingKeyAndIsDeletedFalse("ORDER_CUSTOMER_CANCELLATION_WINDOW_MINUTES")
-                .ifPresentOrElse(
-                        setting -> log.debug("[DataInitializer] SystemSetting '{}' đã tồn tại: {}",
-                                setting.getSettingKey(), setting.getSettingValue()),
-                        () -> {
-                            SystemSetting setting = SystemSetting.builder()
-                                     .settingKey("ORDER_CUSTOMER_CANCELLATION_WINDOW_MINUTES")
-                                    .settingValue("30")
-                                    .dataType("INT")
-                                    .description("Thời gian tối đa (phút) khách hàng được phép hủy đơn hàng sau khi tạo đơn hoặc sau khi Quản lý chốt giá")
-                                    .isDeleted(false)
-                                    .build();
-                            systemSettingRepository.save(setting);
-                            log.info("[DataInitializer] Khởi tạo SystemSetting mặc định '{}' = 30", setting.getSettingKey());
-                        }
-                );
+        seedSettingIfNotExists(
+                "ORDER_CUSTOMER_CANCELLATION_WINDOW_MINUTES",
+                "30",
+                "INT",
+                "Thời gian tối đa (phút) khách hàng được phép hủy đơn hàng sau khi tạo đơn hoặc sau khi Quản lý chốt giá"
+        );
 
-        systemSettingRepository.findBySettingKeyAndIsDeletedFalse("ORDER_UNDO_CANCEL_WINDOW_MINUTES")
+        seedSettingIfNotExists(
+                "ORDER_UNDO_CANCEL_WINDOW_MINUTES",
+                "60",
+                "INT",
+                "Thời gian tối đa (phút) khách hàng được phép hoàn tác đơn hàng vừa bị hủy"
+        );
+
+        seedSettingIfNotExists(
+                "STORE_NAME",
+                "Xưởng Cơ Khí & Tôn Thép HMP",
+                "STRING",
+                "Tên đại lý / xưởng sản xuất phục vụ"
+        );
+
+        seedSettingIfNotExists(
+                "STORE_ADDRESS",
+                "Khu Công Nghiệp Huyện, Tỉnh Vĩnh Phúc",
+                "STRING",
+                "Địa chỉ cơ sở của xưởng sản xuất tôn lợp mái"
+        );
+
+        seedSettingIfNotExists(
+                "STORE_LATITUDE",
+                "21.352410",
+                "DECIMAL",
+                "Vĩ độ (latitude) vị trí xưởng sản xuất dùng làm tâm tính bán kính giao hàng"
+        );
+
+        seedSettingIfNotExists(
+                "STORE_LONGITUDE",
+                "105.541280",
+                "DECIMAL",
+                "Kinh độ (longitude) vị trí xưởng sản xuất dùng làm tâm tính bán kính giao hàng"
+        );
+
+        seedSettingIfNotExists(
+                "STORE_MAX_DELIVERY_RADIUS_KM",
+                "25.0",
+                "DECIMAL",
+                "Bán kính giao hàng tối đa cho phép (km) tính từ xưởng sản xuất"
+        );
+
+        seedSettingIfNotExists(
+                "STORE_HOTLINE",
+                "0987654321",
+                "STRING",
+                "Số điện thoại hotline tư vấn hỗ trợ khi đơn hàng ngoài vùng phục vụ"
+        );
+    }
+
+    private void seedSettingIfNotExists(String key, String value, String dataType, String description) {
+        systemSettingRepository.findBySettingKeyAndIsDeletedFalse(key)
                 .ifPresentOrElse(
                         setting -> log.debug("[DataInitializer] SystemSetting '{}' đã tồn tại: {}",
                                 setting.getSettingKey(), setting.getSettingValue()),
                         () -> {
                             SystemSetting setting = SystemSetting.builder()
-                                    .settingKey("ORDER_UNDO_CANCEL_WINDOW_MINUTES")
-                                    .settingValue("60")
-                                    .dataType("INT")
-                                    .description("Thời gian tối đa (phút) khách hàng được phép hoàn tác đơn hàng vừa bị hủy")
+                                    .settingKey(key)
+                                    .settingValue(value)
+                                    .dataType(dataType)
+                                    .description(description)
                                     .isDeleted(false)
                                     .build();
                             systemSettingRepository.save(setting);
-                            log.info("[DataInitializer] Khởi tạo SystemSetting mặc định '{}' = 60", setting.getSettingKey());
+                            log.info("[DataInitializer] Khởi tạo SystemSetting mặc định '{}' = {}", key, value);
                         }
                 );
     }

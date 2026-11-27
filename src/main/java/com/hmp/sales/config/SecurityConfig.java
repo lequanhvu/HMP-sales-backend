@@ -64,7 +64,8 @@ public class SecurityConfig {
             "/api/v1/brands/**",
             "/api/v1/units/**",
             "/api/v1/colors/**",
-            "/api/v1/search/**"
+            "/api/v1/search/**",
+            "/api/v1/delivery/**"
     };
 
     private final AppProperties appProperties;

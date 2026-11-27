@@ -1,5 +1,6 @@
 package com.hmp.sales.feature.order.dto;
 
+import com.hmp.sales.feature.order.entity.DeliveryMethod;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
@@ -13,11 +14,12 @@ import java.util.List;
 /**
  * Record chứa thông tin yêu cầu tạo đơn hàng mới từ khách hàng.
  *
- * @param receiverName  họ và tên người nhận hàng
- * @param receiverPhone số điện thoại người nhận hàng (đã xác thực OTP)
- * @param addressId     mã ID địa chỉ nhận hàng đã lưu trong sổ địa chỉ của khách hàng
- * @param note          ghi chú đơn hàng của khách hàng
- * @param items         danh sách các sản phẩm đặt mua
+ * @param receiverName   họ và tên người nhận hàng
+ * @param receiverPhone  số điện thoại người nhận hàng (đã xác thực OTP)
+ * @param addressId      mã ID địa chỉ nhận hàng đã lưu trong sổ địa chỉ của khách hàng
+ * @param note           ghi chú đơn hàng của khách hàng
+ * @param items          danh sách các sản phẩm đặt mua
+ * @param deliveryMethod hình thức nhận hàng (SHIPPING: giao tận nơi, PICKUP: tự bốc hàng tại xưởng)
  */
 public record CreateOrderRequest(
         @NotBlank(message = "Tên người nhận không được để trống")
@@ -36,5 +38,21 @@ public record CreateOrderRequest(
         String note,
 
         @NotEmpty(message = "Đơn hàng phải chứa ít nhất một sản phẩm")
-        List<@Valid OrderItemRequest> items
-) {}
+        List<@Valid OrderItemRequest> items,
+
+        DeliveryMethod deliveryMethod
+) {
+    public CreateOrderRequest {
+        if (deliveryMethod == null) {
+            deliveryMethod = DeliveryMethod.SHIPPING;
+        }
+    }
+
+    /**
+     * Constructor tương thích ngược không có deliveryMethod (mặc định SHIPPING).
+     */
+    public CreateOrderRequest(String receiverName, String receiverPhone, Long addressId, String note, List<@Valid OrderItemRequest> items) {
+        this(receiverName, receiverPhone, addressId, note, items, DeliveryMethod.SHIPPING);
+    }
+}
+

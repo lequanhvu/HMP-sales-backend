@@ -1,6 +1,6 @@
 # Project Status
 
-> Last updated: 2026-11-27 | By: @antigravity | Session: #26
+> Last updated: 2026-11-27 | By: @antigravity | Session: #27
 >
 > AI: update this file at the end of every session when asked.
 > Follow this exact format. Preserve full milestone checklists and project specifications.
@@ -8,6 +8,28 @@
 ---
 
 ## Completed
+- ✅ **Phân hệ Quản lý Địa giới Hành chính 3 Cấp (Tỉnh/Huyện/Xã) & Tọa độ Địa chỉ Khách hàng (Session #27 - Completed)**:
+  * **Mở rộng Thực thể & DTO Sổ Địa chỉ**:
+    * Bổ sung 3 trường `province` (Tỉnh/Thành phố), `district` (Quận/Huyện), `ward` (Phường/Xã) vào thực thể [`CustomerAddress`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/user/entity/CustomerAddress.java) (`VARCHAR(100)`).
+    * Bổ sung 3 trường vào [`AddressRequest`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/user/dto/AddressRequest.java) với validation `@Size(max = 100)`.
+    * Bổ sung 3 trường vào [`AddressResponse`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/user/dto/AddressResponse.java) và ánh xạ trong `fromEntity()`.
+    * Cập nhật [`CustomerAddressServiceImpl`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/user/service/CustomerAddressServiceImpl.java) để lưu và cập nhật `province`, `district`, `ward`.
+    * Toàn bộ **517/517 tests pass 100%**.
+- ✅ **Phân hệ Tính toán Khoảng cách & Kiểm soát Bán kính Giao hàng Địa phương (Delivery Radius Enforcement - Session #27)**:
+  * **Thuật toán & Tiện ích Trắc địa Thuần túy (`GeoUtils`)**:
+    * Triển khai công thức Haversine tính khoảng cách đường chim bay trên mặt cầu Trái Đất (bán kính R = 6371 km) trong [`GeoUtils`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/common/util/GeoUtils.java). Hoàn toàn độc lập, không tốn chi phí API và không phụ thuộc mạng bên ngoài.
+  * **Cấu hình Động Vị trí Xưởng & Bán kính trong Cơ sở Dữ liệu**:
+    * Lưu trữ các cài đặt `STORE_NAME`, `STORE_ADDRESS`, `STORE_LATITUDE`, `STORE_LONGITUDE`, `STORE_MAX_DELIVERY_RADIUS_KM` (25.0 km), `STORE_HOTLINE` trong bảng `system_settings` qua [`DataInitializer`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/config/DataInitializer.java). Quản trị viên có thể điều chỉnh linh hoạt mọi lúc.
+  * **Phân hệ Giao hàng (`DeliveryService` & `PublicDeliveryController`)**:
+    * Cung cấp các API công khai không yêu cầu token: `GET /api/v1/delivery/store-info` và `GET /api/v1/delivery/check-distance`.
+    * Phản hồi DTO [`DeliveryDistanceResponse`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/delivery/dto/DeliveryDistanceResponse.java) và [`StoreInfoResponse`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/delivery/dto/StoreInfoResponse.java).
+  * **Tích hợp Vào Luồng Đặt Hàng (`CustomerOrderServiceImpl`)**:
+    * Bổ sung enum [`DeliveryMethod`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/order/entity/DeliveryMethod.java): `SHIPPING` (Giao hàng tận nơi) và `PICKUP` (Khách tự bốc hàng tại xưởng).
+    * Mở rộng bảng `customer_addresses` lưu `latitude`, `longitude` và bảng `orders` lưu `delivery_method`, `delivery_latitude`, `delivery_longitude`, `delivery_distance_km`.
+    * Ràng buộc chặt chẽ tại Backend: Khi đặt hàng `SHIPPING`, nếu thiếu tọa độ hoặc khoảng cách vượt quá bán kính cấu hình, hệ thống lập tức từ chối và hướng dẫn liên hệ Hotline hoặc chọn `PICKUP`.
+  * **Kiểm thử Toàn diện & Đồng bộ**:
+    * Viết mới 7 unit tests trong [`GeoUtilsTest`](file:///d:/HMP/sales-backend/src/test/java/com/hmp/sales/common/util/GeoUtilsTest.java), 6 unit tests trong [`DeliveryServiceImplTest`](file:///d:/HMP/sales-backend/src/test/java/com/hmp/sales/feature/delivery/service/DeliveryServiceImplTest.java), 2 API tests trong [`PublicDeliveryControllerTest`](file:///d:/HMP/sales-backend/src/test/java/com/hmp/sales/feature/delivery/controller/PublicDeliveryControllerTest.java), và cập nhật [`CustomerOrderServiceImplTest`](file:///d:/HMP/sales-backend/src/test/java/com/hmp/sales/feature/order/service/CustomerOrderServiceImplTest.java).
+    * Toàn bộ **517/517 tests pass 100%**.
 - ✅ **Phân hệ Cổng gửi SMS OTP Thực tế (Production SMS Gateway & Chống SMS Bombing) completed (Session #26)**:
   * **Trừu tượng hóa & Đa hình Bộ gửi OTP (`OtpSender`)**:
     * Định nghĩa interface [`OtpSender`](file:///d:/HMP/sales-backend/src/main/java/com/hmp/sales/feature/otp/sender/OtpSender.java) chịu trách nhiệm gửi OTP qua viễn thông.

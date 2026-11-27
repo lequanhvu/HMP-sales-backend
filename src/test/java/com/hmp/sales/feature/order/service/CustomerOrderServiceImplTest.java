@@ -5,6 +5,7 @@ import com.hmp.sales.common.exception.InvalidOrderStateException;
 import com.hmp.sales.common.exception.OtpVerificationException;
 import com.hmp.sales.common.exception.ResourceNotFoundException;
 import com.hmp.sales.common.response.PageResponse;
+import com.hmp.sales.feature.delivery.service.DeliveryService;
 import com.hmp.sales.feature.notification.event.OrderStatusChangedEvent;
 import com.hmp.sales.feature.order.dto.CancelOrderRequest;
 import com.hmp.sales.feature.order.dto.CreateOrderRequest;
@@ -12,6 +13,7 @@ import com.hmp.sales.feature.order.dto.OrderDetailResponse;
 import com.hmp.sales.feature.order.dto.OrderFilterRequest;
 import com.hmp.sales.feature.order.dto.OrderItemRequest;
 import com.hmp.sales.feature.order.dto.OrderSummaryResponse;
+import com.hmp.sales.feature.order.entity.DeliveryMethod;
 import com.hmp.sales.feature.order.entity.Order;
 import com.hmp.sales.feature.order.entity.OrderItem;
 import com.hmp.sales.feature.order.entity.OrderStatus;
@@ -976,6 +978,142 @@ class CustomerOrderServiceImplTest {
         assertThatThrownBy(() -> customerOrderService.undoCancelOrder(1L, 10L))
                 .isInstanceOf(BusinessRuleException.class)
                 .hasMessageContaining("PENDING hoặc CONFIRMED");
+    }
+
+    @Test
+    @DisplayName("Tạo đơn hàng SHIPPING: Tọa độ hợp lệ và trong bán kính phục vụ → Thành công và lưu khoảng cách")
+    void createOrder_shipping_withinRadius_success() {
+        DeliveryService mockDeliveryService = org.mockito.Mockito.mock(DeliveryService.class);
+        CustomerOrderServiceImpl serviceWithDelivery = new CustomerOrderServiceImpl(
+                orderRepository, orderItemRepository, orderStatusHistoryRepository, userRepository,
+                productRepository, productVariantRepository, colorRepository, unitRepository,
+                productColorRepository, productPriceRepository, phoneOtpService, systemSettingService,
+                customerAddressRepository, permissionEvaluationService, eventPublisher, mockDeliveryService);
+
+        CustomerAddress addressWithCoords = CustomerAddress.builder()
+                .id(5L)
+                .customer(sampleCustomer)
+                .addressLine("Thôn Đông, Xã Hợp Thịnh")
+                .latitude(new BigDecimal("21.380000"))
+                .longitude(new BigDecimal("105.580000"))
+                .isDefault(true)
+                .build();
+
+        CreateOrderRequest request = new CreateOrderRequest(
+                "Nguyễn Văn A", "0987654321", 5L, "Giao buổi sáng",
+                List.of(new OrderItemRequest(100L, 1001L, 1L, 2L, new BigDecimal("10"), new BigDecimal("5"))),
+                DeliveryMethod.SHIPPING
+        );
+
+        when(userRepository.findById(1L)).thenReturn(Optional.of(sampleCustomer));
+        when(customerAddressRepository.findByIdAndCustomerIdAndIsDeletedFalse(5L, 1L)).thenReturn(Optional.of(addressWithCoords));
+        when(mockDeliveryService.validateDeliveryLocation(new BigDecimal("21.380000"), new BigDecimal("105.580000")))
+                .thenReturn(new BigDecimal("5.50"));
+
+        when(productRepository.findById(100L)).thenReturn(Optional.of(sampleProduct));
+        when(productVariantRepository.findById(1001L)).thenReturn(Optional.of(sampleVariant));
+        when(colorRepository.findByIdAndIsDeletedFalse(1L)).thenReturn(Optional.of(sampleColor));
+        when(unitRepository.findByIdAndIsDeletedFalse(2L)).thenReturn(Optional.of(sampleUnit));
+        when(productColorRepository.existsByVariantIdAndColorId(1001L, 1L)).thenReturn(true);
+        when(productPriceRepository.existsByVariantIdAndUnitId(1001L, 2L)).thenReturn(true);
+
+        when(orderRepository.save(any(Order.class))).thenAnswer(invocation -> {
+            Order o = invocation.getArgument(0);
+            o.setId(99L);
+            return o;
+        });
+        when(orderItemRepository.saveAll(any())).thenReturn(List.of());
+        when(orderStatusHistoryRepository.save(any())).thenReturn(new OrderStatusHistory());
+
+        OrderDetailResponse response = serviceWithDelivery.createOrder(1L, request);
+
+        assertThat(response).isNotNull();
+        assertThat(response.deliveryMethod()).isEqualTo(DeliveryMethod.SHIPPING);
+        assertThat(response.deliveryDistanceKm()).isEqualByComparingTo(new BigDecimal("5.50"));
+        verify(mockDeliveryService).validateDeliveryLocation(new BigDecimal("21.380000"), new BigDecimal("105.580000"));
+    }
+
+    @Test
+    @DisplayName("Tạo đơn hàng SHIPPING: Địa chỉ thiếu tọa độ bản đồ → Ném BusinessRuleException")
+    void createOrder_shipping_missingCoordinates_throwsException() {
+        DeliveryService mockDeliveryService = org.mockito.Mockito.mock(DeliveryService.class);
+        CustomerOrderServiceImpl serviceWithDelivery = new CustomerOrderServiceImpl(
+                orderRepository, orderItemRepository, orderStatusHistoryRepository, userRepository,
+                productRepository, productVariantRepository, colorRepository, unitRepository,
+                productColorRepository, productPriceRepository, phoneOtpService, systemSettingService,
+                customerAddressRepository, permissionEvaluationService, eventPublisher, mockDeliveryService);
+
+        CustomerAddress addressWithoutCoords = CustomerAddress.builder()
+                .id(6L)
+                .customer(sampleCustomer)
+                .addressLine("Địa chỉ chưa ghim map")
+                .latitude(null)
+                .longitude(null)
+                .isDefault(true)
+                .build();
+
+        CreateOrderRequest request = new CreateOrderRequest(
+                "Nguyễn Văn A", "0987654321", 6L, "Ghi chú",
+                List.of(new OrderItemRequest(100L, 1001L, 1L, 2L, new BigDecimal("10"), new BigDecimal("5"))),
+                DeliveryMethod.SHIPPING
+        );
+
+        when(userRepository.findById(1L)).thenReturn(Optional.of(sampleCustomer));
+        when(customerAddressRepository.findByIdAndCustomerIdAndIsDeletedFalse(6L, 1L)).thenReturn(Optional.of(addressWithoutCoords));
+
+        assertThatThrownBy(() -> serviceWithDelivery.createOrder(1L, request))
+                .isInstanceOf(BusinessRuleException.class)
+                .hasMessageContaining("Địa chỉ nhận hàng chưa có tọa độ vị trí ghim trên bản đồ");
+    }
+
+    @Test
+    @DisplayName("Tạo đơn hàng PICKUP (Nhận tại xưởng): Bỏ qua kiểm tra bán kính giao hàng")
+    void createOrder_pickup_successWithoutDistanceCheck() {
+        DeliveryService mockDeliveryService = org.mockito.Mockito.mock(DeliveryService.class);
+        CustomerOrderServiceImpl serviceWithDelivery = new CustomerOrderServiceImpl(
+                orderRepository, orderItemRepository, orderStatusHistoryRepository, userRepository,
+                productRepository, productVariantRepository, colorRepository, unitRepository,
+                productColorRepository, productPriceRepository, phoneOtpService, systemSettingService,
+                customerAddressRepository, permissionEvaluationService, eventPublisher, mockDeliveryService);
+
+        CustomerAddress addressWithoutCoords = CustomerAddress.builder()
+                .id(7L)
+                .customer(sampleCustomer)
+                .addressLine("Khách đến xưởng lấy hàng")
+                .latitude(null)
+                .longitude(null)
+                .isDefault(true)
+                .build();
+
+        CreateOrderRequest request = new CreateOrderRequest(
+                "Nguyễn Văn A", "0987654321", 7L, "Khách có xe tải riêng",
+                List.of(new OrderItemRequest(100L, 1001L, 1L, 2L, new BigDecimal("10"), new BigDecimal("5"))),
+                DeliveryMethod.PICKUP
+        );
+
+        when(userRepository.findById(1L)).thenReturn(Optional.of(sampleCustomer));
+        when(customerAddressRepository.findByIdAndCustomerIdAndIsDeletedFalse(7L, 1L)).thenReturn(Optional.of(addressWithoutCoords));
+
+        when(productRepository.findById(100L)).thenReturn(Optional.of(sampleProduct));
+        when(productVariantRepository.findById(1001L)).thenReturn(Optional.of(sampleVariant));
+        when(colorRepository.findByIdAndIsDeletedFalse(1L)).thenReturn(Optional.of(sampleColor));
+        when(unitRepository.findByIdAndIsDeletedFalse(2L)).thenReturn(Optional.of(sampleUnit));
+        when(productColorRepository.existsByVariantIdAndColorId(1001L, 1L)).thenReturn(true);
+        when(productPriceRepository.existsByVariantIdAndUnitId(1001L, 2L)).thenReturn(true);
+
+        when(orderRepository.save(any(Order.class))).thenAnswer(invocation -> {
+            Order o = invocation.getArgument(0);
+            o.setId(101L);
+            return o;
+        });
+        when(orderItemRepository.saveAll(any())).thenReturn(List.of());
+        when(orderStatusHistoryRepository.save(any())).thenReturn(new OrderStatusHistory());
+
+        OrderDetailResponse response = serviceWithDelivery.createOrder(1L, request);
+
+        assertThat(response).isNotNull();
+        assertThat(response.deliveryMethod()).isEqualTo(DeliveryMethod.PICKUP);
+        org.mockito.Mockito.verifyNoInteractions(mockDeliveryService);
     }
 }
 

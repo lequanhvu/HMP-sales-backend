@@ -938,7 +938,12 @@ GET /api/v1/me/addresses
   "data": [
     {
       "addressId": 1,
-      "address": "123 Example Street",
+      "address": "123 Example Street, Xã Thái Sơn, Huyện Thái Thụy, Tỉnh Thái Bình",
+      "province": "Tỉnh Thái Bình",
+      "district": "Huyện Thái Thụy",
+      "ward": "Xã Thái Sơn",
+      "latitude": 20.534212,
+      "longitude": 106.562145,
       "isDefault": true,
       "status": "ACTIVE"
     }
@@ -969,7 +974,12 @@ POST /api/v1/me/addresses
 
 ```json
 {
-  "address": "123 Example Street",
+  "address": "Cầu Hoàng Nguyên, Xã Thái Sơn, Huyện Thái Thụy, Tỉnh Thái Bình",
+  "province": "Tỉnh Thái Bình",
+  "district": "Huyện Thái Thụy",
+  "ward": "Xã Thái Sơn",
+  "latitude": 20.534212,
+  "longitude": 106.562145,
   "isDefault": true
 }
 ```
@@ -981,7 +991,12 @@ POST /api/v1/me/addresses
   "statusCode": 201,
   "data": {
     "addressId": 2,
-    "address": "123 Example Street",
+    "address": "Cầu Hoàng Nguyên, Xã Thái Sơn, Huyện Thái Thụy, Tỉnh Thái Bình",
+    "province": "Tỉnh Thái Bình",
+    "district": "Huyện Thái Thụy",
+    "ward": "Xã Thái Sơn",
+    "latitude": 20.534212,
+    "longitude": 106.562145,
     "isDefault": true,
     "status": "ACTIVE"
   },
@@ -1011,7 +1026,12 @@ PATCH /api/v1/me/addresses/{addressId}
 
 ```json
 {
-  "address": "456 New Street",
+  "address": "456 New Street, Xã Thái Sơn, Huyện Thái Thụy, Tỉnh Thái Bình",
+  "province": "Tỉnh Thái Bình",
+  "district": "Huyện Thái Thụy",
+  "ward": "Xã Thái Sơn",
+  "latitude": 20.534212,
+  "longitude": 106.562145,
   "isDefault": false
 }
 ```
@@ -1023,7 +1043,12 @@ PATCH /api/v1/me/addresses/{addressId}
   "statusCode": 200,
   "data": {
     "addressId": 2,
-    "address": "456 New Street",
+    "address": "456 New Street, Xã Thái Sơn, Huyện Thái Thụy, Tỉnh Thái Bình",
+    "province": "Tỉnh Thái Bình",
+    "district": "Huyện Thái Thụy",
+    "ward": "Xã Thái Sơn",
+    "latitude": 20.534212,
+    "longitude": 106.562145,
     "isDefault": false,
     "status": "ACTIVE"
   },
@@ -4446,6 +4471,80 @@ Authorization: Bearer <customer_jwt>
   "data": null,
   "message": "Đã làm trống giỏ hàng.",
   "timestamp": "2026-11-25T10:40:00"
+}
+```
+
+---
+
+# 17.7 Delivery & Geo Verification APIs
+
+## 17.7.1 Get Store Info
+
+Public API retrieving workshop location coordinates, maximum delivery service radius, and contact hotline.
+
+```http
+GET /api/v1/delivery/store-info
+```
+
+### Success response — 200
+
+```json
+{
+  "statusCode": 200,
+  "data": {
+    "storeName": "Xưởng Cán Tôn HMP",
+    "storeAddress": "Thôn Liễn Sơn, Huyện Lập Thạch, Tỉnh Vĩnh Phúc",
+    "storeLatitude": 21.352410,
+    "storeLongitude": 105.541280,
+    "maxDeliveryRadiusKm": 25.0,
+    "storeHotline": "0987654321"
+  },
+  "message": "Lấy thông tin cửa hàng thành công",
+  "timestamp": "2026-11-27T02:00:00"
+}
+```
+
+## 17.7.2 Check Delivery Distance
+
+Public API checking geodesic distance (Haversine formula) from store center to customer coordinates.
+
+```http
+GET /api/v1/delivery/check-distance?lat=21.360000&lng=105.550000
+```
+
+### Success response — 200 (Within Radius)
+
+```json
+{
+  "statusCode": 200,
+  "data": {
+    "distanceKm": 1.22,
+    "maxRadiusKm": 25.0,
+    "withinRadius": true,
+    "storeName": "Xưởng Cán Tôn HMP",
+    "storeAddress": "Thôn Liễn Sơn, Huyện Lập Thạch, Tỉnh Vĩnh Phúc",
+    "storeHotline": "0987654321"
+  },
+  "message": "Kiểm tra khoảng cách giao hàng thành công",
+  "timestamp": "2026-11-27T02:00:00"
+}
+```
+
+### Success response — 200 (Out of Radius)
+
+```json
+{
+  "statusCode": 200,
+  "data": {
+    "distanceKm": 42.15,
+    "maxRadiusKm": 25.0,
+    "withinRadius": false,
+    "storeName": "Xưởng Cán Tôn HMP",
+    "storeAddress": "Thôn Liễn Sơn, Huyện Lập Thạch, Tỉnh Vĩnh Phúc",
+    "storeHotline": "0987654321"
+  },
+  "message": "Kiểm tra khoảng cách giao hàng thành công",
+  "timestamp": "2026-11-27T02:00:00"
 }
 ```
 

@@ -19,6 +19,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.Objects;
 
@@ -54,10 +55,40 @@ public class CustomerAddress {
     private User customer;
 
     /**
-     * Địa chỉ chi tiết nhận hàng (số nhà, đường, phường/xã, quận/huyện, tỉnh/thành phố).
+     * Địa chỉ chi tiết nhận hàng (số nhà, đường, thôn/ấp/xóm...).
      */
     @Column(name = "address_line", nullable = false, length = 500)
     private String addressLine;
+
+    /**
+     * Tỉnh / Thành phố trực thuộc trung ương (ví dụ: Tỉnh Vĩnh Phúc, Tỉnh Thái Bình).
+     */
+    @Column(name = "province", length = 100)
+    private String province;
+
+    /**
+     * Quận / Huyện / Thị xã (ví dụ: Huyện Lập Thạch, Huyện Thái Thụy).
+     */
+    @Column(name = "district", length = 100)
+    private String district;
+
+    /**
+     * Phường / Xã / Thị trấn (ví dụ: Xã Liễn Sơn, Xã Thái Giang).
+     */
+    @Column(name = "ward", length = 100)
+    private String ward;
+
+    /**
+     * Vĩ độ (latitude) ghim trên bản đồ (ví dụ: 20.98123456).
+     */
+    @Column(name = "latitude", precision = 10, scale = 8)
+    private BigDecimal latitude;
+
+    /**
+     * Kinh độ (longitude) ghim trên bản đồ (ví dụ: 105.78123456).
+     */
+    @Column(name = "longitude", precision = 11, scale = 8)
+    private BigDecimal longitude;
 
     /**
      * Cờ đánh dấu địa chỉ mặc định của khách hàng.

@@ -62,6 +62,11 @@ public class CustomerAddressServiceImpl implements CustomerAddressService {
         CustomerAddress address = CustomerAddress.builder()
                 .customer(user)
                 .addressLine(request.address().trim())
+                .province(request.province() != null && !request.province().isBlank() ? request.province().trim() : null)
+                .district(request.district() != null && !request.district().isBlank() ? request.district().trim() : null)
+                .ward(request.ward() != null && !request.ward().isBlank() ? request.ward().trim() : null)
+                .latitude(request.latitude())
+                .longitude(request.longitude())
                 .isDefault(shouldBeDefault)
                 .status(AddressStatus.ACTIVE)
                 .isDeleted(false)
@@ -86,6 +91,21 @@ public class CustomerAddressServiceImpl implements CustomerAddressService {
 
         if (request.address() != null && !request.address().isBlank()) {
             address.setAddressLine(request.address().trim());
+        }
+        if (request.province() != null) {
+            address.setProvince(request.province().isBlank() ? null : request.province().trim());
+        }
+        if (request.district() != null) {
+            address.setDistrict(request.district().isBlank() ? null : request.district().trim());
+        }
+        if (request.ward() != null) {
+            address.setWard(request.ward().isBlank() ? null : request.ward().trim());
+        }
+        if (request.latitude() != null) {
+            address.setLatitude(request.latitude());
+        }
+        if (request.longitude() != null) {
+            address.setLongitude(request.longitude());
         }
 
         CustomerAddress saved = customerAddressRepository.save(address);
